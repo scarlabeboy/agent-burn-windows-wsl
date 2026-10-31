@@ -27,6 +27,15 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"]
+    "externalBin": ["binaries/agent-burn"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"],
+    "publisher": "scarlabeboy",
+    "shortDescription": "Agent Burn for Windows, WSL and combined usage",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["French", "English"]
+      }
+    }
   }
 }

@@ -1,44 +1,45 @@
 import type { QuotaReading, QuotaWindow } from "./types";
 
+const MINUTE_MS = 60_000;
+
 export interface GaugeModel {
-  label: string;
+  window: QuotaWindow;
   remaining: number;
   /** Elapsed share of the window minus used share: positive means under the even pace. */
   pace: number;
   minutesToReset: number;
   /** Minutes until the quota runs out at the current rate, when that is before the reset. */
   minutesToEmpty: number | null;
+  startMs: number;
+  endMs: number;
 }
 
 export interface QuotaCard {
   harness: string;
   sources: string[];
   observedAt: number;
-  gauges: GaugeModel[];
+  session?: GaugeModel;
+  weekly: GaugeModel;
 }
 
-export function gauge(label: string, window: QuotaWindow): GaugeModel {
+export function gauge(window: QuotaWindow, observedAt: number): GaugeModel {
   const used = window.usedPercent;
   const elapsed = window.elapsedPercent;
+  const windowMs = window.windowMinutes * MINUTE_MS;
+  const startMs = observedAt - (elapsed / 100) * windowMs;
   const minutesToReset = window.windowMinutes * (1 - elapsed / 100);
   const elapsedMinutes = window.windowMinutes * (elapsed / 100);
-  const minutesToEmpty =
+  const untilEmpty =
     used > 0 && elapsed > 0 ? elapsedMinutes * (100 / used) - elapsedMinutes : null;
   return {
-    label,
+    window,
     remaining: Math.max(0, 100 - used),
     pace: elapsed - used,
     minutesToReset,
-    minutesToEmpty:
-      minutesToEmpty !== null && minutesToEmpty < minutesToReset ? minutesToEmpty : null,
+    minutesToEmpty: untilEmpty !== null && untilEmpty < minutesToReset ? untilEmpty : null,
+    startMs,
+    endMs: startMs + windowMs,
   };
-}
-
-function gaugesOf(reading: QuotaReading): GaugeModel[] {
-  return [
-    ...(reading.sessionWindow ? [gauge("Session 5 h", reading.sessionWindow)] : []),
-    gauge("Hebdomadaire", reading.window),
-  ];
 }
 
 /**
@@ -63,7 +64,8 @@ export function quotaCards(readings: { source: string; reading: QuotaReading }[]
         harness: reading.agent,
         sources: [source],
         observedAt: reading.observedAt,
-        gauges: gaugesOf(reading),
+        session: reading.sessionWindow && gauge(reading.sessionWindow, reading.observedAt),
+        weekly: gauge(reading.window, reading.observedAt),
       });
     }
   }
@@ -79,3 +81,36 @@ export function formatDuration(minutes: number): string {
   if (hours > 0) return `${hours}h ${String(mins).padStart(2, "0")}m`;
   return `${mins}m`;
 }
+
+export interface Forecast {
+  /** Remaining percentage expected at the reset when the current rate continues. */
+  remainingAtReset: number;
+  /** Instant the quota hits zero, when that happens before the reset. */
+  emptyAtMs: number | null;
+}
+
+export function forecast(model: GaugeModel): Forecast | null {
+  const { usedPercent, elapsedPercent } = model.window;
+  if (elapsedPercent < 1 || usedPercent <= 0) {
+    return { remainingAtReset: model.remaining, emptyAtMs: null };
+  }
+  const projectedUsed = (usedPercent / elapsedPercent) * 100;
+  const remainingAtReset = Math.max(0, 100 - projectedUsed);
+  const emptyAtMs =
+    projectedUsed > 100
+      ? model.startMs + (100 / projectedUsed) * (model.endMs - model.startMs)
+      : null;
+  return { remainingAtReset, emptyAtMs };
+}
+
+export const formatClock = (ms: number, withDay: boolean): string =>
+  new Intl.DateTimeFormat("fr-FR", {
+    ...(withDay ? { weekday: "short" } : {}),
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(ms);
+
+export const formatDay = (ms: number): string =>
+  new Intl.DateTimeFormat("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit" }).format(
+    ms,
+  );

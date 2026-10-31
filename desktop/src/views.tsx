@@ -1,0 +1,368 @@
+import { useMemo, useState, type ReactNode } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { formatTokens, formatUsd, tokensPerDollar } from "./aggregate";
+import { QuotaChart } from "./QuotaChart";
+import { formatDay, formatDuration, type GaugeModel, type QuotaCard } from "./quota";
+import type { AgentReport, TokenBreakdown, UsageReport } from "./types";
+import amp from "./assets/brands/amp.png";
+import claude from "./assets/brands/claude.png";
+import codex from "./assets/brands/codex.png";
+import cursor from "./assets/brands/cursor.png";
+import droid from "./assets/brands/droid.png";
+import gemini from "./assets/brands/gemini.png";
+import kimi from "./assets/brands/kimi.png";
+import openclaw from "./assets/brands/openclaw.png";
+import opencode from "./assets/brands/opencode.png";
+import pi from "./assets/brands/pi.png";
+import qwen from "./assets/brands/qwen.png";
+
+const BRANDS: Record<string, string> = {
+  amp, claude, codex, cursor, droid, gemini, kimi, openclaw, opencode, pi, qwen,
+};
+
+const AGENT_COLORS: Record<string, string> = {
+  codex: "#2ed573",
+  claude: "#ff8a3d",
+  cursor: "#c44dff",
+  opencode: "#4f7cff",
+  openclaw: "#ff4d5e",
+};
+const FALLBACK_COLORS = ["#2ec4b6", "#f4d35e", "#ee6c9a", "#8d99ae", "#7bdff2"];
+
+export function agentColor(agent: string): string {
+  if (AGENT_COLORS[agent]) return AGENT_COLORS[agent];
+  let hash = 0;
+  for (const char of agent) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return FALLBACK_COLORS[hash % FALLBACK_COLORS.length];
+}
+
+const AGENT_LABELS: Record<string, string> = {
+  claude: "Claude Code",
+  codex: "Codex",
+  cursor: "Cursor",
+  opencode: "OpenCode",
+  openclaw: "Openclaw",
+  droid: "Droid",
+  gemini: "Gemini",
+  kimi: "Kimi",
+  pi: "Pi",
+  amp: "Amp",
+  qwen: "Qwen",
+};
+export const agentLabel = (agent: string) => AGENT_LABELS[agent] ?? agent;
+
+export function BrandIcon({ agent, size = 22 }: { agent: string; size?: number }) {
+  const src = BRANDS[agent];
+  return src ? (
+    <img className="brand" src={src} width={size} height={size} alt="" />
+  ) : (
+    <span className="brand fallback" style={{ width: size, height: size, background: agentColor(agent) }}>
+      {agentLabel(agent).slice(0, 1)}
+    </span>
+  );
+}
+
+export const asReport = (agent: AgentReport): UsageReport => ({
+  agents: [agent],
+  daily: agent.daily,
+  models: agent.models,
+  totals: { totalCost: agent.totalCost, totalTokens: agent.totalTokens },
+});
+
+type Granularity = "daily" | "weekly" | "monthly";
+type Metric = "tokens" | "cost";
+
+function bucketKey(date: string, granularity: Granularity): string {
+  if (granularity === "monthly") return date.slice(0, 7);
+  if (granularity === "weekly") {
+    const day = new Date(`${date}T00:00:00Z`);
+    const offset = (day.getUTCDay() + 6) % 7; // Monday start
+    day.setUTCDate(day.getUTCDate() - offset);
+    return day.toISOString().slice(0, 10);
+  }
+  return date;
+}
+
+function chartRows(agents: AgentReport[], granularity: Granularity, metric: Metric) {
+  const rows = new Map<string, Record<string, number | string>>();
+  for (const agent of agents) {
+    for (const point of agent.daily) {
+      const key = bucketKey(point.date, granularity);
+      const row = rows.get(key) ?? { bucket: key };
+      row[agent.agent] = ((row[agent.agent] as number) ?? 0) + point[metric];
+      rows.set(key, row);
+    }
+  }
+  return [...rows.values()].sort((a, b) => String(a.bucket).localeCompare(String(b.bucket)));
+}
+
+export function Stats({ report, label }: { report: UsageReport; label: string }) {
+  const tokens = report.totals.totalTokens;
+  const cost = report.totals.totalCost;
+  return (
+    <section className="card stats">
+      <Stat title="Dépense totale" value={formatUsd(cost)} hint="Valeur équivalente API" />
+      <Stat title="Tokens" value={formatTokens(tokens)} hint="Entrée, sortie et cache" />
+      <Stat title="Tokens moyens / $" value={tokensPerDollar(tokens, cost)} hint="Sur toute la période" />
+      <Stat title="Modèles" value={String(report.models.length)} hint={label} />
+    </section>
+  );
+}
+
+function Stat({ title, value, hint }: { title: string; value: string; hint: string }) {
+  return (
+    <div className="stat">
+      <div className="stat-label">{title}</div>
+      <div className="stat-value">{value}</div>
+      <div className="stat-hint">{hint}</div>
+    </div>
+  );
+}
+
+export function SpendChart({ report }: { report: UsageReport }) {
+  const [granularity, setGranularity] = useState<Granularity>("monthly");
+  const [metric, setMetric] = useState<Metric>("cost");
+  const rows = useMemo(
+    () => chartRows(report.agents, granularity, metric),
+    [report, granularity, metric],
+  );
+  const labels = { daily: "Jour", weekly: "Semaine", monthly: "Mois" } as const;
+  return (
+    <section className="card chart-card">
+      <header className="card-head">
+        <h2>{metric === "cost" ? "Dépense" : "Tokens"}</h2>
+        <div className="seg">
+          {(Object.keys(labels) as Granularity[]).map((value) => (
+            <button key={value} className={granularity === value ? "on" : ""} onClick={() => setGranularity(value)}>
+              {labels[value]}
+            </button>
+          ))}
+        </div>
+        <div className="seg">
+          {(["cost", "tokens"] as const).map((value) => (
+            <button key={value} className={metric === value ? "on" : ""} onClick={() => setMetric(value)}>
+              {value === "cost" ? "USD" : "Tokens"}
+            </button>
+          ))}
+        </div>
+      </header>
+      <div className="chart">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+            <CartesianGrid stroke="var(--grid)" vertical={false} />
+            <XAxis dataKey="bucket" stroke="var(--muted)" tickLine={false} minTickGap={28} />
+            <YAxis
+              stroke="var(--muted)"
+              tickLine={false}
+              axisLine={false}
+              width={64}
+              tickFormatter={(value: number) => (metric === "tokens" ? formatTokens(value) : `$${Math.round(value)}`)}
+            />
+            <Tooltip
+              cursor={{ fill: "rgba(255,255,255,0.05)" }}
+              contentStyle={{ background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 8 }}
+              formatter={(value: number, name: string) => [
+                metric === "tokens" ? formatTokens(value) : formatUsd(value),
+                agentLabel(name),
+              ]}
+            />
+            {report.agents.map((agent) => (
+              <Bar key={agent.agent} dataKey={agent.agent} stackId="usage" fill={agentColor(agent.agent)} isAnimationActive={false} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="legend">
+        {report.agents.map((agent) => (
+          <span key={agent.agent}>
+            <i style={{ background: agentColor(agent.agent) }} />
+            {agentLabel(agent.agent)}
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function HarnessList({ report, onSelect }: { report: UsageReport; onSelect: (agent: string) => void }) {
+  const max = Math.max(...report.agents.map((agent) => agent.totalCost), 0.0001);
+  return (
+    <section className="card">
+      <header className="card-head">
+        <h2>Par harness</h2>
+        <span className="muted">{report.agents.length} actifs</span>
+      </header>
+      <ul className="harness-list">
+        {report.agents.map((agent) => (
+          <li key={agent.agent}>
+            <button className="harness-row" onClick={() => onSelect(agent.agent)}>
+              <BrandIcon agent={agent.agent} size={30} />
+              <div className="harness-body">
+                <div className="row">
+                  <strong>{agentLabel(agent.agent)}</strong>
+                  <span>{formatUsd(agent.totalCost)}</span>
+                </div>
+                <div className="bar">
+                  <div style={{ width: `${(agent.totalCost / max) * 100}%`, background: agentColor(agent.agent) }} />
+                </div>
+                <div className="muted small">{formatTokens(agent.totalTokens)} tokens</div>
+              </div>
+              <span className="chevron">›</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+export function Models({ report }: { report: UsageReport }) {
+  const [filter, setFilter] = useState("");
+  const rows = report.models.filter((row) => row.model.toLowerCase().includes(filter.trim().toLowerCase()));
+  return (
+    <section className="card">
+      <header className="card-head">
+        <h2>Modèles</h2>
+        <span className="muted">{report.models.length}</span>
+        <input className="filter" placeholder="Filtrer les modèles" value={filter} onChange={(event) => setFilter(event.target.value)} />
+      </header>
+      <table>
+        <thead>
+          <tr>
+            <th>Modèle</th>
+            <th className="num">Tokens</th>
+            <th className="num">Dépense</th>
+            <th className="num">Part</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.model}>
+              <td>{row.model}</td>
+              <td className="num">{formatTokens(row.totalTokens)}</td>
+              <td className="num">{formatUsd(row.totalCost)}</td>
+              <td className="num">{row.percentage.toFixed(1)}%</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+export function TokenBreakdownCard({ breakdown }: { breakdown: TokenBreakdown }) {
+  return (
+    <section className="card">
+      <header className="card-head">
+        <h2>Répartition des tokens</h2>
+      </header>
+      <div className="stats">
+        <Stat title="Entrée" value={formatTokens(breakdown.input)} hint="Hors cache" />
+        <Stat title="Sortie" value={formatTokens(breakdown.output)} hint="Générés" />
+        <Stat title="Écriture cache" value={formatTokens(breakdown.cacheWrite)} hint="Cache write" />
+        <Stat title="Lecture cache" value={formatTokens(breakdown.cacheRead)} hint="Cache read" />
+      </div>
+    </section>
+  );
+}
+
+export function EnvironmentSplit({ parts }: { parts: { label: string; report: UsageReport }[] }) {
+  const total = parts.reduce((sum, part) => sum + part.report.totals.totalTokens, 0) || 1;
+  return (
+    <section className="card">
+      <header className="card-head">
+        <h2>Par environnement</h2>
+        <span className="muted">Sources distinctes, additionnées</span>
+      </header>
+      <div className="env-split">
+        {parts.map((part) => (
+          <div key={part.label} className="env">
+            <div className="row">
+              <strong>{part.label}</strong>
+              <span>
+                {formatTokens(part.report.totals.totalTokens)} tokens · {formatUsd(part.report.totals.totalCost)}
+              </span>
+            </div>
+            <div className="bar">
+              <div style={{ width: `${(part.report.totals.totalTokens / total) * 100}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function GaugeCard({
+  title,
+  model,
+  card,
+  weekly,
+}: {
+  title: string;
+  model: GaugeModel;
+  card: QuotaCard;
+  weekly: boolean;
+}) {
+  const ahead = model.pace >= 0;
+  const color = agentColor(card.harness);
+  return (
+    <div className={`gauge-card${weekly && model.minutesToEmpty !== null ? " danger" : ""}`}>
+      <div className="row small muted">
+        <span className="caps">{title}</span>
+        <span>Reset dans {formatDuration(model.minutesToReset)}</span>
+      </div>
+      <div className="gauge-main">
+        <span className="gauge-value">{model.remaining.toFixed(0)}%</span>
+        <span className="muted"> restants</span>
+        <span className={ahead ? "pace ok" : "pace bad"}>
+          {ahead ? "+" : "−"}
+          {Math.abs(model.pace).toFixed(1)} pts {ahead ? "d'avance" : "de retard"}
+        </span>
+      </div>
+      <QuotaChart harness={card.harness} model={model} observedAt={card.observedAt} color={color} weekly={weekly} />
+    </div>
+  );
+}
+
+/** Subscription quota of one harness: warning banner plus the 5-hour and weekly charts. */
+export function QuotaSection({ card }: { card: QuotaCard }) {
+  const weekly = card.weekly;
+  const perDay = weekly.remaining / Math.max(weekly.minutesToReset / 1440, 0.01);
+  const emptyAt = weekly.minutesToEmpty !== null ? card.observedAt + weekly.minutesToEmpty * 60_000 : null;
+  return (
+    <section className="card">
+      <header className="card-head">
+        <h2>Quota {agentLabel(card.harness)}</h2>
+        <span className="muted small">
+          {card.sources.join(" · ")} · lecture en direct
+        </span>
+      </header>
+      {emptyAt !== null && (
+        <div className="banner">
+          <strong>La limite hebdomadaire sera atteinte ≈ {formatDay(emptyAt)}.</strong> Restez sous{" "}
+          {perDay.toFixed(1)} %/jour pour tenir jusqu'au reset ({formatDay(weekly.endMs)}).
+        </div>
+      )}
+      <div className="gauge-grid">
+        {card.session && <GaugeCard title="Session 5 h" model={card.session} card={card} weekly={false} />}
+        <GaugeCard title="Hebdomadaire" model={weekly} card={card} weekly />
+      </div>
+      <p className="muted small hint">
+        Les relevés sont enregistrés tant que l'application est ouverte ; la courbe commence au premier relevé.
+      </p>
+    </section>
+  );
+}
+
+export function Page({ children }: { children: ReactNode }) {
+  return <div className="stack">{children}</div>;
+}
