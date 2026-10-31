@@ -217,7 +217,7 @@ export default function App() {
       <aside className="sidebar">
         <div className="brand-row">
           <span className="flame">🔥</span>
-          <strong>Agent Burn</strong>
+          <strong>Agent Burn Windows</strong>
         </div>
         <button className={`nav${page === OVERVIEW ? " on" : ""}`} onClick={() => setPage(OVERVIEW)}>
           <span className="nav-icon">🔥</span>

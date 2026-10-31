@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Agent Burn",
+  "productName": "Agent Burn Windows",
   "version": "0.1.0",
   "identifier": "dev.scarlabeboy.agent-burn-windows",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Agent Burn",
+        "title": "Agent Burn Windows",
         "width": 1200,
         "height": 820,
         "minWidth": 920,
