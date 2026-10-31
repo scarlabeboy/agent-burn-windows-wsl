@@ -9,6 +9,23 @@ export const loadUsage = (distro: string | null, offline: boolean, claudePlan: s
 export const loadQuota = (harness: string, distro: string | null, force: boolean) =>
   invoke<QuotaReading>("load_quota", { harness, distro, force });
 
+export interface BackfillSeries {
+  windowMinutes: number;
+  endMinute: number;
+  /** `[timestamp ms, used percent]`, oldest first. */
+  samples: [number, number][];
+}
+
+type ArchiveName = "quota-history" | "report-cache";
+
+export const archiveRead = <T>(name: ArchiveName) => invoke<T | null>("archive_read", { name });
+
+export const archiveWrite = (name: ArchiveName, value: unknown) =>
+  invoke<void>("archive_write", { name, value });
+
+export const backfillCodex = (distro: string | null, sinceMs: number) =>
+  invoke<BackfillSeries[]>("backfill_codex", { distro, sinceMs });
+
 const SETTINGS_KEY = "abf.settings";
 const defaults: Settings = {
   wslEnabled: true,

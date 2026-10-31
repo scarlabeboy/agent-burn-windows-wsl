@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod archive;
+mod backfill;
 mod cli;
 mod sources;
 
@@ -35,12 +37,39 @@ async fn load_quota(harness: String, distro: Option<String>, force: bool) -> Res
         .map_err(|error| error.to_string())?
 }
 
+/// Previously saved app data (quota history, report cache), or null when there is none.
+#[tauri::command]
+fn archive_read(name: String) -> Result<Option<Value>, String> {
+    archive::read(&name)
+}
+
+#[tauri::command]
+fn archive_write(name: String, value: Value) -> Result<(), String> {
+    archive::write(&name, &value)
+}
+
+/// Codex limit history rebuilt from session logs modified since `since_ms`.
+#[tauri::command]
+async fn backfill_codex(
+    distro: Option<String>,
+    since_ms: i64,
+) -> Result<Vec<backfill::BackfillSeries>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        backfill::codex_rate_limits(distro.as_deref(), since_ms)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             detect_sources,
             load_usage,
-            load_quota
+            load_quota,
+            archive_read,
+            archive_write,
+            backfill_codex
         ])
         .run(tauri::generate_context!())
         .expect("error while running Agent Burn");

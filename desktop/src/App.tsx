@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  backfillCodex,
   detectSources,
   loadQuota,
   loadUsage,
@@ -9,7 +10,15 @@ import {
   writeTab,
 } from "./api";
 import { formatUsd, mergeReports } from "./aggregate";
-import { recordReading } from "./history";
+import {
+  backfilledAt,
+  cacheReport,
+  cachedReports,
+  flush,
+  loadArchive,
+  mergeBackfill,
+  recordReading,
+} from "./archive";
 import { quotaCards, type QuotaCard } from "./quota";
 import { pickClaudeAccount, pickSubscription } from "./subscription";
 import type {
@@ -73,6 +82,7 @@ export default function App() {
   const [distro, setDistro] = useState<string | null>(null);
   const [page, setPage] = useState<string>(OVERVIEW);
   const [showSettings, setShowSettings] = useState(false);
+  const [archiveReady, setArchiveReady] = useState(false);
 
   const distros = useMemo(
     () => (settings.wslEnabled ? (detected?.distros ?? []) : []),
@@ -91,6 +101,24 @@ export default function App() {
     writeTab(next);
   };
 
+  // Saved quota history and the last reports load first, so the app opens with data to show.
+  useEffect(() => {
+    loadArchive()
+      .catch(() => undefined)
+      .finally(() => {
+        setStates((current) => {
+          const next = { ...current };
+          for (const [id, cached] of Object.entries(cachedReports())) {
+            next[id] ??= { status: "ready", report: cached.report, loadedAt: cached.loadedAt };
+          }
+          return next;
+        });
+        setArchiveReady(true);
+      });
+    window.addEventListener("beforeunload", flush);
+    return () => window.removeEventListener("beforeunload", flush);
+  }, []);
+
   useEffect(() => {
     detectSources()
       .then(setDetected)
@@ -108,12 +136,11 @@ export default function App() {
         [id]: { status: "loading", previous: reportOf(current[id]) },
       }));
       return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, settings.claudePlan)
-        .then((report) =>
-          setStates((current) => ({
-            ...current,
-            [id]: { status: "ready", report, loadedAt: Date.now() },
-          })),
-        )
+        .then((report) => {
+          const loadedAt = Date.now();
+          cacheReport(id, report, loadedAt);
+          setStates((current) => ({ ...current, [id]: { status: "ready", report, loadedAt } }));
+        })
         .catch((error) =>
           setStates((current) => ({
             ...current,
@@ -127,12 +154,37 @@ export default function App() {
   }, [sourceIds, settings.offline, settings.claudePlan]);
 
   useEffect(() => {
-    if (!detected) return;
+    if (!detected || !archiveReady) return;
     refresh();
     if (settings.refreshMinutes <= 0) return;
     const timer = setInterval(refresh, settings.refreshMinutes * 60_000);
     return () => clearInterval(timer);
-  }, [detected, refresh, settings.refreshMinutes]);
+  }, [detected, archiveReady, refresh, settings.refreshMinutes]);
+
+  // Rebuild Codex limit history from each source's logs: 30 days the first time, then only
+  // what changed since the last scan. It starts after the first usage scan has had a head start.
+  useEffect(() => {
+    if (!detected || !archiveReady) return;
+    let cancelled = false;
+    void (async () => {
+      await new Promise((resolve) => setTimeout(resolve, 8000));
+      for (const id of sourceIds) {
+        if (cancelled) return;
+        const scannedAt = Date.now();
+        const last = backfilledAt(id);
+        const since = last ? last - 24 * 3600_000 : scannedAt - 30 * 24 * 3600_000;
+        try {
+          const series = await backfillCodex(id === "windows" ? null : id.slice(4), since);
+          if (!cancelled) mergeBackfill("codex", id, series, scannedAt);
+        } catch {
+          // A source without Codex logs has no history to rebuild.
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [detected, archiveReady, sourceIds]);
 
   const refreshQuotas = useCallback(
     (force: boolean) => {

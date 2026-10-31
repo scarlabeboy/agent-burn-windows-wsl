@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { readSeries, seriesKey } from "./history";
+import { useMemo, useSyncExternalStore } from "react";
+import { getVersion, readSeries, subscribe } from "./archive";
 import { forecast, formatClock, formatDay, formatDuration, type GaugeModel } from "./quota";
 
 const W = 560;
@@ -22,10 +22,11 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
   const y = (remaining: number) =>
     PAD.top + ((100 - Math.min(Math.max(remaining, 0), 100)) / 100) * (H - PAD.top - PAD.bottom);
 
+  // Re-read whenever the archive changes (new readings, loaded or rebuilt history).
+  const archiveVersion = useSyncExternalStore(subscribe, getVersion);
   const samples = useMemo(
-    () => readSeries(seriesKey(harness, model.window.windowMinutes, startMs)),
-    // The latest reading is recorded right before this chart renders.
-    [harness, model.window.windowMinutes, startMs, observedAt],
+    () => readSeries(harness, model.window.windowMinutes, startMs),
+    [harness, model.window.windowMinutes, startMs, observedAt, archiveVersion],
   );
 
   const points = samples

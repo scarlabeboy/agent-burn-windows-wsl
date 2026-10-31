@@ -357,7 +357,9 @@ export function QuotaSection({ card }: { card: QuotaCard }) {
         <GaugeCard title="Hebdomadaire" model={weekly} card={card} weekly />
       </div>
       <p className="muted small hint">
-        Les relevés sont enregistrés tant que l'application est ouverte ; la courbe commence au premier relevé.
+        {card.harness === "codex"
+          ? "Historique reconstitué depuis vos logs Codex, puis complété par les relevés de l'application."
+          : "Les relevés sont enregistrés tant que l'application est ouverte ; la courbe commence au premier relevé."}
       </p>
     </section>
   );
