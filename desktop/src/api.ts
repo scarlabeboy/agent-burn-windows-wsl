@@ -1,10 +1,30 @@
 import { invoke } from "@tauri-apps/api/core";
+import { PERIODS, type Period } from "./periods";
 import type { Detected, QuotaReading, Settings, TabId, UsageReport } from "./types";
 
 export const detectSources = () => invoke<Detected>("detect_sources");
 
-export const loadUsage = (distro: string | null, offline: boolean, claudePlan: string) =>
-  invoke<UsageReport>("load_usage", { distro, offline, claudePlan });
+export interface UsageScope {
+  /** Compact dates, `YYYYMMDD`. */
+  since?: string;
+  until?: string;
+}
+
+export const loadUsage = (
+  distro: string | null,
+  offline: boolean,
+  claudePlan: string,
+  scope: UsageScope = {},
+  agents?: string[],
+) =>
+  invoke<UsageReport>("load_usage", {
+    distro,
+    offline,
+    claudePlan,
+    since: scope.since ?? null,
+    until: scope.until ?? null,
+    agents: agents ?? null,
+  });
 
 export const loadQuota = (harness: string, distro: string | null, force: boolean) =>
   invoke<QuotaReading>("load_quota", { harness, distro, force });
@@ -67,5 +87,24 @@ export function writeTab(tab: TabId) {
     localStorage.setItem(TAB_KEY, tab);
   } catch {
     // The start tab simply is not remembered.
+  }
+}
+
+const PERIOD_KEY = "abf.period";
+
+export function readPeriod(): Period {
+  try {
+    const raw = localStorage.getItem(PERIOD_KEY) as Period | null;
+    return raw && PERIODS.includes(raw) ? raw : "all";
+  } catch {
+    return "all";
+  }
+}
+
+export function writePeriod(period: Period) {
+  try {
+    localStorage.setItem(PERIOD_KEY, period);
+  } catch {
+    // The period simply is not remembered.
   }
 }

@@ -70,11 +70,12 @@ export function BrandIcon({ agent, size = 22 }: { agent: string; size?: number }
   );
 }
 
-export const asReport = (agent: AgentReport): UsageReport => ({
+export const asReport = (agent: AgentReport, approxDetail = false): UsageReport => ({
   agents: [agent],
   daily: agent.daily,
   models: agent.models,
   totals: { totalCost: agent.totalCost, totalTokens: agent.totalTokens },
+  approxDetail: approxDetail || undefined,
 });
 
 type Granularity = "daily" | "weekly" | "monthly";
@@ -104,15 +105,23 @@ function chartRows(agents: AgentReport[], granularity: Granularity, metric: Metr
   return [...rows.values()].sort((a, b) => String(a.bucket).localeCompare(String(b.bucket)));
 }
 
-export function Stats({ report, label }: { report: UsageReport; label: string }) {
+export function Stats({
+  report,
+  label,
+  period = "Sur toute la période",
+}: {
+  report: UsageReport;
+  label: string;
+  period?: string;
+}) {
   const tokens = report.totals.totalTokens;
   const cost = report.totals.totalCost;
   return (
     <section className="card stats">
       <Stat title="Dépense totale" value={formatUsd(cost)} hint="Valeur équivalente API" />
       <Stat title="Tokens" value={formatTokens(tokens)} hint="Entrée, sortie et cache" />
-      <Stat title="Tokens moyens / $" value={tokensPerDollar(tokens, cost)} hint="Sur toute la période" />
-      <Stat title="Modèles" value={String(report.models.length)} hint={label} />
+      <Stat title="Tokens moyens / $" value={tokensPerDollar(tokens, cost)} hint={period} />
+      <Stat title="Modèles" value={report.approxDetail ? "…" : String(report.models.length)} hint={label} />
     </section>
   );
 }
@@ -127,8 +136,14 @@ function Stat({ title, value, hint }: { title: string; value: string; hint: stri
   );
 }
 
-export function SpendChart({ report }: { report: UsageReport }) {
-  const [granularity, setGranularity] = useState<Granularity>("monthly");
+export function SpendChart({
+  report,
+  defaultGranularity = "monthly",
+}: {
+  report: UsageReport;
+  defaultGranularity?: Granularity;
+}) {
+  const [granularity, setGranularity] = useState<Granularity>(defaultGranularity);
   const [metric, setMetric] = useState<Metric>("cost");
   const rows = useMemo(
     () => chartRows(report.agents, granularity, metric),
@@ -224,8 +239,25 @@ export function HarnessList({ report, onSelect }: { report: UsageReport; onSelec
   );
 }
 
-export function Models({ report }: { report: UsageReport }) {
+/** Shown in place of per-model detail while a period scan runs, or when it failed. */
+function DetailPending({ title, error }: { title: string; error?: string }) {
+  return (
+    <section className="card">
+      <header className="card-head">
+        <h2>{title}</h2>
+      </header>
+      <p className="muted small">
+        {error
+          ? `Détail indisponible pour cette période : ${error}`
+          : "Calcul du détail pour cette période en cours… Les totaux et le graphique sont déjà exacts."}
+      </p>
+    </section>
+  );
+}
+
+export function Models({ report, detailError }: { report: UsageReport; detailError?: string }) {
   const [filter, setFilter] = useState("");
+  if (report.approxDetail) return <DetailPending title="Modèles" error={detailError} />;
   const rows = report.models.filter((row) => row.model.toLowerCase().includes(filter.trim().toLowerCase()));
   return (
     <section className="card">
@@ -258,7 +290,16 @@ export function Models({ report }: { report: UsageReport }) {
   );
 }
 
-export function TokenBreakdownCard({ breakdown }: { breakdown: TokenBreakdown }) {
+export function TokenBreakdownCard({
+  breakdown,
+  pending,
+  detailError,
+}: {
+  breakdown: TokenBreakdown;
+  pending?: boolean;
+  detailError?: string;
+}) {
+  if (pending) return <DetailPending title="Répartition des tokens" error={detailError} />;
   return (
     <section className="card">
       <header className="card-head">

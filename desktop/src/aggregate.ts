@@ -86,6 +86,7 @@ export function mergeReports(reports: UsageReport[]): UsageReport {
     daily: mergeDaily(reports.map((report) => report.daily)),
     models: mergeModels(reports.map((report) => report.models), totalCost),
     totals: { totalCost, totalTokens },
+    approxDetail: reports.some((report) => report.approxDetail) || undefined,
   };
 }
 

@@ -4,8 +4,10 @@ import {
   detectSources,
   loadQuota,
   loadUsage,
+  readPeriod,
   readSettings,
   readTab,
+  writePeriod,
   writeSettings,
   writeTab,
 } from "./api";
@@ -19,6 +21,16 @@ import {
   mergeBackfill,
   recordReading,
 } from "./archive";
+import {
+  PERIOD_LABELS,
+  PERIODS,
+  compactDate,
+  defaultGranularity,
+  filterReport,
+  isoDate,
+  rangeFor,
+  type Period,
+} from "./periods";
 import { quotaCards, type QuotaCard } from "./quota";
 import { pickClaudeAccount, pickSubscription } from "./subscription";
 import type {
@@ -48,6 +60,8 @@ import {
 
 const SUBSCRIPTIONS = ["codex", "claude", "cursor"];
 const OVERVIEW = "overview";
+/** Period scans are reused for this long before being fetched again. */
+const DETAIL_TTL_MS = 10 * 60_000;
 
 function reportOf(state: SourceState | undefined): UsageReport | undefined {
   if (!state) return undefined;
@@ -83,6 +97,15 @@ export default function App() {
   const [page, setPage] = useState<string>(OVERVIEW);
   const [showSettings, setShowSettings] = useState(false);
   const [archiveReady, setArchiveReady] = useState(false);
+  const [period, setPeriodState] = useState<Period>(readPeriod);
+  const [details, setDetails] = useState<Record<string, { report: UsageReport; loadedAt: number }>>({});
+  const [detailErrors, setDetailErrors] = useState<Record<string, string>>({});
+  const detailsRef = useRef(details);
+  detailsRef.current = details;
+  const setPeriod = (next: Period) => {
+    setPeriodState(next);
+    writePeriod(next);
+  };
 
   const distros = useMemo(
     () => (settings.wslEnabled ? (detected?.distros ?? []) : []),
@@ -224,17 +247,15 @@ export default function App() {
   const label = (id: string) => (id === "windows" ? "Windows" : `WSL · ${id.slice(4)}`);
   const activeIds: string[] =
     tab === "windows" ? ["windows"] : tab === "wsl" ? (activeDistro ? [`wsl:${activeDistro.name}`] : []) : sourceIds;
-
-  const computer = useMemo(() => {
-    const parts = sourceIds
-      .map((id) => ({ label: label(id), report: reportOf(states[id]) }))
-      .filter((part): part is { label: string; report: UsageReport } => part.report !== undefined);
-    return parts.length ? { parts, report: mergeReports(parts.map((part) => part.report)) } : null;
-  }, [sourceIds, states]);
-
-  const report =
-    tab === "computer" ? computer?.report : reportOf(states[activeIds[0] ?? "windows"]);
+  const activeKey = activeIds.join(",");
   const pendingState = states[activeIds[0] ?? "windows"];
+  const lastScan = Math.max(
+    0,
+    ...sourceIds.map((id) => {
+      const state = states[id];
+      return state?.status === "ready" ? state.loadedAt : 0;
+    }),
+  );
 
   // Quotas belong to the account, not to an environment: read every source in every tab.
   const cards: QuotaCard[] = useMemo(
@@ -246,6 +267,77 @@ export default function App() {
       ),
     [quotas, sourceIds],
   );
+  const pageCards = cards.filter((card) => card.harness === page);
+
+  // "Since reset" needs a weekly quota cycle, so it only applies on Claude and Codex pages.
+  const effectivePeriod: Period =
+    period === "rtd" && (page === OVERVIEW || pageCards.length === 0) ? "all" : period;
+  const resetStartMs = pageCards[0]?.weekly.startMs;
+  const today = isoDate(new Date());
+  const range = useMemo(
+    () => rangeFor(effectivePeriod, new Date(), resetStartMs),
+    [effectivePeriod, resetStartMs !== undefined ? isoDate(new Date(resetStartMs)) : undefined, today],
+  );
+  const rangeSince = range?.since;
+  const rangeUntil = range?.until;
+  const detailScope = page === OVERVIEW ? "*" : page;
+  const detailKey = (id: string) => `${id}|${rangeSince}|${rangeUntil ?? ""}|${detailScope}`;
+
+  // Totals and daily series of a period are filtered locally and are exact; per-model detail
+  // comes from a period scan of the CLI, loaded on demand and reused for a few minutes.
+  const localParts = useMemo(
+    () =>
+      activeKey
+        .split(",")
+        .filter(Boolean)
+        .flatMap((id) => {
+          const base = reportOf(states[id]);
+          return base ? [{ id, label: label(id), report: range ? filterReport(base, range) : base }] : [];
+        }),
+    [activeKey, states, rangeSince, rangeUntil],
+  );
+  const localReport = useMemo(
+    () => (localParts.length ? mergeReports(localParts.map((part) => part.report)) : undefined),
+    [localParts],
+  );
+  const report = useMemo(() => {
+    if (!localReport) return undefined;
+    if (!range) return localReport;
+    return mergeReports(localParts.map((part) => details[detailKey(part.id)]?.report ?? part.report));
+  }, [localReport, localParts, details, rangeSince, rangeUntil, detailScope]);
+  const detailError = activeKey
+    .split(",")
+    .map((id) => detailErrors[detailKey(id)])
+    .find(Boolean);
+
+  useEffect(() => {
+    if (!rangeSince || !detected || !archiveReady) return;
+    let cancelled = false;
+    void (async () => {
+      for (const id of activeKey.split(",").filter(Boolean)) {
+        if (cancelled) return;
+        const key = `${id}|${rangeSince}|${rangeUntil ?? ""}|${detailScope}`;
+        const cached = detailsRef.current[key];
+        if (cached && Date.now() - cached.loadedAt < DETAIL_TTL_MS) continue;
+        try {
+          const detail = await loadUsage(
+            id === "windows" ? null : id.slice(4),
+            settings.offline,
+            settings.claudePlan,
+            { since: compactDate(rangeSince), until: rangeUntil ? compactDate(rangeUntil) : undefined },
+            detailScope === "*" ? undefined : [detailScope],
+          );
+          setDetails((current) => ({ ...current, [key]: { report: detail, loadedAt: Date.now() } }));
+          setDetailErrors(({ [key]: _cleared, ...rest }) => rest);
+        } catch (error) {
+          setDetailErrors((current) => ({ ...current, [key]: String(error) }));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [rangeSince, rangeUntil, detailScope, activeKey, detected, archiveReady, lastScan, settings.offline, settings.claudePlan]);
 
   // Plan, price and account meters belong to the account: read them from every source.
   const sourceReports = useMemo(
@@ -267,21 +359,20 @@ export default function App() {
   ];
 
   const loading = sourceIds.some((id) => states[id]?.status === "loading");
-  const lastScan = Math.max(
-    0,
-    ...sourceIds.map((id) => {
-      const state = states[id];
-      return state?.status === "ready" ? state.loadedAt : 0;
-    }),
-  );
-  const agentIds = report?.agents.map((agent) => agent.agent) ?? [];
+  // The sidebar always uses the locally filtered report, which lists every harness.
+  const agentIds = localReport?.agents.map((agent) => agent.agent) ?? [];
   const subscriptionIds = SUBSCRIPTIONS.filter(
     (id) => agentIds.includes(id) || cards.some((card) => card.harness === id),
   );
-  const otherAgents = report?.agents.filter((agent) => !SUBSCRIPTIONS.includes(agent.agent)) ?? [];
+  const otherAgents = localReport?.agents.filter((agent) => !SUBSCRIPTIONS.includes(agent.agent)) ?? [];
   const weeklyLeft = (id: string) => cards.find((card) => card.harness === id)?.weekly.remaining;
-  const selected = page === OVERVIEW ? null : report?.agents.find((agent) => agent.agent === page);
-  const pageCards = cards.filter((card) => card.harness === page);
+  const selected =
+    page === OVERVIEW
+      ? null
+      : (report?.agents.find((agent) => agent.agent === page) ??
+        // A period without usage for this harness: show its exact zero totals.
+        (range ? localReport?.agents.find((agent) => agent.agent === page) : undefined));
+  const approx = report?.approxDetail ?? false;
 
   const header = (
     <>
@@ -300,7 +391,9 @@ export default function App() {
           : tab === "wsl"
             ? `WSL · ${activeDistro?.name ?? ""}`
             : "Windows natif"}{" "}
-        · toute la période
+        · {PERIOD_LABELS[effectivePeriod]}
+        {period === "rtd" && effectivePeriod === "all" &&
+          " (« Depuis le reset » s'applique aux pages Claude Code et Codex)"}
       </p>
     </>
   );
@@ -315,13 +408,13 @@ export default function App() {
         <button className={`nav${page === OVERVIEW ? " on" : ""}`} onClick={() => setPage(OVERVIEW)}>
           <span className="nav-icon">🔥</span>
           <span className="nav-label">Vue d'ensemble</span>
-          <span className="nav-value">{report ? formatUsd(report.totals.totalCost) : ""}</span>
+          <span className="nav-value">{localReport ? formatUsd(localReport.totals.totalCost) : ""}</span>
         </button>
 
         {subscriptionIds.length > 0 && <div className="nav-group">Abonnements</div>}
         {subscriptionIds.map((id) => {
           const left = weeklyLeft(id);
-          const agent = report?.agents.find((entry) => entry.agent === id);
+          const agent = localReport?.agents.find((entry) => entry.agent === id);
           return (
             <button key={id} className={`nav${page === id ? " on" : ""}`} onClick={() => setPage(id)}>
               <BrandIcon agent={id} />
@@ -366,6 +459,17 @@ export default function App() {
             </select>
           )}
           <div className="spacer" />
+          <select
+            value={period}
+            onChange={(event) => setPeriod(event.target.value as Period)}
+            title="Période affichée"
+          >
+            {PERIODS.map((value) => (
+              <option key={value} value={value}>
+                {PERIOD_LABELS[value]}
+              </option>
+            ))}
+          </select>
           {lastScan > 0 && (
             <span className="muted small" title="Dernier scan des données d'usage">
               {loading ? "Mise à jour…" : `Mis à jour à ${new Date(lastScan).toLocaleTimeString("fr-FR")}`}
@@ -442,18 +546,22 @@ export default function App() {
           ) : (
             <Page>
               <div>{header}</div>
-              {tab === "computer" && computer && computer.parts.length < sourceIds.length && (
+              {tab === "computer" && localParts.length < sourceIds.length && (
                 <div className="notice error">Une source n'a pas pu être lue : le total Computer est partiel.</div>
               )}
               {page === OVERVIEW ? (
                 <>
-                  <Stats report={report} label="Tous harness confondus" />
-                  {tab === "computer" && computer && <EnvironmentSplit parts={computer.parts} />}
+                  <Stats report={report} label="Tous harness confondus" period={PERIOD_LABELS[effectivePeriod]} />
+                  {tab === "computer" && <EnvironmentSplit parts={localParts} />}
                   <div className="grid">
-                    <SpendChart report={report} />
+                    <SpendChart
+                      key={effectivePeriod}
+                      report={report}
+                      defaultGranularity={defaultGranularity(effectivePeriod)}
+                    />
                     <HarnessList report={report} onSelect={setPage} />
                   </div>
-                  <Models report={report} />
+                  <Models report={report} detailError={detailError} />
                 </>
               ) : (
                 <>
@@ -470,10 +578,22 @@ export default function App() {
                   )}
                   {selected ? (
                     <>
-                      <Stats report={asReport(selected)} label={agentLabel(selected.agent)} />
-                      <SpendChart report={asReport(selected)} />
-                      <Models report={asReport(selected)} />
-                      <TokenBreakdownCard breakdown={selected.tokenBreakdown} />
+                      <Stats
+                        report={asReport(selected, approx)}
+                        label={agentLabel(selected.agent)}
+                        period={PERIOD_LABELS[effectivePeriod]}
+                      />
+                      <SpendChart
+                        key={effectivePeriod}
+                        report={asReport(selected, approx)}
+                        defaultGranularity={defaultGranularity(effectivePeriod)}
+                      />
+                      <Models report={asReport(selected, approx)} detailError={detailError} />
+                      <TokenBreakdownCard
+                        breakdown={selected.tokenBreakdown}
+                        pending={approx}
+                        detailError={detailError}
+                      />
                     </>
                   ) : (
                     <div className="notice">Aucune donnée d'usage pour {agentLabel(page)} dans cet environnement.</div>

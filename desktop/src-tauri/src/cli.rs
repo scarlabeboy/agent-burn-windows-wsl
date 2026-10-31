@@ -128,20 +128,57 @@ fn claude_plan_from_credentials(path: &Path) -> Option<String> {
     }
 }
 
+/// A date range and harness selection for a period scan, validated before reaching the CLI.
+pub struct Scope {
+    pub since: Option<String>,
+    pub until: Option<String>,
+    pub agents: Vec<String>,
+}
+
+fn is_compact_date(text: &str) -> bool {
+    text.len() == 8 && text.bytes().all(|byte| byte.is_ascii_digit())
+}
+
+fn is_agent_name(text: &str) -> bool {
+    !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_lowercase())
+}
+
 pub fn run_summary(
     distro: Option<&str>,
     offline: bool,
     claude_plan: &str,
+    scope: &Scope,
 ) -> Result<Value, String> {
     let mut command = Command::new(locate_cli()?);
-    // `--value` adds the subscription block (plan, price, value) and the Claude account meters.
-    command.args(["summary", "--value", "--json", "--no-color"]);
+    command.args(["summary", "--json", "--no-color"]);
+    let scoped = scope.since.is_some() || scope.until.is_some() || !scope.agents.is_empty();
+    if !scoped {
+        // `--value` adds the subscription block (plan, price, value) and the Claude account
+        // meters. Period scans only need usage, so they skip it.
+        command.arg("--value");
+    }
+    for (flag, date) in [("--since", &scope.since), ("--until", &scope.until)] {
+        if let Some(date) = date {
+            if !is_compact_date(date) {
+                return Err(format!("invalid date '{date}'"));
+            }
+            command.args([flag, date]);
+        }
+    }
+    if !scope.agents.is_empty() {
+        if !scope.agents.iter().all(|agent| is_agent_name(agent)) {
+            return Err("invalid harness name".to_string());
+        }
+        command.args(["--agents", &scope.agents.join(",")]);
+    }
     if offline {
         command.arg("--offline");
     }
     let home = apply_source(&mut command, distro, true)?;
-    if let Some(plan) = resolve_claude_plan(claude_plan, home.as_deref()) {
-        command.args(["--claude-plan", &plan]);
+    if !scoped {
+        if let Some(plan) = resolve_claude_plan(claude_plan, home.as_deref()) {
+            command.args(["--claude-plan", &plan]);
+        }
     }
     run_json(command, distro, "summary")
 }
@@ -287,6 +324,16 @@ mod tests {
             None
         );
         assert_eq!(plan_for("not json"), None);
+    }
+
+    #[test]
+    fn validates_scan_scope_values() {
+        assert!(is_compact_date("20261031"));
+        assert!(!is_compact_date("2026-10-31"));
+        assert!(!is_compact_date("1; rm"));
+        assert!(is_agent_name("claude"));
+        assert!(!is_agent_name("claude,codex"));
+        assert!(!is_agent_name(""));
     }
 
     #[test]

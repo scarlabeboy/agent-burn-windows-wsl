@@ -21,9 +21,17 @@ async fn load_usage(
     distro: Option<String>,
     offline: bool,
     claude_plan: String,
+    since: Option<String>,
+    until: Option<String>,
+    agents: Option<Vec<String>>,
 ) -> Result<Value, String> {
+    let scope = cli::Scope {
+        since,
+        until,
+        agents: agents.unwrap_or_default(),
+    };
     tauri::async_runtime::spawn_blocking(move || {
-        cli::run_summary(distro.as_deref(), offline, &claude_plan)
+        cli::run_summary(distro.as_deref(), offline, &claude_plan, &scope)
     })
     .await
     .map_err(|error| error.to_string())?

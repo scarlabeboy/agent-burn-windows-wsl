@@ -69,6 +69,8 @@ export interface UsageReport {
   totals: { totalCost: number; totalTokens: number };
   subscription?: { agents: SubscriptionAgent[] };
   claudeAccount?: ClaudeAccount;
+  /** Frontend-only: totals are exact but per-model and token-type detail is not yet known. */
+  approxDetail?: boolean;
 }
 
 export interface Distro {
