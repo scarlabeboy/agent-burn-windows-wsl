@@ -72,7 +72,10 @@ pub fn run_summary(distro: Option<&str>, offline: bool) -> Result<Value, String>
         command
             .env("CLAUDE_CONFIG_DIR", format!(r"{home}\.claude"))
             .env("CODEX_HOME", format!(r"{home}\.codex"))
-            .env("OPENCODE_DATA_DIR", format!(r"{home}\.local\share\opencode"));
+            .env(
+                "OPENCODE_DATA_DIR",
+                snapshot_opencode(distro, &format!(r"{home}\.local\share\opencode")),
+            );
     }
     hide_window(&mut command);
 
@@ -85,6 +88,32 @@ pub fn run_summary(distro: Option<&str>, offline: bool) -> Result<Value, String>
     let result = run_to_file(&mut command, output_file, &output_path);
     let _ = fs::remove_file(&output_path);
     result
+}
+
+/// OpenCode keeps its usage in a SQLite WAL database, which cannot be opened in place on
+/// the `\\wsl.localhost` network share. Read a local copy of the database files instead.
+/// Returns the directory OpenCode should read: the copy, or the original when it is absent.
+fn snapshot_opencode(distro: &str, source: &str) -> String {
+    let source_dir = Path::new(source);
+    if !source_dir.join("opencode.db").is_file() {
+        return source.to_string();
+    }
+    let target = env::temp_dir().join(format!("abf-opencode-{}", distro.replace(['/', '\\'], "_")));
+    if fs::create_dir_all(&target).is_err() {
+        return source.to_string();
+    }
+    for name in ["opencode.db", "opencode.db-wal", "opencode.db-shm"] {
+        let from = source_dir.join(name);
+        let to = target.join(name);
+        if from.is_file() {
+            if fs::copy(&from, &to).is_err() {
+                return source.to_string();
+            }
+        } else {
+            let _ = fs::remove_file(&to);
+        }
+    }
+    target.to_string_lossy().into_owned()
 }
 
 fn run_to_file(

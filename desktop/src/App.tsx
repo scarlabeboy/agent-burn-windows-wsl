@@ -449,7 +449,7 @@ export default function App() {
               checked={settings.offline}
               onChange={(event) => updateSettings({ ...settings, offline: event.target.checked })}
             />
-            Mode hors ligne (tarifs en cache, aucun appel réseau)
+            Mode hors ligne (aucun appel réseau, mais les modèles récents peuvent afficher 0 $)
           </label>
         </div>
       )}

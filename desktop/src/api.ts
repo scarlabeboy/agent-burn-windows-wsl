@@ -7,7 +7,7 @@ export const loadUsage = (distro: string | null, offline: boolean) =>
   invoke<UsageReport>("load_usage", { distro, offline });
 
 const SETTINGS_KEY = "abf.settings";
-const defaults: Settings = { wslEnabled: true, offline: true };
+const defaults: Settings = { wslEnabled: true, offline: false };
 
 export function readSettings(): Settings {
   try {
