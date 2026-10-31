@@ -146,10 +146,11 @@ pub fn run_summary(
 ) -> Result<Value, String> {
     let mut command = Command::new(locate_cli()?);
     command.args(["summary", "--json", "--no-color"]);
-    let scoped = scope.since.is_some() || scope.until.is_some() || !scope.agents.is_empty();
-    if !scoped {
+    let period_scoped = scope.since.is_some() || scope.until.is_some();
+    if !period_scoped {
         // `--value` adds the subscription block (plan, price, value) and the Claude account
-        // meters. Period scans only need usage, so they skip it.
+        // meters. Period scans only need usage, so they skip it. A harness selection keeps it:
+        // the block then covers the selected harnesses.
         command.arg("--value");
     }
     for (flag, date) in [("--since", &scope.since), ("--until", &scope.until)] {
@@ -170,7 +171,7 @@ pub fn run_summary(
         command.arg("--offline");
     }
     let home = apply_source(&mut command, distro, true)?;
-    if !scoped {
+    if !period_scoped {
         if let Some(plan) = resolve_claude_plan(claude_plan, home.as_deref()) {
             command.args(["--claude-plan", &plan]);
         }

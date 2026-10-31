@@ -7,15 +7,19 @@ import {
   loadQuota,
   loadUsage,
   readPeriod,
+  readSeen,
   readSettings,
   readTab,
   setAutostart,
   setCloseToTray,
   setTrayTooltip,
   writePeriod,
+  writeSeen,
   writeSettings,
   writeTab,
 } from "./api";
+import { HarnessSettings } from "./HarnessSettings";
+import { disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
 import { formatUsd, mergeReports } from "./aggregate";
 import {
   backfilledAt,
@@ -127,6 +131,14 @@ export default function App() {
     [distros],
   );
   const readableKey = readableIds.join(",");
+
+  // Harnesses turned off are not scanned. `seen` remembers every harness that ever had data,
+  // so a disabled one stays listed even though a scan no longer reports it.
+  const [seen, setSeen] = useState<string[]>(readSeen);
+  const disabled = useMemo(() => disabledHarnesses(settings.harnessStates), [settings.harnessStates]);
+  const disabledKey = disabled.join(",");
+  const scanKey = scanAgents(disabled, seen)?.join(",") ?? "";
+  const agentsToScan = useMemo(() => (scanKey ? scanKey.split(",") : undefined), [scanKey]);
   const activeDistro = distros.find((entry) => entry.name === distro) ?? distros[0];
   const hasWsl = distros.length > 0;
   // Windows alone when WSL is off or absent; otherwise the last tab, Computer on first run.
@@ -192,7 +204,7 @@ export default function App() {
         ...current,
         [id]: { status: "loading", previous: reportOf(current[id]) },
       }));
-      return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, settings.claudePlan)
+      return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, settings.claudePlan, {}, agentsToScan)
         .then((report) => {
           const loadedAt = Date.now();
           cacheReport(id, report, loadedAt);
@@ -212,7 +224,7 @@ export default function App() {
         refreshRef.current();
       }
     });
-  }, [readableIds, settings.offline, settings.claudePlan]);
+  }, [readableIds, settings.offline, settings.claudePlan, agentsToScan]);
   refreshRef.current = refresh;
 
   useEffect(() => {
@@ -228,6 +240,7 @@ export default function App() {
   useEffect(() => {
     if (!detected || !archiveReady) return;
     let cancelled = false;
+    if (disabled.includes("codex")) return;
     void (async () => {
       await new Promise((resolve) => setTimeout(resolve, 8000));
       for (const id of readableIds) {
@@ -246,13 +259,13 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [detected, archiveReady, readableIds]);
+  }, [detected, archiveReady, readableIds, disabledKey]);
 
   const refreshQuotas = useCallback(
     (force: boolean) => {
       for (const id of readableIds) {
         const name = id === "windows" ? null : id.slice(4);
-        for (const harness of ["claude", "codex"]) {
+        for (const harness of ["claude", "codex"].filter((entry) => !disabled.includes(entry))) {
           loadQuota(harness, name, force)
             .then((reading) => {
               recordReading(reading);
@@ -268,7 +281,7 @@ export default function App() {
         }
       }
     },
-    [readableIds],
+    [readableIds, disabledKey],
   );
 
   // Background behaviour: the Windows startup entry and closing to the notification area.
@@ -331,10 +344,12 @@ export default function App() {
     () =>
       quotaCards(
         sourceIds.flatMap((id) =>
-          Object.values(quotas[id] ?? {}).map((reading) => ({ source: label(id), reading })),
+          Object.values(quotas[id] ?? {})
+            .filter((reading) => !disabled.includes(reading.agent))
+            .map((reading) => ({ source: label(id), reading })),
         ),
       ),
-    [quotas, sourceIds],
+    [quotas, sourceIds, disabledKey],
   );
   const pageCards = cards.filter((card) => card.harness === page);
 
@@ -405,7 +420,7 @@ export default function App() {
             settings.offline,
             settings.claudePlan,
             { since: compactDate(rangeSince), until: rangeUntil ? compactDate(rangeUntil) : undefined },
-            detailScope === "*" ? undefined : [detailScope],
+            detailScope === "*" ? agentsToScan : [detailScope],
           );
           setDetails((current) => ({ ...current, [key]: { report: detail, loadedAt: Date.now() } }));
           setDetailErrors(({ [key]: _cleared, ...rest }) => rest);
@@ -417,7 +432,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [rangeSince, rangeUntil, detailScope, activeKey, readableKey, detected, archiveReady, lastScan, settings.offline, settings.claudePlan]);
+  }, [rangeSince, rangeUntil, detailScope, activeKey, readableKey, detected, archiveReady, lastScan, settings.offline, settings.claudePlan, agentsToScan]);
 
   // Plan, price and account meters belong to the account: read them from every source.
   const sourceReports = useMemo(
@@ -440,11 +455,38 @@ export default function App() {
 
   const loading = sourceIds.some((id) => states[id]?.status === "loading");
   // The sidebar always uses the locally filtered report, which lists every harness.
-  const agentIds = localReport?.agents.map((agent) => agent.agent) ?? [];
+  // A report scanned before a harness was turned off (or from a stopped WSL) may still list it.
+  const visibleAgents = localReport?.agents.filter((agent) => !disabled.includes(agent.agent)) ?? [];
+  const agentIds = visibleAgents.map((agent) => agent.agent);
+
+  // Remember each harness that shows data, and leave the page of one that was just turned off.
+  const detectedNow = useMemo(
+    () => [
+      ...new Set(
+        sourceIds.flatMap((id) => reportOf(states[id])?.agents.map((agent) => agent.agent) ?? []),
+      ),
+    ],
+    [states, sourceIds],
+  );
+  useEffect(() => {
+    const fresh = detectedNow.filter((id) => !seen.includes(id) && !disabled.includes(id));
+    if (fresh.length === 0) return;
+    const next = [...seen, ...fresh].sort();
+    setSeen(next);
+    writeSeen(next);
+  }, [detectedNow, seen, disabledKey]);
+  useEffect(() => {
+    if (disabled.includes(page)) setPage(OVERVIEW);
+  }, [page, disabledKey]);
+  const harnessGroups = groupHarnesses(detectedNow, seen, disabled);
+  const toggleHarness = (id: string, off: boolean) => {
+    const { [id]: _removed, ...rest } = settings.harnessStates;
+    updateSettings({ ...settings, harnessStates: off ? { ...rest, [id]: "off" } : rest });
+  };
   const subscriptionIds = SUBSCRIPTIONS.filter(
     (id) => agentIds.includes(id) || cards.some((card) => card.harness === id),
   );
-  const otherAgents = localReport?.agents.filter((agent) => !SUBSCRIPTIONS.includes(agent.agent)) ?? [];
+  const otherAgents = visibleAgents.filter((agent) => !SUBSCRIPTIONS.includes(agent.agent));
   const weeklyLeft = (id: string) => cards.find((card) => card.harness === id)?.weekly.remaining;
   const selected =
     page === OVERVIEW
@@ -637,6 +679,7 @@ export default function App() {
               />
               Mode hors ligne (aucun appel réseau, mais les modèles récents peuvent afficher 0 $)
             </label>
+            <HarnessSettings groups={harnessGroups} onToggle={toggleHarness} />
           </div>
         )}
 

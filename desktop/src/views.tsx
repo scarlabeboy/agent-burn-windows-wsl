@@ -56,6 +56,11 @@ const AGENT_LABELS: Record<string, string> = {
   pi: "Pi",
   amp: "Amp",
   qwen: "Qwen",
+  codebuff: "Codebuff",
+  copilot: "Copilot",
+  goose: "Goose",
+  hermes: "Hermes",
+  kilo: "Kilo",
 };
 export const agentLabel = (agent: string) => AGENT_LABELS[agent] ?? agent;
 

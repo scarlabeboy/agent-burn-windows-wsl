@@ -19,6 +19,7 @@
 - Sélecteur de période (totaux exacts en local, détail par modèle par scan de période).
 - Rafraîchissement automatique (10 minutes par défaut, réglable).
 - WSL jamais réveillé par l'application : détection par `wsl -l -q` et `wsl --list --running --quiet` (délai de 5 s), lecture seulement des distributions déjà « Running », nom d'utilisateur mémorisé (`wsl-users`), détection répétée toutes les 15 s, aucun appel à `wsl.exe` quand WSL est désactivé. Validé le 31/10 avec un moniteur d'état : Ubuntu reste `STOPPED` pendant les scans et rafraîchissements.
+- Liste des harness dans les réglages : Actifs (ouvert), Désactivés et Non détectés (repliés). Désactiver = ne plus lire (scan `--agents` = tous les harness pris en charge sauf eux, `--value` conservé), retiré de la barre latérale, des quotas et de la bulle de notification. Les harness vus sont mémorisés (`abf.seen-harnesses`). Le dernier harness actif ne peut pas être désactivé. Limite : le rapport en cache d'un WSL éteint peut encore compter un harness désactivé dans les totaux jusqu'à sa prochaine lecture.
 - Arrière-plan : icône de notification, fermeture vers la zone de notification, instance unique, démarrage Windows optionnel, nettoyage à la désinstallation.
 
 ## À corriger
@@ -27,11 +28,13 @@
 2. ~~WebView2 absent ou cassé~~ : fait. `main.rs` teste WebView2 au démarrage et affiche une boîte de dialogue Windows avec la marche à suivre, au lieu de planter (`0xC0000409`). Testé avec `WEBVIEW2_BROWSER_EXECUTABLE_FOLDER` pointant sur un dossier vide, sans toucher au vrai runtime.
 3. **Démarrage automatique** : l'activation fonctionne (testée à la main le 31/10). Reste à vérifier la désactivation et le nettoyage par l'installateur à la désinstallation.
 
+4. **Doublon de quota quand les environnements divergent** (vu le 31/10 après avoir lancé un agent Codex dans WSL). `quotaCards` n'affiche une carte qu'une fois si les lectures de Windows et de WSL sont identiques (clé = pourcentages). Dès qu'un environnement a une lecture plus récente, les deux cartes apparaissent (Windows 89 % / 71 %, WSL 100 % / 73 %), y compris sur l'onglet Windows. Pistes : garder la lecture la plus fraîche par compte et harness, ou, comme décidé, rattacher les quotas à l'environnement propre de l'onglet. À trancher avant de coder.
+
 ## Idées retenues
 
 | Idée | Détail | Dépendance |
 |---|---|---|
-| Interrupteurs par harness | Stocker la liste des harness **désactivés** et passer `--agents` = tous les harness pris en charge sauf eux, pour qu'un nouveau harness soit détecté. Mémoriser les harness déjà vus pour pouvoir les réactiver. Désactiver OpenCode économise environ 28 s de scan. | Aucune |
+| Harness « figés » | Un état de plus dans la liste des harness : plus relu, mais dernier relevé conservé dans les totaux. Demande de découper et mémoriser les rapports par harness, puis de les recoller (3 à 4 fois le travail de « retiré »). La table `harnessStates` est prévue pour l'accueillir. | Rapports par harness |
 | Bulle de tarifs et colonnes par modèle | Entrée, entrée en cache, écriture de cache, sortie, avec les tarifs réellement utilisés. Éviter l'incohérence « Pricing unavailable » avec un coût affiché. | Le CLI doit exposer les tarifs utilisés |
 | Cache des recherches de tarif dans le CLI | Les recherches floues ne sont pas mémorisées : OpenCode coûte environ 28 s de calcul en ligne. Un cache par nom de modèle ramènerait le scan à quelques secondes. À proposer à Melvynx. | Patch du CLI |
 | Quota Codex par jour et par surface | `limitUsageDaily` de `harness codex`, déjà fourni par le CLI. | Aucune |

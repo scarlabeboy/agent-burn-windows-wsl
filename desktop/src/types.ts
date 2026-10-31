@@ -1,3 +1,5 @@
+import type { HarnessStates } from "./harnesses";
+
 export interface DailyPoint {
   date: string;
   tokens: number;
@@ -117,6 +119,8 @@ export interface Settings {
   claudePlan: ClaudePlanSetting;
   /** Closing the window keeps the app running in the notification area. */
   closeToTray: boolean;
+  /** Harnesses turned off: not scanned and removed from the data. */
+  harnessStates: HarnessStates;
 }
 
 export type ClaudePlanSetting = "auto" | "pro" | "max-5x" | "max-20x" | "none";

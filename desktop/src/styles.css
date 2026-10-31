@@ -132,3 +132,15 @@ td { padding: 8px 6px; border-top: 1px solid var(--line); }
 .chip { background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 12px; }
 .hint-top { margin: 12px 0 0; }
 .scoped { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+
+/* Harness list in the settings */
+.harness-settings { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 12px; }
+.harness-title { font-weight: 600; }
+.harness-group summary { cursor: pointer; padding: 4px 0; }
+.harness-row { display: flex; align-items: center; gap: 10px; padding: 4px 0 4px 18px; }
+.harness-row.dim { opacity: 0.55; }
+.harness-name { flex: 1; }
+.harness-empty { padding-left: 18px; }
+.harness-hint { margin: 4px 0 0; }
+button.link { background: none; border: none; color: var(--accent, #ff8a3d); cursor: pointer; padding: 2px 6px; font-size: 12px; }
+button.link:disabled { opacity: 0.4; cursor: default; }

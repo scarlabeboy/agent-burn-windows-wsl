@@ -53,7 +53,28 @@ const defaults: Settings = {
   refreshMinutes: 10,
   claudePlan: "auto",
   closeToTray: false,
+  harnessStates: {},
 };
+
+const SEEN_KEY = "abf.seen-harnesses";
+
+/** Harnesses that have shown usage data at least once, so a disabled one stays listed. */
+export function readSeen(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(SEEN_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeSeen(seen: string[]) {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+  } catch {
+    // Without storage, harnesses are simply detected again at the next scan.
+  }
+}
 
 export function readSettings(): Settings {
   try {
