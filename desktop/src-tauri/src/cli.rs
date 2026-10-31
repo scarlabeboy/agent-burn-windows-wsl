@@ -5,6 +5,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use serde_json::Value;
 
 use crate::sources;
@@ -55,13 +57,14 @@ fn locate_cli() -> Result<PathBuf, String> {
 }
 
 /// Point the CLI at one source: native Windows (no change) or a WSL distribution.
+/// Returns the distribution's home directory (UNC path) for WSL sources.
 fn apply_source(
     command: &mut Command,
     distro: Option<&str>,
     with_home: bool,
-) -> Result<(), String> {
+) -> Result<Option<String>, String> {
     let Some(distro) = distro else {
-        return Ok(());
+        return Ok(None);
     };
     let user = sources::detect()
         .distros
@@ -81,16 +84,65 @@ fn apply_source(
         // Sign-in tokens are read from the distribution's own home directory.
         command.env("HOME", &home);
     }
-    Ok(())
+    Ok(Some(home))
 }
 
-pub fn run_summary(distro: Option<&str>, offline: bool) -> Result<Value, String> {
+const CLAUDE_PLANS: [&str; 3] = ["pro", "max-5x", "max-20x"];
+
+/// Claude plan passed to the CLI. The CLI cannot detect it, so "auto" reads only the plan
+/// fields of the source's own Claude sign-in file; a manual choice is used as given.
+fn resolve_claude_plan(setting: &str, home: Option<&str>) -> Option<String> {
+    match setting {
+        "none" => None,
+        "auto" => {
+            let home = home
+                .map(str::to_string)
+                .or_else(|| env::var("USERPROFILE").ok())?;
+            claude_plan_from_credentials(
+                &Path::new(&home).join(".claude").join(".credentials.json"),
+            )
+        }
+        other => CLAUDE_PLANS.contains(&other).then(|| other.to_string()),
+    }
+}
+
+/// Reads `subscriptionType` and `rateLimitTier` only; no token is kept or logged.
+fn claude_plan_from_credentials(path: &Path) -> Option<String> {
+    let text = fs::read_to_string(path).ok()?;
+    let value: Value = serde_json::from_str(&text).ok()?;
+    let oauth = value.get("claudeAiOauth")?;
+    let kind = oauth
+        .get("subscriptionType")?
+        .as_str()?
+        .to_ascii_lowercase();
+    let tier = oauth
+        .get("rateLimitTier")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    match kind.as_str() {
+        "pro" => Some("pro".to_string()),
+        "max" if tier.contains("20x") => Some("max-20x".to_string()),
+        "max" if tier.contains("5x") => Some("max-5x".to_string()),
+        _ => None,
+    }
+}
+
+pub fn run_summary(
+    distro: Option<&str>,
+    offline: bool,
+    claude_plan: &str,
+) -> Result<Value, String> {
     let mut command = Command::new(locate_cli()?);
-    command.args(["summary", "--json", "--no-color"]);
+    // `--value` adds the subscription block (plan, price, value) and the Claude account meters.
+    command.args(["summary", "--value", "--json", "--no-color"]);
     if offline {
         command.arg("--offline");
     }
-    apply_source(&mut command, distro, false)?;
+    let home = apply_source(&mut command, distro, true)?;
+    if let Some(plan) = resolve_claude_plan(claude_plan, home.as_deref()) {
+        command.args(["--claude-plan", &plan]);
+    }
     run_json(command, distro, "summary")
 }
 
@@ -112,11 +164,14 @@ pub fn run_quota(harness: &str, distro: Option<&str>, force: bool) -> Result<Val
 
 fn run_json(mut command: Command, distro: Option<&str>, label: &str) -> Result<Value, String> {
     hide_window(&mut command);
+    // Unique per run: two overlapping runs of the same source must not share a file.
+    static NEXT_RUN: AtomicU64 = AtomicU64::new(0);
     let output_path = env::temp_dir().join(format!(
-        "abf-{}-{}-{}.json",
+        "abf-{}-{}-{}-{}.json",
         std::process::id(),
         label,
-        distro.unwrap_or("windows")
+        distro.unwrap_or("windows"),
+        NEXT_RUN.fetch_add(1, Ordering::SeqCst)
     ));
     let output_file = fs::File::create(&output_path).map_err(|error| error.to_string())?;
     let result = run_to_file(&mut command, output_file, &output_path);
@@ -185,4 +240,62 @@ fn run_to_file(
     let bytes = fs::read(output_path).map_err(|error| error.to_string())?;
     serde_json::from_slice(&bytes)
         .map_err(|_| "agent-burn returned an unsupported report".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use super::*;
+
+    fn plan_for(json: &str) -> Option<String> {
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let path = env::temp_dir().join(format!(
+            "abf-plan-test-{}-{}.json",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::SeqCst)
+        ));
+        fs::write(&path, json).unwrap();
+        let plan = claude_plan_from_credentials(&path);
+        let _ = fs::remove_file(&path);
+        plan
+    }
+
+    #[test]
+    fn reads_the_pro_plan() {
+        let json =
+            r#"{"claudeAiOauth":{"subscriptionType":"pro","rateLimitTier":"default_claude_ai"}}"#;
+        assert_eq!(plan_for(json).as_deref(), Some("pro"));
+    }
+
+    #[test]
+    fn reads_max_plans_from_the_rate_limit_tier() {
+        let five = r#"{"claudeAiOauth":{"subscriptionType":"max","rateLimitTier":"default_claude_max_5x"}}"#;
+        let twenty = r#"{"claudeAiOauth":{"subscriptionType":"max","rateLimitTier":"default_claude_max_20x"}}"#;
+        assert_eq!(plan_for(five).as_deref(), Some("max-5x"));
+        assert_eq!(plan_for(twenty).as_deref(), Some("max-20x"));
+    }
+
+    #[test]
+    fn leaves_unknown_plans_undetected() {
+        assert_eq!(
+            plan_for(r#"{"claudeAiOauth":{"subscriptionType":"max"}}"#),
+            None
+        );
+        assert_eq!(
+            plan_for(r#"{"claudeAiOauth":{"subscriptionType":"free"}}"#),
+            None
+        );
+        assert_eq!(plan_for("not json"), None);
+    }
+
+    #[test]
+    fn manual_choice_is_validated() {
+        assert_eq!(
+            resolve_claude_plan("max-5x", None).as_deref(),
+            Some("max-5x")
+        );
+        assert_eq!(resolve_claude_plan("none", None), None);
+        assert_eq!(resolve_claude_plan("$$", None), None);
+    }
 }

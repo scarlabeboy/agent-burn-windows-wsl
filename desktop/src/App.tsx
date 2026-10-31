@@ -11,7 +11,9 @@ import {
 import { formatUsd, mergeReports } from "./aggregate";
 import { recordReading } from "./history";
 import { quotaCards, type QuotaCard } from "./quota";
+import { pickClaudeAccount, pickSubscription } from "./subscription";
 import type {
+  ClaudePlanSetting,
   Detected,
   QuotaReading,
   Settings,
@@ -28,6 +30,7 @@ import {
   Page,
   QuotaSection,
   SpendChart,
+  SubscriptionCard,
   Stats,
   TokenBreakdownCard,
   agentLabel,
@@ -104,7 +107,7 @@ export default function App() {
         ...current,
         [id]: { status: "loading", previous: reportOf(current[id]) },
       }));
-      return loadUsage(id === "windows" ? null : id.slice(4), settings.offline)
+      return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, settings.claudePlan)
         .then((report) =>
           setStates((current) => ({
             ...current,
@@ -121,7 +124,7 @@ export default function App() {
     void Promise.all(scans).finally(() => {
       scanning.current = false;
     });
-  }, [sourceIds, settings.offline]);
+  }, [sourceIds, settings.offline, settings.claudePlan]);
 
   useEffect(() => {
     if (!detected) return;
@@ -190,6 +193,15 @@ export default function App() {
         ),
       ),
     [quotas, sourceIds],
+  );
+
+  // Plan, price and account meters belong to the account: read them from every source.
+  const sourceReports = useMemo(
+    () =>
+      sourceIds
+        .map((id) => reportOf(states[id]))
+        .filter((entry): entry is UsageReport => entry !== undefined),
+    [sourceIds, states],
   );
 
   const tabs: { id: TabId; label: string }[] = [
@@ -334,6 +346,21 @@ export default function App() {
               Lire aussi WSL (désactivé = Windows uniquement)
             </label>
             <label>
+              Plan Claude
+              <select
+                value={settings.claudePlan}
+                onChange={(event) =>
+                  updateSettings({ ...settings, claudePlan: event.target.value as ClaudePlanSetting })
+                }
+              >
+                <option value="auto">Détecté automatiquement</option>
+                <option value="pro">Pro</option>
+                <option value="max-5x">Max 5×</option>
+                <option value="max-20x">Max 20×</option>
+                <option value="none">Ne pas préciser</option>
+              </select>
+            </label>
+            <label>
               Rafraîchir l'usage automatiquement
               <select
                 value={settings.refreshMinutes}
@@ -381,6 +408,14 @@ export default function App() {
                   {pageCards.map((card) => (
                     <QuotaSection key={`${card.harness}-${card.sources.join()}`} card={card} />
                   ))}
+                  {(page === "claude" || page === "codex") && (
+                    <SubscriptionCard
+                      harness={page}
+                      sub={pickSubscription(sourceReports, page)}
+                      account={pickClaudeAccount(sourceReports)}
+                      card={pageCards[0]}
+                    />
+                  )}
                   {selected ? (
                     <>
                       <Stats report={asReport(selected)} label={agentLabel(selected.agent)} />

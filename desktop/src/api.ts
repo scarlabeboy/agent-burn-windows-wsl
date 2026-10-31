@@ -3,14 +3,19 @@ import type { Detected, QuotaReading, Settings, TabId, UsageReport } from "./typ
 
 export const detectSources = () => invoke<Detected>("detect_sources");
 
-export const loadUsage = (distro: string | null, offline: boolean) =>
-  invoke<UsageReport>("load_usage", { distro, offline });
+export const loadUsage = (distro: string | null, offline: boolean, claudePlan: string) =>
+  invoke<UsageReport>("load_usage", { distro, offline, claudePlan });
 
 export const loadQuota = (harness: string, distro: string | null, force: boolean) =>
   invoke<QuotaReading>("load_quota", { harness, distro, force });
 
 const SETTINGS_KEY = "abf.settings";
-const defaults: Settings = { wslEnabled: true, offline: false, refreshMinutes: 10 };
+const defaults: Settings = {
+  wslEnabled: true,
+  offline: false,
+  refreshMinutes: 10,
+  claudePlan: "auto",
+};
 
 export function readSettings(): Settings {
   try {

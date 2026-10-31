@@ -11,7 +11,7 @@ import {
 import { formatTokens, formatUsd, tokensPerDollar } from "./aggregate";
 import { QuotaChart } from "./QuotaChart";
 import { formatDay, formatDuration, type GaugeModel, type QuotaCard } from "./quota";
-import type { AgentReport, TokenBreakdown, UsageReport } from "./types";
+import type { AgentReport, ClaudeAccount, SubscriptionAgent, TokenBreakdown, UsageReport } from "./types";
 import amp from "./assets/brands/amp.png";
 import claude from "./assets/brands/claude.png";
 import codex from "./assets/brands/codex.png";
@@ -358,6 +358,96 @@ export function QuotaSection({ card }: { card: QuotaCard }) {
       </div>
       <p className="muted small hint">
         Les relevés sont enregistrés tant que l'application est ouverte ; la courbe commence au premier relevé.
+      </p>
+    </section>
+  );
+}
+
+const PERCENT = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
+
+/** Plan, price and value of one subscription, from `summary --value`. */
+export function SubscriptionCard({
+  harness,
+  sub,
+  account,
+  card,
+}: {
+  harness: string;
+  sub?: SubscriptionAgent;
+  account?: ClaudeAccount;
+  card?: QuotaCard;
+}) {
+  const estimate = sub?.estimate ?? null;
+  const scoped = harness === "claude" ? (account?.scoped ?? []) : [];
+  const extra = harness === "claude" && account?.extraEnabled ? account : undefined;
+  if (!sub && scoped.length === 0 && !extra) return null;
+  const known = sub?.plan && sub.plan !== "";
+  const perDay = card
+    ? card.weekly.remaining / Math.max(card.weekly.minutesToReset / 1440, 0.01)
+    : null;
+  return (
+    <section className="card">
+      <header className="card-head">
+        <h2>Abonnement</h2>
+        <span className="chip">
+          {agentLabel(harness)} · {known ? sub?.plan : "plan inconnu"}
+          {sub?.pricePerMonth != null && ` · ${formatUsd(sub.pricePerMonth)}/mois`}
+        </span>
+      </header>
+      {!known && harness === "claude" && (
+        <p className="muted small hint-top">
+          Le plan n'a pas pu être détecté : choisissez-le dans les réglages pour obtenir la valeur de
+          l'abonnement.
+        </p>
+      )}
+      {estimate && (
+        <div className="stats">
+          <Stat
+            title="Valeur / prix du forfait"
+            value={estimate.valueMultiple != null ? `${estimate.valueMultiple.toFixed(1)}×` : "n/a"}
+            hint="Usage mensuel estimé ÷ prix"
+          />
+          <Stat title="Valeur mensuelle estimée" value={formatUsd(estimate.monthlyValue)} hint="Équivalent API" />
+          <Stat
+            title="Consommation projetée"
+            value={`${PERCENT.format(estimate.projectedUsePercent)}%`}
+            hint="Du quota, au rythme actuel"
+          />
+          <Stat
+            title="Rythme conseillé"
+            value={perDay !== null ? `${perDay.toFixed(1)} %/j` : "n/a"}
+            hint="Pour tenir jusqu'au reset"
+          />
+        </div>
+      )}
+      {sub && sub.resetCreditsAvailable ? (
+        <p className="muted small hint-top">
+          Resets de limite disponibles : {sub.resetCreditsAvailable}
+        </p>
+      ) : null}
+      {scoped.length > 0 && (
+        <div className="scoped">
+          {scoped.map((window) => (
+            <div key={window.name}>
+              <div className="row small">
+                <span>{window.name} · hebdomadaire</span>
+                <span>{Math.max(0, 100 - window.usedPercent).toFixed(0)}% restants</span>
+              </div>
+              <div className="bar">
+                <div style={{ width: `${Math.max(0, 100 - window.usedPercent)}%`, background: agentColor(harness) }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {extra && (
+        <p className="small hint-top">
+          Crédits d'usage supplémentaire : {formatUsd(extra.extraUsedUSD ?? 0)}
+          {extra.extraLimitUSD != null && ` sur ${formatUsd(extra.extraLimitUSD)}`}
+        </p>
+      )}
+      <p className="muted small hint-top">
+        La dépense affichée est un équivalent API, pas votre facture d'abonnement.
       </p>
     </section>
   );

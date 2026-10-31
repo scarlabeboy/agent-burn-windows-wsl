@@ -27,12 +27,48 @@ export interface AgentReport {
   totalTokens: number;
 }
 
-/** Shape of `agent-burn summary --json`. */
+export interface SubscriptionEstimate {
+  fullQuotaValue: number;
+  monthlyValue: number;
+  projectedUsePercent: number;
+  valueMultiple: number | null;
+}
+
+/** One subscription from `summary --value`. Plan and price are null when unknown. */
+export interface SubscriptionAgent {
+  agent: string;
+  plan: string | null;
+  pricePerMonth: number | null;
+  liveLimits: boolean;
+  periodUsage: number;
+  resetCreditsAvailable: number | null;
+  estimate: SubscriptionEstimate | null;
+}
+
+export interface ScopedWindow {
+  name: string;
+  usedPercent: number;
+  resetsAtMs: number | null;
+}
+
+/** Claude account meters, reported only when Anthropic returns them. */
+export interface ClaudeAccount {
+  observedAtMs?: number;
+  scoped: ScopedWindow[];
+  extraEnabled: boolean | null;
+  extraUsedUSD: number | null;
+  extraLimitUSD: number | null;
+  extraUsedPercent: number | null;
+}
+
+/** Shape of `agent-burn summary --value --json`. */
 export interface UsageReport {
   agents: AgentReport[];
   daily: DailyPoint[];
   models: ModelRow[];
   totals: { totalCost: number; totalTokens: number };
+  subscription?: { agents: SubscriptionAgent[] };
+  claudeAccount?: ClaudeAccount;
 }
 
 export interface Distro {
@@ -73,4 +109,8 @@ export interface Settings {
   offline: boolean;
   /** Minutes between automatic usage scans; 0 disables them. */
   refreshMinutes: number;
+  /** "auto" reads the plan from the sign-in file; or pro, max-5x, max-20x, none. */
+  claudePlan: ClaudePlanSetting;
 }
+
+export type ClaudePlanSetting = "auto" | "pro" | "max-5x" | "max-20x" | "none";
