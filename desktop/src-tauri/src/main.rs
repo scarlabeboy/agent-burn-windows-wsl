@@ -70,7 +70,37 @@ async fn backfill_codex(
     .map_err(|error| error.to_string())?
 }
 
+/// Native message box, used when the web view cannot start and nothing else can be shown.
+#[cfg(windows)]
+fn show_error(message: &str) {
+    #[link(name = "user32")]
+    extern "system" {
+        fn MessageBoxW(hwnd: *mut (), text: *const u16, caption: *const u16, kind: u32) -> i32;
+    }
+    const MB_OK_ICONERROR: u32 = 0x10;
+    let wide = |text: &str| -> Vec<u16> { text.encode_utf16().chain(Some(0)).collect() };
+    let (text, caption) = (wide(message), wide("Agent Burn Windows"));
+    // SAFETY: both buffers are NUL-terminated and outlive the call.
+    unsafe {
+        MessageBoxW(std::ptr::null_mut(), text.as_ptr(), caption.as_ptr(), MB_OK_ICONERROR);
+    }
+}
+
+#[cfg(not(windows))]
+fn show_error(message: &str) {
+    eprintln!("{message}");
+}
+
+const WEBVIEW2_HELP: &str = "Agent Burn Windows ne peut pas démarrer : le composant Microsoft Edge \
+WebView2 est absent ou endommagé.\n\nRéparez-le dans Paramètres > Applications > Microsoft Edge \
+WebView2 Runtime > Modifier, ou installez-le depuis :\nhttps://developer.microsoft.com/microsoft-edge/webview2/\n\n\
+Si un antivirus a mis des fichiers en quarantaine, ajoutez une exclusion pour ce dossier avant de réparer.";
+
 fn main() {
+    if tauri::webview_version().is_err() {
+        show_error(WEBVIEW2_HELP);
+        std::process::exit(1);
+    }
     tauri::Builder::default()
         // A second launch (for example the startup entry while the app is open) only
         // brings the existing window forward.
@@ -107,5 +137,8 @@ fn main() {
             background::set_tray_tooltip
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Agent Burn");
+        .unwrap_or_else(|error| {
+            show_error(&format!("Agent Burn Windows ne peut pas démarrer.\n\n{error}"));
+            std::process::exit(1);
+        });
 }

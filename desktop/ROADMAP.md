@@ -23,8 +23,8 @@
 ## À corriger
 
 1. **Dossier d'archive = dossier d'installation.** Les deux sont `%LOCALAPPDATA%\Agent Burn Windows`. Les séparer (par exemple `%LOCALAPPDATA%\dev.scarlabeboy.agent-burn-windows\archive`) et reprendre les fichiers existants.
-2. **WebView2 absent ou cassé.** L'application plante (`expect` dans `main.rs`, code `0xC0000409`). Afficher une boîte de dialogue explicite à la place.
-3. **Démarrage automatique non testé** de bout en bout (création et suppression de l'entrée, nettoyage par l'installateur).
+2. ~~WebView2 absent ou cassé~~ : fait. `main.rs` teste WebView2 au démarrage et affiche une boîte de dialogue Windows avec la marche à suivre, au lieu de planter (`0xC0000409`). Testé avec `WEBVIEW2_BROWSER_EXECUTABLE_FOLDER` pointant sur un dossier vide, sans toucher au vrai runtime.
+3. **Démarrage automatique** : l'activation fonctionne (testée à la main le 31/10). Reste à vérifier la désactivation et le nettoyage par l'installateur à la désinstallation.
 
 ## Idées retenues
 
