@@ -13,7 +13,7 @@
 
 - Trois vues (Windows, WSL, Computer), barre latérale par harness, vue d'ensemble.
 - Quotas de session de 5 h et hebdomadaire, avec prévision, rythme et zone de blocage (Claude, Codex).
-- Carte d'abonnement depuis `summary --value` : plan, prix, valeur, consommation projetée, rythme conseillé. Plan Claude lu dans le fichier de connexion (champs de plan seulement) ou réglé à la main.
+- Carte d'abonnement depuis `summary --value` : plan, prix, valeur, consommation projetée, rythme conseillé. Plan Claude lu dans le fichier de connexion de chaque environnement (champs de plan seulement), sans réglage manuel.
 - Archive durable (`%LOCALAPPDATA%\Agent Burn Windows`) : historique de quota, cache de rapports, écriture atomique, copie `.bak`.
 - Historique de quota Codex reconstitué depuis les logs de session.
 - Sélecteur de période (totaux exacts en local, détail par modèle par scan de période).
@@ -28,7 +28,7 @@
 2. ~~WebView2 absent ou cassé~~ : fait. `main.rs` teste WebView2 au démarrage et affiche une boîte de dialogue Windows avec la marche à suivre, au lieu de planter (`0xC0000409`). Testé avec `WEBVIEW2_BROWSER_EXECUTABLE_FOLDER` pointant sur un dossier vide, sans toucher au vrai runtime.
 3. **Démarrage automatique** : l'activation fonctionne (testée à la main le 31/10). Reste à vérifier la désactivation et le nettoyage par l'installateur à la désinstallation.
 
-4. ~~Doublon de quota quand les environnements divergent~~ : codé, à valider dans la fenêtre. Chaque onglet n'affiche que les quotas de son environnement (Windows, WSL), un WSL éteint n'en affiche aucun, et Computer garde la lecture la plus récente par harness. Sans quota, la page de Claude Code ou Codex dit pourquoi (« non lu » avec la cause). L'icône de notification résume le compte entier. Le réglage « Plan Claude (Windows) » ne vaut plus que pour Windows (prix et valeur de l'abonnement, pas le quota) ; WSL détecte son plan seul.
+4. ~~Doublon de quota quand les environnements divergent~~ : codé, à valider dans la fenêtre. Chaque onglet n'affiche que les quotas de son environnement (Windows, WSL), un WSL éteint n'en affiche aucun, et Computer garde la lecture la plus récente par harness. Sans quota, la page de Claude Code ou Codex dit pourquoi (« non lu » avec la cause). L'icône de notification résume le compte entier. Le réglage manuel « Plan Claude » est retiré : chaque environnement détecte son plan dans son propre fichier de connexion (sans connexion lisible, pas de plan ni de quota).
 5. ~~Quota Claude sous Windows~~ : résolu le 01/11 en connectant la commande `claude` sous Windows (`npm install -g @anthropic-ai/claude-code`, puis `claude.cmd`, car PowerShell bloque `claude.ps1`). Cela crée `~/.claude/.credentials.json`, que le moteur lit : `harness claude` renvoie le quota Windows. La connexion de Claude Desktop, elle, reste dans son stockage chiffré et n'est jamais lue. Reste à voir ce que l'application affiche après le prochain installateur.
 
 ## Idées retenues
@@ -44,7 +44,7 @@
 | Signature de code | Réduit les faux positifs d'antivirus (Surfshark a mis l'installateur en quarantaine, `Drop.Win32.FakeProgRegStartup`). | Certificat |
 | Icône propre | Le logo de Melvynx est provisoire. | Aucune |
 | Mode rapide WSL | Lecture avec un binaire Linux (0,7 s hors ligne contre 6 s). Écarté pour l'instant ; le seul binaire Linux présent est celui de David, qui change les coûts. Possible avec notre propre build Linux embarqué. | Binaire Linux |
-| Plan Claude via une option | Le CLI ne détecte pas le plan ; l'application passe `--claude-plan`. | Fait, à surveiller |
+| Plan Claude | Le CLI ne détecte pas le plan ; l'application le lit dans le fichier de connexion et passe `--claude-plan`. Le choix manuel a été retiré le 01/11 : sans connexion `claude` lisible, pas de plan. | Fait, à surveiller |
 
 ## Points de vigilance
 

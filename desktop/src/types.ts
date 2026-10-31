@@ -115,12 +115,9 @@ export interface Settings {
   offline: boolean;
   /** Minutes between automatic usage scans; 0 disables them. */
   refreshMinutes: number;
-  /** "auto" reads the plan from the sign-in file; or pro, max-5x, max-20x, none. */
-  claudePlan: ClaudePlanSetting;
   /** Closing the window keeps the app running in the notification area. */
   closeToTray: boolean;
   /** Harnesses turned off: not scanned and removed from the data. */
   harnessStates: HarnessStates;
 }
 
-export type ClaudePlanSetting = "auto" | "pro" | "max-5x" | "max-20x" | "none";

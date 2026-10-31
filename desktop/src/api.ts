@@ -51,7 +51,6 @@ const defaults: Settings = {
   wslEnabled: true,
   offline: false,
   refreshMinutes: 10,
-  claudePlan: "auto",
   closeToTray: false,
   harnessStates: {},
 };

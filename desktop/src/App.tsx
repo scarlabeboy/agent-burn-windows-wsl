@@ -43,7 +43,6 @@ import {
 import { quotaCards, type QuotaCard } from "./quota";
 import { pickClaudeAccount, pickSubscription } from "./subscription";
 import type {
-  ClaudePlanSetting,
   Detected,
   QuotaReading,
   Settings,
@@ -69,6 +68,8 @@ import {
 
 const SUBSCRIPTIONS = ["codex", "claude", "cursor"];
 const OVERVIEW = "overview";
+/** Each source's Claude plan is read from its own sign-in file; there is no manual choice. */
+const CLAUDE_PLAN = "auto";
 /** Period scans are reused for this long before being fetched again. */
 const DETAIL_TTL_MS = 10 * 60_000;
 
@@ -87,8 +88,7 @@ function quotaMissing(harness: string, tab: TabId, wslRunning: boolean): string 
   if (harness === "claude") {
     return (
       `Quota ${name} non lu ${where} : aucune connexion lisible (fichier ~/.claude/.credentials.json). ` +
-      "Claude Code doit être connecté dans cet environnement. Le réglage « Plan Claude » ne fournit " +
-      "que le prix et la valeur de l'abonnement."
+      "Connectez Claude Code dans cet environnement (commande claude) pour lire le quota et le plan."
     );
   }
   return `Quota ${name} non lu ${where} : il vient des journaux de session de cet environnement, et aucune session récente n'en contient.`;
@@ -140,9 +140,6 @@ export default function App() {
     () => ["windows", ...distros.map((entry) => `wsl:${entry.name}` as SourceId)],
     [distros],
   );
-  // The manual Claude plan is a Windows setting; a WSL distribution always detects its own.
-  const claudePlanFor = (id: string) => (id === "windows" ? settings.claudePlan : "auto");
-
   // Sources that can be read now: a stopped WSL distribution keeps its last report instead.
   const readableIds = useMemo<SourceId[]>(
     () => ["windows", ...distros.filter((entry) => entry.running).map((entry) => `wsl:${entry.name}` as SourceId)],
@@ -222,7 +219,7 @@ export default function App() {
         ...current,
         [id]: { status: "loading", previous: reportOf(current[id]) },
       }));
-      return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, claudePlanFor(id), {}, agentsToScan)
+      return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, CLAUDE_PLAN, {}, agentsToScan)
         .then((report) => {
           const loadedAt = Date.now();
           cacheReport(id, report, loadedAt);
@@ -242,7 +239,7 @@ export default function App() {
         refreshRef.current();
       }
     });
-  }, [readableIds, settings.offline, settings.claudePlan, agentsToScan]);
+  }, [readableIds, settings.offline, agentsToScan]);
   refreshRef.current = refresh;
 
   useEffect(() => {
@@ -448,7 +445,7 @@ export default function App() {
           const detail = await loadUsage(
             id === "windows" ? null : id.slice(4),
             settings.offline,
-            claudePlanFor(id),
+            CLAUDE_PLAN,
             { since: compactDate(rangeSince), until: rangeUntil ? compactDate(rangeUntil) : undefined },
             detailScope === "*" ? agentsToScan : [detailScope],
           );
@@ -462,7 +459,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [rangeSince, rangeUntil, detailScope, activeKey, readableKey, detected, archiveReady, lastScan, settings.offline, settings.claudePlan, agentsToScan]);
+  }, [rangeSince, rangeUntil, detailScope, activeKey, readableKey, detected, archiveReady, lastScan, settings.offline, agentsToScan]);
 
   // Plan, price and account meters come from the sources of the open tab.
   const sourceReports = useMemo(
@@ -672,24 +669,6 @@ export default function App() {
                 onChange={(event) => updateSettings({ ...settings, closeToTray: event.target.checked })}
               />
               Rester actif dans la zone de notification quand je ferme la fenêtre
-            </label>
-            <label>
-              Plan Claude (Windows)
-              <select
-                value={settings.claudePlan}
-                onChange={(event) =>
-                  updateSettings({ ...settings, claudePlan: event.target.value as ClaudePlanSetting })
-                }
-              >
-                <option value="auto">Détecté automatiquement</option>
-                <option value="pro">Pro</option>
-                <option value="max-5x">Max 5×</option>
-                <option value="max-20x">Max 20×</option>
-                <option value="none">Ne pas préciser</option>
-              </select>
-              <span className="muted small" title="WSL détecte son plan seul. Ce réglage ne donne pas le quota.">
-                prix et valeur de l'abonnement sous Windows seulement
-              </span>
             </label>
             <label>
               Rafraîchir l'usage automatiquement
