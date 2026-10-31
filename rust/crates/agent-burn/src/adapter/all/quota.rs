@@ -10,12 +10,28 @@ use crate::{
 pub(super) fn snapshot(agent: &str, offline: bool) -> Option<Value> {
     let (used, minutes, reset) = match agent {
         "codex" => {
-            let window = codex::usage_limits(offline)?.weekly_window()?;
-            (
+            let limits = codex::usage_limits(offline)?;
+            let window = limits.weekly_window()?;
+            let now = utc_now();
+            let mut weekly = reading(
+                agent,
                 window.used_percent,
                 window.window_minutes,
                 TimestampMs::from_unix_seconds(window.resets_at?)?,
-            )
+                now,
+            )?;
+            if let Some(session) = limits.session_window().and_then(|session| {
+                reading(
+                    agent,
+                    session.used_percent,
+                    session.window_minutes,
+                    TimestampMs::from_unix_seconds(session.resets_at?)?,
+                    now,
+                )
+            }) {
+                weekly["sessionWindow"] = session["window"].clone();
+            }
+            return Some(weekly);
         }
         "claude" => {
             let (limits, now) = claude::live_usage_limits(offline)?;

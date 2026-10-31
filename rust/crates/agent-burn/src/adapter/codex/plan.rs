@@ -35,6 +35,15 @@ impl CodexPlanSnapshot {
             .max_by_key(|window| window.window_minutes)
     }
 
+    /// The rolling session window (typically 5h) when it carries a reset time.
+    pub(crate) fn session_window(&self) -> Option<RateWindow> {
+        [self.primary, self.secondary]
+            .into_iter()
+            .flatten()
+            .filter(|window| window.window_minutes < 24 * 60 && window.resets_at.is_some())
+            .min_by_key(|window| window.window_minutes)
+    }
+
     /// The shorter rolling window when Codex still reports one (typically 5h).
     pub(crate) fn short_window(&self) -> Option<(u64, f64)> {
         [self.primary, self.secondary]
