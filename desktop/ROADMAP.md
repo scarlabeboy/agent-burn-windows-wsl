@@ -23,7 +23,7 @@
 
 ## À corriger
 
-1. **Dossier d'archive = dossier d'installation.** Les deux sont `%LOCALAPPDATA%\Agent Burn Windows`. Les séparer (par exemple `%LOCALAPPDATA%\dev.scarlabeboy.agent-burn-windows\archive`) et reprendre les fichiers existants.
+1. ~~Dossier d'archive = dossier d'installation~~ : codé, à valider sur les vraies données. L'archive est maintenant dans `%LOCALAPPDATA%\dev.scarlabeboy.agent-burn-windows\archive`. Au premier accès, les fichiers de l'ancien dossier sont copiés, relus, puis supprimés de l'ancien dossier (jamais d'écrasement, jamais de suppression du dossier d'installation). Testé en dossier isolé seulement.
 2. ~~WebView2 absent ou cassé~~ : fait. `main.rs` teste WebView2 au démarrage et affiche une boîte de dialogue Windows avec la marche à suivre, au lieu de planter (`0xC0000409`). Testé avec `WEBVIEW2_BROWSER_EXECUTABLE_FOLDER` pointant sur un dossier vide, sans toucher au vrai runtime.
 3. **Démarrage automatique** : l'activation fonctionne (testée à la main le 31/10). Reste à vérifier la désactivation et le nettoyage par l'installateur à la désinstallation.
 
