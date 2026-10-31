@@ -71,4 +71,6 @@ export type TabId = "windows" | "wsl" | "computer";
 export interface Settings {
   wslEnabled: boolean;
   offline: boolean;
+  /** Minutes between automatic usage scans; 0 disables them. */
+  refreshMinutes: number;
 }

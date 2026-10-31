@@ -1,5 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { detectSources, loadQuota, loadUsage, readSettings, writeSettings } from "./api";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  detectSources,
+  loadQuota,
+  loadUsage,
+  readSettings,
+  readTab,
+  writeSettings,
+  writeTab,
+} from "./api";
 import { formatUsd, mergeReports } from "./aggregate";
 import { recordReading } from "./history";
 import { quotaCards, type QuotaCard } from "./quota";
@@ -58,7 +66,7 @@ export default function App() {
   const [detected, setDetected] = useState<Detected | null>(null);
   const [states, setStates] = useState<Record<string, SourceState>>({});
   const [quotas, setQuotas] = useState<Record<string, Record<string, QuotaReading>>>({});
-  const [tab, setTab] = useState<TabId>("windows");
+  const [storedTab, setStoredTab] = useState<TabId | null>(readTab);
   const [distro, setDistro] = useState<string | null>(null);
   const [page, setPage] = useState<string>(OVERVIEW);
   const [showSettings, setShowSettings] = useState(false);
@@ -73,6 +81,12 @@ export default function App() {
   );
   const activeDistro = distros.find((entry) => entry.name === distro) ?? distros[0];
   const hasWsl = distros.length > 0;
+  // Windows alone when WSL is off or absent; otherwise the last tab, Computer on first run.
+  const tab: TabId = hasWsl ? (storedTab ?? "computer") : "windows";
+  const setTab = (next: TabId) => {
+    setStoredTab(next);
+    writeTab(next);
+  };
 
   useEffect(() => {
     detectSources()
@@ -80,13 +94,17 @@ export default function App() {
       .catch(() => setDetected({ distros: [] }));
   }, []);
 
+  const scanning = useRef(false);
   const refresh = useCallback(() => {
-    for (const id of sourceIds) {
+    // One scan at a time: a slow WSL read must never overlap the next automatic one.
+    if (scanning.current) return;
+    scanning.current = true;
+    const scans = sourceIds.map((id) => {
       setStates((current) => ({
         ...current,
         [id]: { status: "loading", previous: reportOf(current[id]) },
       }));
-      loadUsage(id === "windows" ? null : id.slice(4), settings.offline)
+      return loadUsage(id === "windows" ? null : id.slice(4), settings.offline)
         .then((report) =>
           setStates((current) => ({
             ...current,
@@ -99,12 +117,19 @@ export default function App() {
             [id]: { status: "error", message: String(error), previous: reportOf(current[id]) },
           })),
         );
-    }
+    });
+    void Promise.all(scans).finally(() => {
+      scanning.current = false;
+    });
   }, [sourceIds, settings.offline]);
 
   useEffect(() => {
-    if (detected) refresh();
-  }, [detected, refresh]);
+    if (!detected) return;
+    refresh();
+    if (settings.refreshMinutes <= 0) return;
+    const timer = setInterval(refresh, settings.refreshMinutes * 60_000);
+    return () => clearInterval(timer);
+  }, [detected, refresh, settings.refreshMinutes]);
 
   const refreshQuotas = useCallback(
     (force: boolean) => {
@@ -136,10 +161,6 @@ export default function App() {
     return () => clearInterval(timer);
   }, [detected, refreshQuotas]);
 
-  useEffect(() => {
-    if (!hasWsl && tab !== "windows") setTab("windows");
-  }, [hasWsl, tab]);
-
   const updateSettings = (next: Settings) => {
     setSettings(next);
     writeSettings(next);
@@ -160,14 +181,15 @@ export default function App() {
     tab === "computer" ? computer?.report : reportOf(states[activeIds[0] ?? "windows"]);
   const pendingState = states[activeIds[0] ?? "windows"];
 
+  // Quotas belong to the account, not to an environment: read every source in every tab.
   const cards: QuotaCard[] = useMemo(
     () =>
       quotaCards(
-        activeIds.flatMap((id) =>
+        sourceIds.flatMap((id) =>
           Object.values(quotas[id] ?? {}).map((reading) => ({ source: label(id), reading })),
         ),
       ),
-    [quotas, tab, activeDistro?.name, sourceIds],
+    [quotas, sourceIds],
   );
 
   const tabs: { id: TabId; label: string }[] = [
@@ -181,6 +203,13 @@ export default function App() {
   ];
 
   const loading = sourceIds.some((id) => states[id]?.status === "loading");
+  const lastScan = Math.max(
+    0,
+    ...sourceIds.map((id) => {
+      const state = states[id];
+      return state?.status === "ready" ? state.loadedAt : 0;
+    }),
+  );
   const agentIds = report?.agents.map((agent) => agent.agent) ?? [];
   const subscriptionIds = SUBSCRIPTIONS.filter(
     (id) => agentIds.includes(id) || cards.some((card) => card.harness === id),
@@ -273,6 +302,11 @@ export default function App() {
             </select>
           )}
           <div className="spacer" />
+          {lastScan > 0 && (
+            <span className="muted small" title="Dernier scan des données d'usage">
+              {loading ? "Mise à jour…" : `Mis à jour à ${new Date(lastScan).toLocaleTimeString("fr-FR")}`}
+            </span>
+          )}
           <button
             className="icon"
             onClick={() => {
@@ -298,6 +332,19 @@ export default function App() {
                 onChange={(event) => updateSettings({ ...settings, wslEnabled: event.target.checked })}
               />
               Lire aussi WSL (désactivé = Windows uniquement)
+            </label>
+            <label>
+              Rafraîchir l'usage automatiquement
+              <select
+                value={settings.refreshMinutes}
+                onChange={(event) => updateSettings({ ...settings, refreshMinutes: Number(event.target.value) })}
+              >
+                <option value={0}>Jamais</option>
+                <option value={1}>Chaque minute</option>
+                <option value={5}>Toutes les 5 minutes</option>
+                <option value={10}>Toutes les 10 minutes</option>
+                <option value={30}>Toutes les 30 minutes</option>
+              </select>
             </label>
             <label>
               <input
