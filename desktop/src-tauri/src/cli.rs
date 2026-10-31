@@ -66,12 +66,7 @@ fn apply_source(
     let Some(distro) = distro else {
         return Ok(None);
     };
-    let user = sources::detect()
-        .distros
-        .into_iter()
-        .find(|candidate| candidate.name == distro)
-        .and_then(|candidate| candidate.user)
-        .ok_or_else(|| format!("WSL distribution '{distro}' is unavailable"))?;
+    let user = sources::running_user(distro)?;
     let home = sources::wsl_home_unc(distro, &user);
     command
         .env("CLAUDE_CONFIG_DIR", format!(r"{home}\.claude"))

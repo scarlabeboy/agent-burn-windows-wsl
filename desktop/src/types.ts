@@ -76,6 +76,8 @@ export interface UsageReport {
 export interface Distro {
   name: string;
   user: string | null;
+  /** Only running distributions are read: reading a stopped one would start it. */
+  running: boolean;
 }
 
 export interface Detected {

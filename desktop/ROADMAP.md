@@ -18,6 +18,7 @@
 - Historique de quota Codex reconstitué depuis les logs de session.
 - Sélecteur de période (totaux exacts en local, détail par modèle par scan de période).
 - Rafraîchissement automatique (10 minutes par défaut, réglable).
+- WSL jamais réveillé par l'application : détection par `wsl -l -q` et `wsl --list --running --quiet` (délai de 5 s), lecture seulement des distributions déjà « Running », nom d'utilisateur mémorisé (`wsl-users`), détection répétée toutes les 15 s, aucun appel à `wsl.exe` quand WSL est désactivé. Validé le 31/10 avec un moniteur d'état : Ubuntu reste `STOPPED` pendant les scans et rafraîchissements.
 - Arrière-plan : icône de notification, fermeture vers la zone de notification, instance unique, démarrage Windows optionnel, nettoyage à la désinstallation.
 
 ## À corriger

@@ -34,12 +34,7 @@ fn codex_sessions(distro: Option<&str>) -> Result<PathBuf, String> {
             PathBuf::from(env::var_os("USERPROFILE").ok_or("USERPROFILE is not set")?)
         }
         Some(distro) => {
-            let user = sources::detect()
-                .distros
-                .into_iter()
-                .find(|candidate| candidate.name == distro)
-                .and_then(|candidate| candidate.user)
-                .ok_or_else(|| format!("WSL distribution '{distro}' is unavailable"))?;
+            let user = sources::running_user(distro)?;
             PathBuf::from(sources::wsl_home_unc(distro, &user))
         }
     };

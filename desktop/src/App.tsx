@@ -121,6 +121,12 @@ export default function App() {
     () => ["windows", ...distros.map((entry) => `wsl:${entry.name}` as SourceId)],
     [distros],
   );
+  // Sources that can be read now: a stopped WSL distribution keeps its last report instead.
+  const readableIds = useMemo<SourceId[]>(
+    () => ["windows", ...distros.filter((entry) => entry.running).map((entry) => `wsl:${entry.name}` as SourceId)],
+    [distros],
+  );
+  const readableKey = readableIds.join(",");
   const activeDistro = distros.find((entry) => entry.name === distro) ?? distros[0];
   const hasWsl = distros.length > 0;
   // Windows alone when WSL is off or absent; otherwise the last tab, Computer on first run.
@@ -148,18 +154,40 @@ export default function App() {
     return () => window.removeEventListener("beforeunload", flush);
   }, []);
 
+  // WSL is only listed, never started: this check is cheap, so it repeats to notice a
+  // distribution starting or stopping. With WSL turned off, WSL is not queried at all.
   useEffect(() => {
-    detectSources()
-      .then(setDetected)
-      .catch(() => setDetected({ distros: [] }));
-  }, []);
+    if (!settings.wslEnabled) {
+      setDetected({ distros: [] });
+      return;
+    }
+    let cancelled = false;
+    const check = () =>
+      detectSources()
+        .catch(() => ({ distros: [] }) as Detected)
+        .then((next) => {
+          if (!cancelled) setDetected((previous) => (JSON.stringify(previous) === JSON.stringify(next) ? previous : next));
+        });
+    void check();
+    const timer = setInterval(check, 15_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [settings.wslEnabled]);
 
   const scanning = useRef(false);
-  const refresh = useCallback(() => {
+  const rescan = useRef(false);
+  const refreshRef = useRef<() => void>(() => undefined);
+  const refresh = useCallback((queue = false) => {
     // One scan at a time: a slow WSL read must never overlap the next automatic one.
-    if (scanning.current) return;
+    // A change of sources (WSL started) waits for the running scan instead of being lost.
+    if (scanning.current) {
+      if (queue) rescan.current = true;
+      return;
+    }
     scanning.current = true;
-    const scans = sourceIds.map((id) => {
+    const scans = readableIds.map((id) => {
       setStates((current) => ({
         ...current,
         [id]: { status: "loading", previous: reportOf(current[id]) },
@@ -179,14 +207,19 @@ export default function App() {
     });
     void Promise.all(scans).finally(() => {
       scanning.current = false;
+      if (rescan.current) {
+        rescan.current = false;
+        refreshRef.current();
+      }
     });
-  }, [sourceIds, settings.offline, settings.claudePlan]);
+  }, [readableIds, settings.offline, settings.claudePlan]);
+  refreshRef.current = refresh;
 
   useEffect(() => {
     if (!detected || !archiveReady) return;
-    refresh();
+    refresh(true);
     if (settings.refreshMinutes <= 0) return;
-    const timer = setInterval(refresh, settings.refreshMinutes * 60_000);
+    const timer = setInterval(() => refresh(), settings.refreshMinutes * 60_000);
     return () => clearInterval(timer);
   }, [detected, archiveReady, refresh, settings.refreshMinutes]);
 
@@ -197,7 +230,7 @@ export default function App() {
     let cancelled = false;
     void (async () => {
       await new Promise((resolve) => setTimeout(resolve, 8000));
-      for (const id of sourceIds) {
+      for (const id of readableIds) {
         if (cancelled) return;
         const scannedAt = Date.now();
         const last = backfilledAt(id);
@@ -213,11 +246,11 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [detected, archiveReady, sourceIds]);
+  }, [detected, archiveReady, readableIds]);
 
   const refreshQuotas = useCallback(
     (force: boolean) => {
-      for (const id of sourceIds) {
+      for (const id of readableIds) {
         const name = id === "windows" ? null : id.slice(4);
         for (const harness of ["claude", "codex"]) {
           loadQuota(harness, name, force)
@@ -235,7 +268,7 @@ export default function App() {
         }
       }
     },
-    [sourceIds],
+    [readableIds],
   );
 
   // Background behaviour: the Windows startup entry and closing to the notification area.
@@ -281,6 +314,9 @@ export default function App() {
   const activeIds: string[] =
     tab === "windows" ? ["windows"] : tab === "wsl" ? (activeDistro ? [`wsl:${activeDistro.name}`] : []) : sourceIds;
   const activeKey = activeIds.join(",");
+  const stoppedNames = distros
+    .filter((entry) => !entry.running && activeIds.includes(`wsl:${entry.name}`))
+    .map((entry) => entry.name);
   const pendingState = states[activeIds[0] ?? "windows"];
   const lastScan = Math.max(
     0,
@@ -358,9 +394,9 @@ export default function App() {
     if (!rangeSince || !detected || !archiveReady) return;
     let cancelled = false;
     void (async () => {
-      for (const id of activeKey.split(",").filter(Boolean)) {
+      for (const id of activeKey.split(",").filter((entry) => entry && readableKey.split(",").includes(entry))) {
         if (cancelled) return;
-        const key = `${id}|${rangeSince}|${rangeUntil ?? ""}|${detailScope}`;
+        const key =`${id}|${rangeSince}|${rangeUntil ?? ""}|${detailScope}`;
         const cached = detailsRef.current[key];
         if (cached && Date.now() - cached.loadedAt < DETAIL_TTL_MS) continue;
         try {
@@ -381,7 +417,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [rangeSince, rangeUntil, detailScope, activeKey, detected, archiveReady, lastScan, settings.offline, settings.claudePlan]);
+  }, [rangeSince, rangeUntil, detailScope, activeKey, readableKey, detected, archiveReady, lastScan, settings.offline, settings.claudePlan]);
 
   // Plan, price and account meters belong to the account: read them from every source.
   const sourceReports = useMemo(
@@ -603,11 +639,24 @@ export default function App() {
 
         <main>
           {!report ? (
-            <Pending state={pendingState} label={tab === "computer" ? "Computer" : label(activeIds[0] ?? "windows")} />
+            stoppedNames.length > 0 && !pendingState ? (
+              <div className="notice">
+                WSL éteint ({stoppedNames.join(", ")}) : l'application ne le démarre pas et n'a pas encore de
+                données de lui. Elles apparaîtront dès qu'il tourne.
+              </div>
+            ) : (
+              <Pending state={pendingState} label={tab === "computer" ? "Computer" : label(activeIds[0] ?? "windows")} />
+            )
           ) : (
             <Page>
               <div>{header}</div>
-              {tab === "computer" && localParts.length < sourceIds.length && (
+              {stoppedNames.length > 0 && (
+                <div className="notice">
+                  WSL éteint ({stoppedNames.join(", ")}) : l'application ne le démarre pas, ses chiffres
+                  datent de sa dernière lecture.
+                </div>
+              )}
+              {tab === "computer" && localParts.length < sourceIds.length - stoppedNames.length && (
                 <div className="notice error">Une source n'a pas pu être lue : le total Computer est partiel.</div>
               )}
               {page === OVERVIEW ? (
