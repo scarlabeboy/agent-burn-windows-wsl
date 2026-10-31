@@ -79,6 +79,21 @@ function reportOf(state: SourceState | undefined): UsageReport | undefined {
   return undefined;
 }
 
+/** Why a harness page has no quota, in the words of the open tab. */
+function quotaMissing(harness: string, tab: TabId, wslRunning: boolean): string {
+  const name = agentLabel(harness);
+  if (tab === "wsl" && !wslRunning) return `Quota ${name} non lu : WSL est éteint et l'application ne le démarre pas.`;
+  const where = tab === "windows" ? "sous Windows" : tab === "wsl" ? "dans WSL" : "sur cet ordinateur";
+  if (harness === "claude") {
+    return (
+      `Quota ${name} non lu ${where} : aucune connexion lisible (fichier ~/.claude/.credentials.json). ` +
+      "Claude Code doit être connecté dans cet environnement. Le réglage « Plan Claude » ne fournit " +
+      "que le prix et la valeur de l'abonnement."
+    );
+  }
+  return `Quota ${name} non lu ${where} : il vient des journaux de session de cet environnement, et aucune session récente n'en contient.`;
+}
+
 function pillClass(remaining: number): string {
   if (remaining < 20) return "pill bad";
   if (remaining < 50) return "pill mid";
@@ -125,6 +140,9 @@ export default function App() {
     () => ["windows", ...distros.map((entry) => `wsl:${entry.name}` as SourceId)],
     [distros],
   );
+  // The manual Claude plan is a Windows setting; a WSL distribution always detects its own.
+  const claudePlanFor = (id: string) => (id === "windows" ? settings.claudePlan : "auto");
+
   // Sources that can be read now: a stopped WSL distribution keeps its last report instead.
   const readableIds = useMemo<SourceId[]>(
     () => ["windows", ...distros.filter((entry) => entry.running).map((entry) => `wsl:${entry.name}` as SourceId)],
@@ -204,7 +222,7 @@ export default function App() {
         ...current,
         [id]: { status: "loading", previous: reportOf(current[id]) },
       }));
-      return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, settings.claudePlan, {}, agentsToScan)
+      return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, claudePlanFor(id), {}, agentsToScan)
         .then((report) => {
           const loadedAt = Date.now();
           cacheReport(id, report, loadedAt);
@@ -339,22 +357,34 @@ export default function App() {
     }),
   );
 
-  // Quotas belong to the account, not to an environment: read every source in every tab.
+  // A quota is read in one environment: a tab shows only its own readings, and a source that
+  // cannot be read now (WSL stopped) shows none rather than an old value. When several sources
+  // are shown together (Computer), only the freshest reading of each harness is kept.
+  const quotaCardsFor = (ids: string[]): QuotaCard[] => {
+    const freshest = new Map<string, { source: string; reading: QuotaReading }>();
+    for (const id of ids.filter((entry) => readableIds.includes(entry as SourceId))) {
+      for (const reading of Object.values(quotas[id] ?? {})) {
+        if (disabled.includes(reading.agent)) continue;
+        const best = freshest.get(reading.agent);
+        if (!best || reading.observedAt > best.reading.observedAt) {
+          freshest.set(reading.agent, { source: label(id), reading });
+        }
+      }
+    }
+    return quotaCards([...freshest.values()]);
+  };
   const cards: QuotaCard[] = useMemo(
-    () =>
-      quotaCards(
-        sourceIds.flatMap((id) =>
-          Object.values(quotas[id] ?? {})
-            .filter((reading) => !disabled.includes(reading.agent))
-            .map((reading) => ({ source: label(id), reading })),
-        ),
-      ),
-    [quotas, sourceIds, disabledKey],
+    () => quotaCardsFor(activeIds),
+    [quotas, activeKey, readableKey, disabledKey],
+  );
+  const accountCards: QuotaCard[] = useMemo(
+    () => quotaCardsFor(sourceIds),
+    [quotas, sourceIds, readableKey, disabledKey],
   );
   const pageCards = cards.filter((card) => card.harness === page);
 
-  // Quota summary on the notification-area icon.
-  const tooltip = cards
+  // Quota summary on the notification-area icon: the account, whatever tab is open.
+  const tooltip = accountCards
     .map((card) => {
       const session = card.session ? `5 h ${card.session.remaining.toFixed(0)}% · ` : "";
       return `${agentLabel(card.harness)} : ${session}sem. ${card.weekly.remaining.toFixed(0)}%`;
@@ -418,7 +448,7 @@ export default function App() {
           const detail = await loadUsage(
             id === "windows" ? null : id.slice(4),
             settings.offline,
-            settings.claudePlan,
+            claudePlanFor(id),
             { since: compactDate(rangeSince), until: rangeUntil ? compactDate(rangeUntil) : undefined },
             detailScope === "*" ? agentsToScan : [detailScope],
           );
@@ -434,13 +464,13 @@ export default function App() {
     };
   }, [rangeSince, rangeUntil, detailScope, activeKey, readableKey, detected, archiveReady, lastScan, settings.offline, settings.claudePlan, agentsToScan]);
 
-  // Plan, price and account meters belong to the account: read them from every source.
+  // Plan, price and account meters come from the sources of the open tab.
   const sourceReports = useMemo(
     () =>
-      sourceIds
+      activeIds
         .map((id) => reportOf(states[id]))
         .filter((entry): entry is UsageReport => entry !== undefined),
-    [sourceIds, states],
+    [activeKey, states],
   );
 
   const tabs: { id: TabId; label: string }[] = [
@@ -644,7 +674,7 @@ export default function App() {
               Rester actif dans la zone de notification quand je ferme la fenêtre
             </label>
             <label>
-              Plan Claude
+              Plan Claude (Windows)
               <select
                 value={settings.claudePlan}
                 onChange={(event) =>
@@ -657,6 +687,9 @@ export default function App() {
                 <option value="max-20x">Max 20×</option>
                 <option value="none">Ne pas préciser</option>
               </select>
+              <span className="muted small" title="WSL détecte son plan seul. Ce réglage ne donne pas le quota.">
+                prix et valeur de l'abonnement sous Windows seulement
+              </span>
             </label>
             <label>
               Rafraîchir l'usage automatiquement
@@ -721,6 +754,9 @@ export default function App() {
                 </>
               ) : (
                 <>
+                  {(page === "claude" || page === "codex") && pageCards.length === 0 && (
+                    <div className="notice">{quotaMissing(page, tab, activeDistro?.running ?? false)}</div>
+                  )}
                   {pageCards.map((card) => (
                     <QuotaSection key={`${card.harness}-${card.sources.join()}`} card={card} />
                   ))}

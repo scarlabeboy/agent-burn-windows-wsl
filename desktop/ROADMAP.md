@@ -28,7 +28,8 @@
 2. ~~WebView2 absent ou cassé~~ : fait. `main.rs` teste WebView2 au démarrage et affiche une boîte de dialogue Windows avec la marche à suivre, au lieu de planter (`0xC0000409`). Testé avec `WEBVIEW2_BROWSER_EXECUTABLE_FOLDER` pointant sur un dossier vide, sans toucher au vrai runtime.
 3. **Démarrage automatique** : l'activation fonctionne (testée à la main le 31/10). Reste à vérifier la désactivation et le nettoyage par l'installateur à la désinstallation.
 
-4. **Doublon de quota quand les environnements divergent** (vu le 31/10 après avoir lancé un agent Codex dans WSL). `quotaCards` n'affiche une carte qu'une fois si les lectures de Windows et de WSL sont identiques (clé = pourcentages). Dès qu'un environnement a une lecture plus récente, les deux cartes apparaissent (Windows 89 % / 71 %, WSL 100 % / 73 %), y compris sur l'onglet Windows. Pistes : garder la lecture la plus fraîche par compte et harness, ou, comme décidé, rattacher les quotas à l'environnement propre de l'onglet. À trancher avant de coder.
+4. ~~Doublon de quota quand les environnements divergent~~ : codé, à valider dans la fenêtre. Chaque onglet n'affiche que les quotas de son environnement (Windows, WSL), un WSL éteint n'en affiche aucun, et Computer garde la lecture la plus récente par harness. Sans quota, la page de Claude Code ou Codex dit pourquoi (« non lu » avec la cause). L'icône de notification résume le compte entier. Le réglage « Plan Claude (Windows) » ne vaut plus que pour Windows (prix et valeur de l'abonnement, pas le quota) ; WSL détecte son plan seul.
+5. **Quota Claude sous Windows impossible sans connexion lisible.** Le moteur lit `~/.claude/.credentials.json`, absent sous Windows (la connexion de Claude Desktop est dans son stockage chiffré, qu'on ne lit pas). Seule piste propre : installer et connecter la commande `claude` sous Windows. Décision de l'utilisateur à prendre.
 
 ## Idées retenues
 
