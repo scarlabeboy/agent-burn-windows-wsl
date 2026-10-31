@@ -44,6 +44,20 @@ export interface Detected {
   distros: Distro[];
 }
 
+export interface QuotaWindow {
+  windowMinutes: number;
+  usedPercent: number;
+  elapsedPercent: number;
+}
+
+/** Private quota protocol of `agent-burn harness <agent>` with AGENT_BURN_QUOTA_ONLY. */
+export interface QuotaReading {
+  agent: string;
+  observedAt: number;
+  window: QuotaWindow;
+  sessionWindow?: QuotaWindow;
+}
+
 export type SourceId = "windows" | `wsl:${string}`;
 
 export type SourceState =

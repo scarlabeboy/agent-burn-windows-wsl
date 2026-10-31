@@ -8,11 +8,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { detectSources, loadUsage, readSettings, writeSettings } from "./api";
+import { detectSources, loadQuota, loadUsage, readSettings, writeSettings } from "./api";
+import { formatDuration, quotaCards, type QuotaCard } from "./quota";
 import { formatTokens, formatUsd, mergeReports, tokensPerDollar } from "./aggregate";
 import type {
   AgentReport,
   Detected,
+  QuotaReading,
   Settings,
   SourceId,
   SourceState,
@@ -259,6 +261,56 @@ function Dashboard({ report, children }: { report: UsageReport; children?: React
   );
 }
 
+function QuotaPanel({ cards }: { cards: QuotaCard[] }) {
+  if (cards.length === 0) return null;
+  return (
+    <section className="card">
+      <header className="card-head">
+        <h2>Quotas d'abonnement</h2>
+        <span className="muted">Lecture en direct</span>
+      </header>
+      <div className="quota-grid">
+        {cards.map((card) => (
+          <div key={`${card.harness}-${card.sources.join()}`} className="quota-card">
+            <div className="row">
+              <strong>{agentLabel(card.harness)}</strong>
+              <span className="muted small">{card.sources.join(" · ")}</span>
+            </div>
+            {card.gauges.map((entry) => {
+              const color = entry.remaining < 15 ? "var(--danger)" : agentColor(card.harness);
+              const ahead = entry.pace >= 0;
+              return (
+                <div key={entry.label} className="gauge">
+                  <div className="row small muted">
+                    <span>{entry.label}</span>
+                    <span>Reset dans {formatDuration(entry.minutesToReset)}</span>
+                  </div>
+                  <div className="gauge-main">
+                    <span className="gauge-value">{entry.remaining.toFixed(0)}%</span>
+                    <span className="muted"> restants</span>
+                    <span className={ahead ? "pace ok" : "pace bad"}>
+                      {ahead ? "+" : "−"}
+                      {Math.abs(entry.pace).toFixed(1)} pts {ahead ? "d'avance" : "de retard"}
+                    </span>
+                  </div>
+                  <div className="bar gauge-bar">
+                    <div style={{ width: `${entry.remaining}%`, background: color }} />
+                  </div>
+                  {entry.minutesToEmpty !== null && (
+                    <div className="small warn">
+                      Épuisé dans ≈ {formatDuration(entry.minutesToEmpty)} à ce rythme, avant le reset.
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function EnvironmentSplit({ parts }: { parts: { label: string; report: UsageReport }[] }) {
   const total = parts.reduce((sum, part) => sum + part.report.totals.totalTokens, 0) || 1;
   return (
@@ -312,6 +364,7 @@ export default function App() {
   const [tab, setTab] = useState<TabId>("windows");
   const [distro, setDistro] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [quotas, setQuotas] = useState<Record<string, Record<string, QuotaReading>>>({});
 
   const distros = useMemo(
     () => (settings.wslEnabled ? (detected?.distros ?? []) : []),
@@ -360,6 +413,48 @@ export default function App() {
   useEffect(() => {
     if (detected) refresh();
   }, [detected, refresh]);
+
+  const refreshQuotas = useCallback(
+    (force: boolean) => {
+      for (const id of sourceIds) {
+        const name = id === "windows" ? null : id.slice(4);
+        for (const harness of ["claude", "codex"]) {
+          loadQuota(harness, name, force)
+            .then((reading) =>
+              setQuotas((current) => ({
+                ...current,
+                [id]: { ...current[id], [harness]: reading },
+              })),
+            )
+            // A source without a sign-in for this harness simply has no quota to show.
+            .catch(() =>
+              setQuotas((current) => {
+                const { [harness]: _removed, ...rest } = current[id] ?? {};
+                return { ...current, [id]: rest };
+              }),
+            );
+        }
+      }
+    },
+    [sourceIds],
+  );
+
+  useEffect(() => {
+    if (!detected) return;
+    refreshQuotas(false);
+    const timer = setInterval(() => refreshQuotas(false), 60_000);
+    return () => clearInterval(timer);
+  }, [detected, refreshQuotas]);
+
+  const cardsFor = (ids: string[]): QuotaCard[] =>
+    quotaCards(
+      ids.flatMap((id) =>
+        Object.values(quotas[id] ?? {}).map((reading) => ({
+          source: id === "windows" ? "Windows" : `WSL · ${id.slice(4)}`,
+          reading,
+        })),
+      ),
+    );
 
   useEffect(() => {
     if (!hasWsl && tab !== "windows") setTab("windows");
@@ -425,7 +520,15 @@ export default function App() {
           </select>
         )}
         <div className="spacer" />
-        <button className="icon" onClick={refresh} disabled={loading} title="Actualiser">
+        <button
+          className="icon"
+          onClick={() => {
+            refresh();
+            refreshQuotas(true);
+          }}
+          disabled={loading}
+          title="Actualiser"
+        >
           {loading ? "…" : "⟳"}
         </button>
         <button className="icon" onClick={() => setShowSettings((value) => !value)} title="Réglages">
@@ -457,13 +560,17 @@ export default function App() {
       <main>
         {tab === "windows" &&
           (windowsReport ? (
-            <Dashboard report={windowsReport} />
+            <Dashboard report={windowsReport}>
+              <QuotaPanel cards={cardsFor(["windows"])} />
+            </Dashboard>
           ) : (
             <Pending state={windowsState} label="Windows" />
           ))}
         {tab === "wsl" &&
           (wslReport ? (
-            <Dashboard report={wslReport} />
+            <Dashboard report={wslReport}>
+              <QuotaPanel cards={cardsFor(activeDistro ? [`wsl:${activeDistro.name}`] : [])} />
+            </Dashboard>
           ) : (
             <Pending state={wslState} label={`WSL ${activeDistro?.name ?? ""}`} />
           ))}
@@ -475,6 +582,7 @@ export default function App() {
                   Une source n'a pas pu être lue : le total Computer est partiel.
                 </div>
               )}
+              <QuotaPanel cards={cardsFor(sourceIds)} />
               <EnvironmentSplit parts={computer.parts} />
             </Dashboard>
           ) : (

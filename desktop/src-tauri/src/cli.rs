@@ -54,34 +54,68 @@ fn locate_cli() -> Result<PathBuf, String> {
         })
 }
 
+/// Point the CLI at one source: native Windows (no change) or a WSL distribution.
+fn apply_source(
+    command: &mut Command,
+    distro: Option<&str>,
+    with_home: bool,
+) -> Result<(), String> {
+    let Some(distro) = distro else {
+        return Ok(());
+    };
+    let user = sources::detect()
+        .distros
+        .into_iter()
+        .find(|candidate| candidate.name == distro)
+        .and_then(|candidate| candidate.user)
+        .ok_or_else(|| format!("WSL distribution '{distro}' is unavailable"))?;
+    let home = sources::wsl_home_unc(distro, &user);
+    command
+        .env("CLAUDE_CONFIG_DIR", format!(r"{home}\.claude"))
+        .env("CODEX_HOME", format!(r"{home}\.codex"))
+        .env(
+            "OPENCODE_DATA_DIR",
+            snapshot_opencode(distro, &format!(r"{home}\.local\share\opencode")),
+        );
+    if with_home {
+        // Sign-in tokens are read from the distribution's own home directory.
+        command.env("HOME", &home);
+    }
+    Ok(())
+}
+
 pub fn run_summary(distro: Option<&str>, offline: bool) -> Result<Value, String> {
-    let cli = locate_cli()?;
-    let mut command = Command::new(cli);
+    let mut command = Command::new(locate_cli()?);
     command.args(["summary", "--json", "--no-color"]);
     if offline {
         command.arg("--offline");
     }
-    if let Some(distro) = distro {
-        let user = sources::detect()
-            .distros
-            .into_iter()
-            .find(|candidate| candidate.name == distro)
-            .and_then(|candidate| candidate.user)
-            .ok_or_else(|| format!("WSL distribution '{distro}' is unavailable"))?;
-        let home = sources::wsl_home_unc(distro, &user);
-        command
-            .env("CLAUDE_CONFIG_DIR", format!(r"{home}\.claude"))
-            .env("CODEX_HOME", format!(r"{home}\.codex"))
-            .env(
-                "OPENCODE_DATA_DIR",
-                snapshot_opencode(distro, &format!(r"{home}\.local\share\opencode")),
-            );
-    }
-    hide_window(&mut command);
+    apply_source(&mut command, distro, false)?;
+    run_json(command, distro, "summary")
+}
 
+/// Live subscription limits for one harness, read without scanning any usage logs.
+pub fn run_quota(harness: &str, distro: Option<&str>, force: bool) -> Result<Value, String> {
+    if !matches!(harness, "claude" | "codex") {
+        return Err(format!("unsupported harness '{harness}'"));
+    }
+    let mut command = Command::new(locate_cli()?);
+    command
+        .args(["harness", harness, "--json", "--no-color", "--no-offline"])
+        .env("AGENT_BURN_QUOTA_ONLY", "1");
+    if force {
+        command.env("AGENT_BURN_FORCE_REFRESH", "1");
+    }
+    apply_source(&mut command, distro, true)?;
+    run_json(command, distro, harness)
+}
+
+fn run_json(mut command: Command, distro: Option<&str>, label: &str) -> Result<Value, String> {
+    hide_window(&mut command);
     let output_path = env::temp_dir().join(format!(
-        "abf-{}-{}.json",
+        "abf-{}-{}-{}.json",
         std::process::id(),
+        label,
         distro.unwrap_or("windows")
     ));
     let output_file = fs::File::create(&output_path).map_err(|error| error.to_string())?;

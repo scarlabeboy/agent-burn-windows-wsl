@@ -21,9 +21,21 @@ async fn load_usage(distro: Option<String>, offline: bool) -> Result<Value, Stri
         .map_err(|error| error.to_string())?
 }
 
+/// Live subscription limits (5-hour session and weekly) for one harness and source.
+#[tauri::command]
+async fn load_quota(harness: String, distro: Option<String>, force: bool) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || cli::run_quota(&harness, distro.as_deref(), force))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![detect_sources, load_usage])
+        .invoke_handler(tauri::generate_handler![
+            detect_sources,
+            load_usage,
+            load_quota
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Agent Burn");
 }

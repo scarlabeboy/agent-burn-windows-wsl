@@ -87,3 +87,14 @@ td { padding: 8px 6px; border-top: 1px solid var(--line); }
   border-radius: 12px; padding: 14px 18px; color: var(--muted);
 }
 .notice.error { color: var(--danger); border-color: rgba(255, 93, 108, 0.4); }
+
+.quota-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+.quota-card { background: var(--bg); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.gauge { display: flex; flex-direction: column; gap: 6px; }
+.gauge-main { display: flex; align-items: baseline; gap: 6px; }
+.gauge-value { font-size: 28px; font-weight: 700; }
+.gauge-bar { height: 7px; }
+.pace { margin-left: auto; font-size: 12px; padding: 2px 8px; border-radius: 6px; }
+.pace.ok { color: #2ed573; background: rgba(46, 213, 115, 0.12); }
+.pace.bad { color: var(--danger); background: rgba(255, 93, 108, 0.12); }
+.warn { color: var(--danger); }
