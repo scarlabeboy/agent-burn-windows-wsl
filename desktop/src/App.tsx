@@ -573,14 +573,17 @@ export default function App() {
 
         {showSettings && (
           <div className="settings card">
-            <label>
-              <input
-                type="checkbox"
-                checked={settings.wslEnabled}
-                onChange={(event) => updateSettings({ ...settings, wslEnabled: event.target.checked })}
-              />
-              Lire aussi WSL (désactivé = Windows uniquement)
-            </label>
+            {/* Hidden when there is no WSL to turn off; kept while off so it can be turned back on. */}
+            {(!settings.wslEnabled || distros.length > 0) && (
+              <label>
+                <input
+                  type="checkbox"
+                  checked={settings.wslEnabled}
+                  onChange={(event) => updateSettings({ ...settings, wslEnabled: event.target.checked })}
+                />
+                Lire aussi WSL (désactivé = Windows uniquement, WSL n'est pas interrogé)
+              </label>
+            )}
             <label>
               <input
                 type="checkbox"

@@ -16,8 +16,16 @@ For development run `npx tauri dev` after `prepare-cli.ps1`.
 
 ## Notes
 
-- WSL sources are read through `\wsl.localhost\<distro>`. OpenCode's SQLite database is
-  copied locally first because WAL databases cannot be opened on that share.
+- WSL is optional. Without WSL, or with "Lire aussi WSL" unchecked, the app shows Windows
+  only and never calls `wsl.exe`.
+- WSL is never started by the app. Distributions are listed with `wsl -l -q` and
+  `wsl --list --running --quiet`; only running ones are read, through
+  `\wsl.localhost\<distro>`. A stopped distribution keeps its last report and is marked as
+  stopped. OpenCode's SQLite database is copied locally first because WAL databases cannot
+  be opened on that share.
+- The archive (quota history, report cache, WSL user names) lives in
+  `%LOCALAPPDATA%\dev.scarlabeboy.agent-burn-windows\archive`, apart from the install
+  directory.
 - Subscription quotas use the CLI's quota-only mode. Claude and Codex sign-ins are read
   from the source's own home directory, and identical readings from several sources are
   shown once.
