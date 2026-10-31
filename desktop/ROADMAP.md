@@ -29,7 +29,7 @@
 3. **Démarrage automatique** : l'activation fonctionne (testée à la main le 31/10). Reste à vérifier la désactivation et le nettoyage par l'installateur à la désinstallation.
 
 4. ~~Doublon de quota quand les environnements divergent~~ : codé, à valider dans la fenêtre. Chaque onglet n'affiche que les quotas de son environnement (Windows, WSL), un WSL éteint n'en affiche aucun, et Computer garde la lecture la plus récente par harness. Sans quota, la page de Claude Code ou Codex dit pourquoi (« non lu » avec la cause). L'icône de notification résume le compte entier. Le réglage « Plan Claude (Windows) » ne vaut plus que pour Windows (prix et valeur de l'abonnement, pas le quota) ; WSL détecte son plan seul.
-5. **Quota Claude sous Windows impossible sans connexion lisible.** Le moteur lit `~/.claude/.credentials.json`, absent sous Windows (la connexion de Claude Desktop est dans son stockage chiffré, qu'on ne lit pas). Seule piste propre : installer et connecter la commande `claude` sous Windows. Décision de l'utilisateur à prendre.
+5. ~~Quota Claude sous Windows~~ : résolu le 01/11 en connectant la commande `claude` sous Windows (`npm install -g @anthropic-ai/claude-code`, puis `claude.cmd`, car PowerShell bloque `claude.ps1`). Cela crée `~/.claude/.credentials.json`, que le moteur lit : `harness claude` renvoie le quota Windows. La connexion de Claude Desktop, elle, reste dans son stockage chiffré et n'est jamais lue. Reste à voir ce que l'application affiche après le prochain installateur.
 
 ## Idées retenues
 
