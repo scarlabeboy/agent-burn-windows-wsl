@@ -1,12 +1,17 @@
+import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   backfillCodex,
   detectSources,
+  getAutostart,
   loadQuota,
   loadUsage,
   readPeriod,
   readSettings,
   readTab,
+  setAutostart,
+  setCloseToTray,
+  setTrayTooltip,
   writePeriod,
   writeSettings,
   writeTab,
@@ -100,6 +105,7 @@ export default function App() {
   const [period, setPeriodState] = useState<Period>(readPeriod);
   const [details, setDetails] = useState<Record<string, { report: UsageReport; loadedAt: number }>>({});
   const [detailErrors, setDetailErrors] = useState<Record<string, string>>({});
+  const [autostart, setAutostartState] = useState<boolean | null>(null);
   const detailsRef = useRef(details);
   detailsRef.current = details;
   const setPeriod = (next: Period) => {
@@ -232,12 +238,39 @@ export default function App() {
     [sourceIds],
   );
 
+  // Background behaviour: the Windows startup entry and closing to the notification area.
+  useEffect(() => {
+    getAutostart()
+      .then(setAutostartState)
+      .catch(() => setAutostartState(null));
+  }, []);
+  useEffect(() => {
+    void setCloseToTray(settings.closeToTray).catch(() => undefined);
+  }, [settings.closeToTray]);
+  const toggleAutostart = (enabled: boolean) => {
+    setAutostart(enabled)
+      .then(() => getAutostart())
+      .then(setAutostartState)
+      .catch(() => getAutostart().then(setAutostartState).catch(() => undefined));
+  };
+
   useEffect(() => {
     if (!detected) return;
     refreshQuotas(false);
     const timer = setInterval(() => refreshQuotas(false), 60_000);
     return () => clearInterval(timer);
   }, [detected, refreshQuotas]);
+
+  // Tray menu actions, and a last save of the archive before the tray "Quit" ends the process.
+  useEffect(() => {
+    const unlisten = [
+      listen("tray-refresh", () => refreshQuotas(true)),
+      listen("quit-requested", () => flush()),
+    ];
+    return () => {
+      unlisten.forEach((pending) => void pending.then((stop) => stop()));
+    };
+  }, [refreshQuotas]);
 
   const updateSettings = (next: Settings) => {
     setSettings(next);
@@ -268,6 +301,17 @@ export default function App() {
     [quotas, sourceIds],
   );
   const pageCards = cards.filter((card) => card.harness === page);
+
+  // Quota summary on the notification-area icon.
+  const tooltip = cards
+    .map((card) => {
+      const session = card.session ? `5 h ${card.session.remaining.toFixed(0)}% · ` : "";
+      return `${agentLabel(card.harness)} : ${session}sem. ${card.weekly.remaining.toFixed(0)}%`;
+    })
+    .join("\n");
+  useEffect(() => {
+    if (tooltip) void setTrayTooltip(`Agent Burn Windows\n${tooltip}`).catch(() => undefined);
+  }, [tooltip]);
 
   // "Since reset" needs a weekly quota cycle, so it only applies on Claude and Codex pages.
   const effectivePeriod: Period =
@@ -500,6 +544,23 @@ export default function App() {
                 onChange={(event) => updateSettings({ ...settings, wslEnabled: event.target.checked })}
               />
               Lire aussi WSL (désactivé = Windows uniquement)
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={autostart ?? false}
+                disabled={autostart === null}
+                onChange={(event) => toggleAutostart(event.target.checked)}
+              />
+              Lancer au démarrage de Windows (réduit dans la zone de notification)
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={settings.closeToTray}
+                onChange={(event) => updateSettings({ ...settings, closeToTray: event.target.checked })}
+              />
+              Rester actif dans la zone de notification quand je ferme la fenêtre
             </label>
             <label>
               Plan Claude

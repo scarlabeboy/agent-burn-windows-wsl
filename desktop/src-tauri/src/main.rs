@@ -2,6 +2,7 @@
 
 mod archive;
 mod backfill;
+mod background;
 mod cli;
 mod sources;
 
@@ -71,13 +72,39 @@ async fn backfill_codex(
 
 fn main() {
     tauri::Builder::default()
+        // A second launch (for example the startup entry while the app is open) only
+        // brings the existing window forward.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            background::show_main(app);
+        }))
+        // The entry name is fixed so the uninstaller can remove it (see windows/hooks.nsh).
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .app_name("Agent Burn Windows")
+                .args([background::BACKGROUND_FLAG])
+                .build(),
+        )
+        .manage(background::CloseToTray::default())
+        .on_window_event(|window, event| background::on_window_event(window, event))
+        .setup(|app| {
+            background::build_tray(app.handle())?;
+            // The window starts hidden; a startup launch keeps it in the notification area.
+            if !background::started_in_background() {
+                background::show_main(app.handle());
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             detect_sources,
             load_usage,
             load_quota,
             archive_read,
             archive_write,
-            backfill_codex
+            backfill_codex,
+            background::set_close_to_tray,
+            background::get_autostart,
+            background::set_autostart,
+            background::set_tray_tooltip
         ])
         .run(tauri::generate_context!())
         .expect("error while running Agent Burn");

@@ -52,6 +52,7 @@ const defaults: Settings = {
   offline: false,
   refreshMinutes: 10,
   claudePlan: "auto",
+  closeToTray: false,
 };
 
 export function readSettings(): Settings {
@@ -108,3 +109,8 @@ export function writePeriod(period: Period) {
     // The period simply is not remembered.
   }
 }
+
+export const setCloseToTray = (enabled: boolean) => invoke<void>("set_close_to_tray", { enabled });
+export const getAutostart = () => invoke<boolean>("get_autostart");
+export const setAutostart = (enabled: boolean) => invoke<void>("set_autostart", { enabled });
+export const setTrayTooltip = (text: string) => invoke<void>("set_tray_tooltip", { text });

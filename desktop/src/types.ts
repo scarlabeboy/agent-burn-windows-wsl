@@ -113,6 +113,8 @@ export interface Settings {
   refreshMinutes: number;
   /** "auto" reads the plan from the sign-in file; or pro, max-5x, max-20x, none. */
   claudePlan: ClaudePlanSetting;
+  /** Closing the window keeps the app running in the notification area. */
+  closeToTray: boolean;
 }
 
 export type ClaudePlanSetting = "auto" | "pro" | "max-5x" | "max-20x" | "none";
