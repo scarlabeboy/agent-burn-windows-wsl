@@ -393,6 +393,26 @@ function GaugeCard({
   );
 }
 
+/**
+ * The 5-hour window has not started: the provider gives no reset time until the first message,
+ * so there is nothing to chart. The card keeps its place so the layout does not jump.
+ */
+function IdleSessionCard() {
+  return (
+    <div className="gauge-card idle">
+      <div className="row small muted">
+        <span className="caps">Session 5 h</span>
+        <span>Pas de session en cours</span>
+      </div>
+      <div className="gauge-main">
+        <span className="gauge-value">100%</span>
+        <span className="muted"> restants</span>
+      </div>
+      <p className="idle-note muted">Démarre dès votre premier message.</p>
+    </div>
+  );
+}
+
 /** Subscription quota of one harness: warning banner plus the 5-hour and weekly charts. */
 export function QuotaSection({ card }: { card: QuotaCard }) {
   const weekly = card.weekly;
@@ -419,8 +439,10 @@ export function QuotaSection({ card }: { card: QuotaCard }) {
         </div>
       )}
       <div className="gauge-grid">
-        {card.session && (
+        {card.session ? (
           <GaugeCard title="Session 5 h" model={card.session} card={card} weekly={false} nowMs={nowMs} />
+        ) : (
+          <IdleSessionCard />
         )}
         <GaugeCard title="Hebdomadaire" model={weekly} card={card} weekly nowMs={nowMs} />
       </div>

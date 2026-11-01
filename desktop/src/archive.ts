@@ -158,7 +158,12 @@ export function recordReading(reading: QuotaReading): QuotaReading {
     const key = resolveKey(reading.agent, window.windowMinutes, end);
     const samples = quota.series[key] ?? [];
     const last = samples[samples.length - 1];
-    if (!last || last.used !== window.usedPercent || now - last.t >= MIN_GAP_MS) {
+    // Only a newer reading is recorded, as Melvynx does: an older one arriving late (a cached
+    // answer served after a forced refresh) would otherwise make the real latest value look
+    // like an over-count. A cached answer served again has the same time and is not recorded
+    // twice; what to show is still worked out below.
+    const newer = !last || now > last.t;
+    if (newer && (!last || last.used !== window.usedPercent || now - last.t >= MIN_GAP_MS)) {
       quota.series[key] = [...samples, { t: now, used: window.usedPercent }];
       dirty = true;
     }

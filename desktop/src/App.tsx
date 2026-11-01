@@ -329,16 +329,27 @@ export default function App() {
     };
   }, [detected, archiveReady, readableIds, disabledKey]);
 
+  // One quota read at a time per source and harness: a read can wait minutes on a frozen WSL,
+  // and the next ones must not pile up behind it.
+  const quotaReads = useRef(new Set<string>());
   const refreshQuotas = useCallback(
     (force: boolean) => {
       for (const id of readableIds) {
         const name = id === "windows" ? null : id.slice(4);
         for (const harness of ["claude", "codex"].filter((entry) => !disabled.includes(entry))) {
+          const key = `${id}|${harness}`;
+          if (quotaReads.current.has(key)) continue;
+          quotaReads.current.add(key);
           loadQuota(harness, name, force)
             .then((reading) => {
               // Stored as measured; what is shown has an unconfirmed over-count held back.
               const shown = recordReading(reading);
-              setQuotas((current) => ({ ...current, [id]: { ...current[id], [harness]: shown } }));
+              setQuotas((current) => {
+                // A reading older than the one shown arrived late: it is not the latest state.
+                const previous = current[id]?.[harness];
+                if (previous && previous.observedAt > reading.observedAt) return current;
+                return { ...current, [id]: { ...current[id], [harness]: shown } };
+              });
             })
             // A source without a sign-in for this harness simply has no quota to show.
             .catch(() =>
@@ -346,7 +357,8 @@ export default function App() {
                 const { [harness]: _removed, ...rest } = current[id] ?? {};
                 return { ...current, [id]: rest };
               }),
-            );
+            )
+            .finally(() => quotaReads.current.delete(key));
         }
       }
     },

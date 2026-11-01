@@ -146,6 +146,8 @@ td { padding: 8px 6px; border-top: 1px solid var(--line); }
 .fresh.late { color: var(--warn); }
 .fresh.late .dot { background: var(--warn); }
 .gauge-card.ended .gauge-value { opacity: 0.55; }
+.gauge-card.idle .gauge-value { opacity: 0.55; }
+.idle-note { flex: 1; display: grid; place-items: center; margin: 0; min-height: 120px; border: 1px dashed var(--line); border-radius: 8px; }
 .late { color: var(--warn); }
 .gauge-main { display: flex; align-items: baseline; gap: 6px; }
 .gauge-value { font-size: 40px; font-weight: 700; line-height: 1; }
