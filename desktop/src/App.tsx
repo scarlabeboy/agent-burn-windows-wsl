@@ -4,6 +4,7 @@ import {
   backfillCodex,
   detectSources,
   getAutostart,
+  loadLimitUsage,
   loadQuota,
   loadUsage,
   readPeriod,
@@ -22,6 +23,8 @@ import {
 import { HarnessSettings } from "./HarnessSettings";
 import { SettingRow, SettingsCard, Switch } from "./SettingsUi";
 import { EmptyState } from "./EmptyState";
+import { LimitUsageChart } from "./LimitUsageChart";
+import type { LimitUsageDay } from "./limitUsage";
 import { SUPPORTED_HARNESSES, disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
 import { formatUsd, mergeReports } from "./aggregate";
 import {
@@ -72,6 +75,8 @@ import {
 
 const SUBSCRIPTIONS = ["codex", "claude", "cursor"];
 const OVERVIEW = "overview";
+/** The weekly Codex limit per day changes slowly: read again after this long. */
+const LIMIT_USAGE_TTL_MS = 5 * 60_000;
 const WSL_MODE_HINTS: Record<WslMode, string> = {
   off: "Windows uniquement : WSL n'est jamais interrogé et son onglet est caché.",
   auto: "WSL est lu quand il tourne déjà ; l'application ne le réveille jamais.",
@@ -87,6 +92,31 @@ function reportOf(state: SourceState | undefined): UsageReport | undefined {
   if (state.status === "ready") return state.report;
   if (state.status === "loading" || state.status === "error") return state.previous;
   return undefined;
+}
+
+/** The weekly Codex limit per day, or the reason there is none to show. */
+function LimitUsageSection({
+  offline,
+  best,
+  attempted,
+  label,
+}: {
+  offline: boolean;
+  best?: { id: string; days: LimitUsageDay[] };
+  attempted: boolean;
+  label: (id: string) => string;
+}) {
+  if (offline) {
+    return <div className="notice">Limite hebdomadaire par jour indisponible en mode hors ligne : elle vient du réseau.</div>;
+  }
+  if (best) return <LimitUsageChart days={best.days} where={label(best.id)} />;
+  return (
+    <div className="notice">
+      {attempted
+        ? "Limite hebdomadaire par jour non lue : connexion Codex introuvable dans cet environnement, ou tableau de bord injoignable."
+        : "Lecture de la limite hebdomadaire par jour…"}
+    </div>
+  );
 }
 
 /** Why a harness page has no quota, in the words of the open tab. */
@@ -497,6 +527,26 @@ export default function App() {
     };
   }, [rangeSince, rangeUntil, detailScope, activeKey, readableKey, detected, archiveReady, lastScan, settings.offline, agentsToScan]);
 
+  // The weekly Codex limit per day belongs to the account, so any source that can read it gives
+  // the whole picture: the open tab shows the freshest answer among its own sources.
+  const [limitUsage, setLimitUsage] = useState<Record<string, { days: LimitUsageDay[]; at: number }>>({});
+  const limitUsageRef = useRef(limitUsage);
+  limitUsageRef.current = limitUsage;
+  useEffect(() => {
+    if (page !== "codex" || settings.offline || !archiveReady || disabled.includes("codex")) return;
+    for (const id of activeIds) {
+      if (!readableIds.includes(id as SourceId)) continue;
+      const known = limitUsageRef.current[id];
+      if (known && Date.now() - known.at < LIMIT_USAGE_TTL_MS) continue;
+      loadLimitUsage(id === "windows" ? null : id.slice(4))
+        .catch(() => [] as LimitUsageDay[])
+        .then((days) => setLimitUsage((current) => ({ ...current, [id]: { days, at: Date.now() } })));
+    }
+  }, [page, activeKey, readableKey, settings.offline, archiveReady, lastScan, disabledKey]);
+  const limitEntries = activeIds.flatMap((id) => (limitUsage[id] ? [{ id, ...limitUsage[id] }] : []));
+  const limitBest = limitEntries.filter((entry) => entry.days.length > 0).sort((a, b) => b.at - a.at)[0];
+  const limitAttempted = limitEntries.length > 0;
+
   // Plan, price and account meters come from the sources of the open tab.
   const sourceReports = useMemo(
     () =>
@@ -812,6 +862,14 @@ export default function App() {
                       sub={pickSubscription(sourceReports, page)}
                       account={pickClaudeAccount(sourceReports)}
                       card={pageCards[0]}
+                    />
+                  )}
+                  {page === "codex" && (
+                    <LimitUsageSection
+                      offline={settings.offline}
+                      best={limitBest}
+                      attempted={limitAttempted}
+                      label={label}
                     />
                   )}
                   {selected ? (

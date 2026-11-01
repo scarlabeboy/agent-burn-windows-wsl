@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { LimitUsageDay } from "./limitUsage";
 import { PERIODS, type Period } from "./periods";
 import type { Detected, QuotaReading, Settings, TabId, UsageReport, WslMode } from "./types";
 
@@ -28,6 +29,10 @@ export const loadUsage = (
     until: scope.until ?? null,
     agents: agents ?? null,
   });
+
+/** Weekly Codex limit used per day by surface and model (empty when it cannot be read). */
+export const loadLimitUsage = (distro: string | null) =>
+  invoke<LimitUsageDay[]>("load_limit_usage", { distro });
 
 export const loadQuota = (harness: string, distro: string | null, force: boolean) =>
   invoke<QuotaReading>("load_quota", { harness, distro, force });

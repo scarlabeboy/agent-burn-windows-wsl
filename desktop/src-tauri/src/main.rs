@@ -54,6 +54,14 @@ async fn load_quota(harness: String, distro: Option<String>, force: bool) -> Res
         .map_err(|error| error.to_string())?
 }
 
+/// Weekly Codex limit used per day, by surface and model, for one source (a list, maybe empty).
+#[tauri::command]
+async fn load_limit_usage(distro: Option<String>) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || cli::run_limit_usage(distro.as_deref()))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
 /// Previously saved app data (quota history, report cache), or null when there is none.
 #[tauri::command]
 fn archive_read(name: String) -> Result<Option<Value>, String> {
@@ -138,6 +146,7 @@ fn main() {
             detect_sources,
             load_usage,
             load_quota,
+            load_limit_usage,
             archive_read,
             archive_write,
             backfill_codex,

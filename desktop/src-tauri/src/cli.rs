@@ -202,6 +202,23 @@ pub fn run_summary(
     run_json(command, distro, "summary")
 }
 
+/// The daily weekly-limit usage of a `harness codex` report, or an empty list when it has none.
+fn limit_usage_of(report: &Value) -> Value {
+    match report.get("limitUsageDaily") {
+        Some(days) if days.is_array() => days.clone(),
+        _ => Value::Array(Vec::new()),
+    }
+}
+
+/// How much of the weekly Codex limit each recent day used, by surface and model. It comes from
+/// the ChatGPT dashboard through the Codex sign-in of the source, so it needs the network.
+pub fn run_limit_usage(distro: Option<&str>) -> Result<Value, String> {
+    let mut command = Command::new(locate_cli()?);
+    command.args(["harness", "codex", "--json", "--no-color"]);
+    let (_, _snapshot) = apply_source(&mut command, distro, false)?;
+    run_json(command, distro, "limits").map(|report| limit_usage_of(&report))
+}
+
 /// Live subscription limits for one harness, read without scanning any usage logs.
 pub fn run_quota(harness: &str, distro: Option<&str>, force: bool) -> Result<Value, String> {
     if !matches!(harness, "claude" | "codex") {
@@ -420,8 +437,23 @@ mod tests {
         let _ = fs::remove_dir_all(dir);
     }
 
+    #[test]
+    fn takes_the_daily_limit_usage_out_of_a_codex_report() {
+        let report = serde_json::json!({
+            "agent": "codex",
+            "limitUsageDaily": [{ "date": "2026-10-31", "usedPercent": 33.1 }]
+        });
+        assert_eq!(limit_usage_of(&report).as_array().map(Vec::len), Some(1));
+        // A report without the field, or with something else in it, gives an empty list.
+        assert_eq!(limit_usage_of(&serde_json::json!({ "agent": "codex" })), serde_json::json!([]));
+        assert_eq!(
+            limit_usage_of(&serde_json::json!({ "limitUsageDaily": "nope" })),
+            serde_json::json!([])
+        );
+    }
+
     // With OpenCode turned off the scan lists every other harness in `--agents`, so its
-    /// database must not be copied.
+    // database must not be copied.
     #[test]
     fn opencode_is_copied_only_when_the_scan_reads_it() {
         let names = |list: &[&str]| list.iter().map(|name| name.to_string()).collect::<Vec<_>>();
