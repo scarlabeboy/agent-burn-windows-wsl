@@ -10,7 +10,8 @@ import {
 } from "recharts";
 import { formatTokens, formatUsd, tokensPerDollar } from "./aggregate";
 import { QuotaChart } from "./QuotaChart";
-import { formatDay, formatDuration, type GaugeModel, type QuotaCard } from "./quota";
+import { cycleEnded, formatDay, formatDuration, freshness, type GaugeModel, type QuotaCard } from "./quota";
+import { useNow } from "./useNow";
 import type { AgentReport, ClaudeAccount, SubscriptionAgent, TokenBreakdown, UsageReport } from "./types";
 import amp from "./assets/brands/amp.png";
 import claude from "./assets/brands/claude.png";
@@ -357,19 +358,27 @@ function GaugeCard({
   model,
   card,
   weekly,
+  nowMs,
 }: {
   title: string;
   model: GaugeModel;
   card: QuotaCard;
   weekly: boolean;
+  nowMs: number;
 }) {
   const ahead = model.pace >= 0;
   const color = agentColor(card.harness);
+  // Counted from now, not from the reading: an old reading must not show a frozen countdown.
+  const ended = cycleEnded(model, nowMs);
   return (
-    <div className={`gauge-card${weekly && model.minutesToEmpty !== null ? " danger" : ""}`}>
+    <div className={`gauge-card${weekly && model.minutesToEmpty !== null ? " danger" : ""}${ended ? " ended" : ""}`}>
       <div className="row small muted">
         <span className="caps">{title}</span>
-        <span>Reset dans {formatDuration(model.minutesToReset)}</span>
+        {ended ? (
+          <span className="late">Cycle terminé · nouveau relevé attendu</span>
+        ) : (
+          <span>Reset dans {formatDuration((model.endMs - nowMs) / 60_000)}</span>
+        )}
       </div>
       <div className="gauge-main">
         <span className="gauge-value">{model.remaining.toFixed(0)}%</span>
@@ -389,12 +398,18 @@ export function QuotaSection({ card }: { card: QuotaCard }) {
   const weekly = card.weekly;
   const perDay = weekly.remaining / Math.max(weekly.minutesToReset / 1440, 0.01);
   const emptyAt = weekly.minutesToEmpty !== null ? card.observedAt + weekly.minutesToEmpty * 60_000 : null;
+  const nowMs = useNow(15_000);
+  const state = freshness(card.observedAt, nowMs);
   return (
     <section className="card">
       <header className="card-head">
         <h2>Quota {agentLabel(card.harness)}</h2>
-        <span className="muted small">
-          {card.sources.join(" · ")} · lecture en direct
+        <span
+          className={`fresh small ${state.fresh ? "ok" : "late"}`}
+          title={`Mesuré le ${new Date(card.observedAt).toLocaleString("fr-FR")}`}
+        >
+          <i className="dot" />
+          {card.sources.join(" · ")} · {state.label}
         </span>
       </header>
       {emptyAt !== null && (
@@ -404,8 +419,10 @@ export function QuotaSection({ card }: { card: QuotaCard }) {
         </div>
       )}
       <div className="gauge-grid">
-        {card.session && <GaugeCard title="Session 5 h" model={card.session} card={card} weekly={false} />}
-        <GaugeCard title="Hebdomadaire" model={weekly} card={card} weekly />
+        {card.session && (
+          <GaugeCard title="Session 5 h" model={card.session} card={card} weekly={false} nowMs={nowMs} />
+        )}
+        <GaugeCard title="Hebdomadaire" model={weekly} card={card} weekly nowMs={nowMs} />
       </div>
       <p className="muted small hint">
         {card.harness === "codex"

@@ -72,6 +72,36 @@ export function quotaCards(readings: { source: string; reading: QuotaReading }[]
   return [...cards.values()].sort((a, b) => a.harness.localeCompare(b.harness));
 }
 
+/** A reading this recent counts as live: quotas are read every minute, with some margin. */
+export const FRESH_MS = 90_000;
+
+export interface Freshness {
+  /** Read within the last minute and a half. */
+  fresh: boolean;
+  /** "En direct", or how long ago the figures were measured. */
+  label: string;
+}
+
+/** How long ago, in words: seconds are not worth a number. */
+export function formatAge(ms: number): string {
+  const minutes = Math.floor(Math.max(0, ms) / MINUTE_MS);
+  if (minutes < 1) return "moins d'une minute";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} h`;
+  return `${Math.floor(hours / 24)} j`;
+}
+
+export function freshness(observedAt: number, nowMs: number): Freshness {
+  const age = Math.max(0, nowMs - observedAt);
+  return age <= FRESH_MS
+    ? { fresh: true, label: "en direct" }
+    : { fresh: false, label: `relevé il y a ${formatAge(age)}` };
+}
+
+/** The cycle a reading belongs to is over: its figures describe a window that has closed. */
+export const cycleEnded = (model: GaugeModel, nowMs: number): boolean => nowMs >= model.endMs;
+
 export function formatDuration(minutes: number): string {
   const total = Math.max(0, Math.round(minutes));
   const days = Math.floor(total / 1440);

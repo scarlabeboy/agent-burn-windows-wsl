@@ -137,6 +137,16 @@ td { padding: 8px 6px; border-top: 1px solid var(--line); }
 .gauge-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
 .gauge-card { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
 .gauge-card.danger { border-color: rgba(255, 93, 108, 0.45); }
+/* Freshness of a reading: green when live, amber when it is getting old (never red). */
+:root { --warn: #e3a23c; }
+.fresh { display: inline-flex; align-items: center; gap: 6px; }
+.fresh .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.fresh.ok { color: var(--ok); }
+.fresh.ok .dot { background: var(--ok); }
+.fresh.late { color: var(--warn); }
+.fresh.late .dot { background: var(--warn); }
+.gauge-card.ended .gauge-value { opacity: 0.55; }
+.late { color: var(--warn); }
 .gauge-main { display: flex; align-items: baseline; gap: 6px; }
 .gauge-value { font-size: 40px; font-weight: 700; line-height: 1; }
 .pace { margin-left: auto; font-size: 12px; padding: 3px 9px; border-radius: 6px; }
