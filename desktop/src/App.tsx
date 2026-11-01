@@ -301,11 +301,21 @@ export default function App() {
 
   // Windows is scanned as soon as the archive is loaded. A WSL distribution joins the scan
   // once its detection answers: the sources change, which scans again (queued if one runs).
+  // The time of the next automatic scan is kept for the status bar (0: none planned).
+  const [nextScan, setNextScan] = useState(0);
   useEffect(() => {
     if (!archiveReady) return;
     refresh(true);
-    if (settings.refreshMinutes <= 0) return;
-    const timer = setInterval(() => refresh(), settings.refreshMinutes * 60_000);
+    if (settings.refreshMinutes <= 0) {
+      setNextScan(0);
+      return;
+    }
+    const every = settings.refreshMinutes * 60_000;
+    setNextScan(Date.now() + every);
+    const timer = setInterval(() => {
+      refresh();
+      setNextScan(Date.now() + every);
+    }, every);
     return () => clearInterval(timer);
   }, [detected, archiveReady, refresh, settings.refreshMinutes]);
 
@@ -953,7 +963,7 @@ export default function App() {
             </Page>
           )}
         </main>
-        <StatusBar loading={loading} lastScan={lastScan} />
+        <StatusBar loading={loading} lastScan={lastScan} nextScan={nextScan} />
       </div>
     </div>
   );

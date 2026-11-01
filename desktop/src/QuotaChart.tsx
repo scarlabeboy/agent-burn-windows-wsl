@@ -1,6 +1,6 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { getVersion, readSeries, subscribe } from "./archive";
-import { forecast, formatClock, formatDay, formatDuration, type GaugeModel } from "./quota";
+import { forecast, formatAxis, formatDay, formatDuration, type GaugeModel } from "./quota";
 
 const W = 560;
 const H = 210;
@@ -136,10 +136,10 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
       </text>
 
       <text x={PAD.left} y={H - 8} className="qaxis">
-        {formatClock(startMs, weekly)}
+        {formatAxis(startMs, weekly)}
       </text>
       <text x={W - PAD.right} y={H - 8} textAnchor="end" className="qaxis">
-        {formatClock(endMs, weekly)}
+        {formatAxis(endMs, weekly)}
       </text>
     </svg>
   );

@@ -1,7 +1,15 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { budget, FRESH_MS, freshness, gauge, idleSession } from "./quota";
+import { budget, formatAxis, FRESH_MS, freshness, gauge, idleSession } from "./quota";
+
+test("a weekly axis dates both ends, which share a weekday; a 5-hour axis shows the time only", () => {
+  const start = new Date(2026, 10, 1, 20, 0).getTime();
+  const end = new Date(2026, 10, 8, 20, 0).getTime();
+  assert.notEqual(formatAxis(start, true), formatAxis(end, true));
+  assert.match(formatAxis(start, true), /01\/11/);
+  assert.equal(formatAxis(start, false), "20:00");
+});
 
 const clock = (ms: number) => new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(ms);
 

@@ -170,6 +170,14 @@ export const formatClock = (ms: number, withDay: boolean): string =>
     minute: "2-digit",
   }).format(ms);
 
+/** Chart axis ends: the time, with the date on a weekly window whose two ends share a weekday. */
+export const formatAxis = (ms: number, weekly: boolean): string =>
+  new Intl.DateTimeFormat("fr-FR", {
+    ...(weekly ? { weekday: "short", day: "2-digit", month: "2-digit" } : {}),
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(ms);
+
 export const formatDay = (ms: number): string =>
   new Intl.DateTimeFormat("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit" }).format(
     ms,
