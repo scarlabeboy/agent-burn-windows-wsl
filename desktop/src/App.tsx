@@ -242,8 +242,10 @@ export default function App() {
   }, [readableIds, settings.offline, agentsToScan]);
   refreshRef.current = refresh;
 
+  // Windows is scanned as soon as the archive is loaded. A WSL distribution joins the scan
+  // once its detection answers: the sources change, which scans again (queued if one runs).
   useEffect(() => {
-    if (!detected || !archiveReady) return;
+    if (!archiveReady) return;
     refresh(true);
     if (settings.refreshMinutes <= 0) return;
     const timer = setInterval(() => refresh(), settings.refreshMinutes * 60_000);
@@ -253,7 +255,7 @@ export default function App() {
   // Rebuild Codex limit history from each source's logs: 30 days the first time, then only
   // what changed since the last scan. It starts after the first usage scan has had a head start.
   useEffect(() => {
-    if (!detected || !archiveReady) return;
+    if (!archiveReady) return;
     let cancelled = false;
     if (disabled.includes("codex")) return;
     void (async () => {
@@ -316,7 +318,6 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!detected) return;
     refreshQuotas(false);
     const timer = setInterval(() => refreshQuotas(false), 60_000);
     return () => clearInterval(timer);
@@ -433,7 +434,7 @@ export default function App() {
     .find(Boolean);
 
   useEffect(() => {
-    if (!rangeSince || !detected || !archiveReady) return;
+    if (!rangeSince || !archiveReady) return;
     let cancelled = false;
     void (async () => {
       for (const id of activeKey.split(",").filter((entry) => entry && readableKey.split(",").includes(entry))) {
