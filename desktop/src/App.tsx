@@ -230,9 +230,11 @@ export default function App() {
     let cancelled = false;
     const check = () =>
       detectSources()
-        .catch(() => ({ distros: [] }) as Detected)
+        // A failed check says nothing new: the last known distributions stay.
+        .catch(() => null)
         .then((next) => {
-          if (!cancelled) setDetected((previous) => (JSON.stringify(previous) === JSON.stringify(next) ? previous : next));
+          if (!cancelled && next)
+            setDetected((previous) => (JSON.stringify(previous) === JSON.stringify(next) ? previous : next));
         });
     void check();
     const timer = setInterval(check, 15_000);

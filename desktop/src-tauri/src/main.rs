@@ -20,7 +20,8 @@ async fn detect_sources() -> sources::Detected {
 /// so a distribution that was shut down gets its keeping process back.
 #[tauri::command]
 async fn set_wsl_keepalive(enabled: bool) {
-    let _ = tauri::async_runtime::spawn_blocking(move || keepalive::ensure(enabled)).await;
+    keepalive::want(enabled);
+    let _ = tauri::async_runtime::spawn_blocking(keepalive::ensure).await;
 }
 
 /// Run the Agent Burn CLI for one source and return its JSON report.

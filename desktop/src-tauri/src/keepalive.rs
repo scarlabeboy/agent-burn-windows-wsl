@@ -4,12 +4,17 @@
 
 use std::{
     process::{Child, Command, Stdio},
-    sync::Mutex,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex,
+    },
 };
 
 use crate::{cli::hide_window, sources};
 
 static KEEPERS: Mutex<Vec<(String, Child)>> = Mutex::new(Vec::new());
+/// The latest wish, recorded in the order the requests arrive, before any slow work starts.
+static WANTED: AtomicBool = AtomicBool::new(false);
 
 /// A Windows job whose processes are all ended when its handle closes, that is when this
 /// process ends, normally or not. The keeping processes live in it.
@@ -103,12 +108,28 @@ fn stop(child: &mut Child) {
     let _ = child.wait();
 }
 
-/// Makes the keeping processes match the wish: none when `enabled` is false, otherwise one per
+/// Records whether WSL should be kept awake. Call it before `ensure`, in the order the requests
+/// arrive: `ensure` may run later on another thread, and the latest wish must win.
+pub fn want(enabled: bool) {
+    WANTED.store(enabled, Ordering::SeqCst);
+}
+
+/// Makes the keeping processes match the latest wish: none when it is off, otherwise one per
 /// installed distribution, started again if one ended (WSL was shut down, the process died).
 /// Starting one wakes its distribution, which is the point of this mode.
-pub fn ensure(enabled: bool) {
-    let wanted = if enabled { sources::distribution_names() } else { Vec::new() };
+pub fn ensure() {
+    let wish = WANTED.load(Ordering::SeqCst);
+    let names = if wish { sources::distribution_names() } else { Vec::new() };
+    apply(wish, names);
+}
+
+fn apply(wish: bool, wanted: Vec<String>) {
     let mut keepers = KEEPERS.lock().unwrap_or_else(|error| error.into_inner());
+    // The wish changed while WSL was being listed: the request that changed it runs after this
+    // one and does the work, so a stale renewal never starts a keeper after "off".
+    if WANTED.load(Ordering::SeqCst) != wish {
+        return;
+    }
 
     let mut kept = Vec::new();
     for (name, mut child) in keepers.drain(..) {
@@ -149,6 +170,12 @@ mod tests {
         keepers.iter_mut().any(|(_, child)| matches!(child.try_wait(), Ok(None)))
     }
 
+    /// What the command does: record the wish, then act on it.
+    fn set(enabled: bool) {
+        want(enabled);
+        ensure();
+    }
+
     #[test]
     fn keeps_a_distribution_awake_and_stops_on_request() {
         let _turn = crate::sources::TEST_ENVIRONMENT.lock().unwrap_or_else(|error| error.into_inner());
@@ -159,14 +186,14 @@ mod tests {
         env::set_var("ABF_WSL_EXE", &script);
         env::set_var("LOCALAPPDATA", dir.join("data"));
 
-        ensure(true);
+        set(true);
         assert_eq!(count(), 1, "one keeper for the one distribution");
         std::thread::sleep(Duration::from_millis(500));
         assert!(alive());
-        ensure(true);
+        set(true);
         assert_eq!(count(), 1, "a keeper that is alive is not started twice");
 
-        ensure(false);
+        set(false);
         assert_eq!(count(), 0);
         assert!(!alive());
 
@@ -187,13 +214,37 @@ mod tests {
         env::set_var("ABF_WSL_EXE", &script);
         env::set_var("LOCALAPPDATA", dir.join("data"));
 
-        ensure(true);
+        set(true);
         std::thread::sleep(Duration::from_millis(800));
         assert!(!alive(), "the keeper has ended");
-        ensure(true);
+        set(true);
         assert_eq!(count(), 1, "a new keeper replaced the one that ended");
 
-        ensure(false);
+        set(false);
+        env::remove_var("ABF_WSL_EXE");
+        env::remove_var("LOCALAPPDATA");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    /// A renewal that listed WSL while "off" was requested must not start a keeper afterwards.
+    #[test]
+    fn a_stale_renewal_does_not_undo_off() {
+        let _turn = crate::sources::TEST_ENVIRONMENT.lock().unwrap_or_else(|error| error.into_inner());
+        let dir = env::temp_dir().join(format!("abf-stale-test-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let script = dir.join("wsl.cmd");
+        fs::write(&script, FAKE).unwrap();
+        env::set_var("ABF_WSL_EXE", &script);
+        env::set_var("LOCALAPPDATA", dir.join("data"));
+
+        set(true);
+        assert_eq!(count(), 1);
+        // The renewal read "on" and listed Ubuntu; meanwhile "off" arrived and was carried out.
+        set(false);
+        apply(true, vec!["Ubuntu".to_string()]);
+        assert_eq!(count(), 0, "the stale renewal changed nothing");
+        assert!(!alive());
+
         env::remove_var("ABF_WSL_EXE");
         env::remove_var("LOCALAPPDATA");
         let _ = fs::remove_dir_all(dir);

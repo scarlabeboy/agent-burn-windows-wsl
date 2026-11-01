@@ -72,7 +72,7 @@ pub fn wsl_program() -> std::ffi::OsString {
 
 /// Names of the installed distributions, without starting any of them.
 pub fn distribution_names() -> Vec<String> {
-    detect_recent().distros.into_iter().map(|distro| distro.name).collect()
+    detect_recent().detected.distros.into_iter().map(|distro| distro.name).collect()
 }
 
 fn output_within(program: &OsStr, args: &[&str], timeout: Duration) -> Option<Vec<u8>> {
@@ -116,40 +116,63 @@ fn saved_users() -> BTreeMap<String, String> {
         .unwrap_or_default()
 }
 
+#[derive(Clone)]
+struct Detection {
+    at: Instant,
+    detected: Detected,
+    /// False when the listing failed and `detected` is the last known state: it may be out of
+    /// date, so no distribution is read from it.
+    confirmed: bool,
+}
+
 /// Result of the last detection, so a burst of reads (a scan, both quotas, the history) does
 /// not list WSL again for each one.
-static RECENT: Mutex<Option<(Instant, Detected)>> = Mutex::new(None);
+static RECENT: Mutex<Option<Detection>> = Mutex::new(None);
 /// Short on purpose: it is also what keeps the app from reading a distribution that has just
 /// stopped, which would start it again.
 const RECENT_TTL: Duration = Duration::from_secs(2);
 
 /// A fresh detection, used by the periodic check of the interface.
 pub fn detect() -> Detected {
-    let detected = detect_now();
-    if let Ok(mut recent) = RECENT.lock() {
-        *recent = Some((Instant::now(), detected.clone()));
-    }
-    detected
+    detect_fresh().detected
+}
+
+fn detect_fresh() -> Detection {
+    let fresh = detect_now();
+    let mut recent = RECENT.lock().unwrap_or_else(|error| error.into_inner());
+    let detection = match fresh {
+        Some(detected) => Detection { at: Instant::now(), detected, confirmed: true },
+        // A listing that fails or hangs (WSL restarting after a shutdown, a busy machine) says
+        // nothing about what is installed: the distributions stay as last seen instead of
+        // vanishing, which would also stop the keeping processes. A machine without WSL has
+        // never had a successful listing, so it still has none.
+        None => Detection {
+            at: Instant::now(),
+            detected: recent.as_ref().map(|last| last.detected.clone()).unwrap_or_default(),
+            confirmed: false,
+        },
+    };
+    *recent = Some(detection.clone());
+    detection
 }
 
 /// The last detection when it is under `RECENT_TTL` old, otherwise a fresh one.
-fn detect_recent() -> Detected {
+fn detect_recent() -> Detection {
     if let Ok(recent) = RECENT.lock() {
-        if let Some((at, detected)) = recent.as_ref() {
-            if at.elapsed() < RECENT_TTL {
-                return detected.clone();
+        if let Some(last) = recent.as_ref() {
+            if last.at.elapsed() < RECENT_TTL {
+                return last.clone();
             }
         }
     }
-    detect()
+    detect_fresh()
 }
 
 /// Lists the distributions and which ones are running, without starting any of them:
-/// `wsl -l -q` and `wsl --list --running --quiet` only read WSL's registry.
-fn detect_now() -> Detected {
-    let Some(listed) = wsl_output(&["-l", "-q"]) else {
-        return Detected::default();
-    };
+/// `wsl -l -q` and `wsl --list --running --quiet` only read WSL's registry. `None` when the
+/// listing fails or takes too long.
+fn detect_now() -> Option<Detected> {
+    let listed = wsl_output(&["-l", "-q"])?;
     // A failing `--running` (nothing is running) simply means an empty set.
     let running = wsl_output(&["--list", "--running", "--quiet"])
         .map(|bytes| parse_names(&bytes))
@@ -175,7 +198,7 @@ fn detect_now() -> Detected {
             let _ = archive::write(USERS_ARCHIVE, &value);
         }
     }
-    Detected { distros }
+    Some(Detected { distros })
 }
 
 /// Only called for a distribution reported as running, and only once per distribution (the
@@ -189,7 +212,12 @@ fn default_user(distro: &str) -> Option<String> {
 /// Default user of a running distribution. A stopped distribution is an error: reading its
 /// files through `\\wsl.localhost` would start it.
 pub fn running_user(distro: &str) -> Result<String, String> {
-    let found = detect_recent()
+    let detection = detect_recent();
+    if !detection.confirmed {
+        return Err("WSL could not be listed".to_string());
+    }
+    let found = detection
+        .detected
         .distros
         .into_iter()
         .find(|candidate| candidate.name == distro)
@@ -262,11 +290,11 @@ mod tests {
         for (label, script) in scripts {
             let fake = fake_wsl(&dir, "wsl.cmd", script);
             env::set_var("ABF_WSL_EXE", &fake);
-            assert!(detect_now().distros.is_empty(), "{label}: expected no distribution");
+            assert!(detect_now().unwrap_or_default().distros.is_empty(), "{label}: expected no distribution");
         }
         // No wsl.exe at all.
         env::set_var("ABF_WSL_EXE", dir.join("missing.exe"));
-        assert!(detect_now().distros.is_empty());
+        assert!(detect_now().is_none());
 
         env::remove_var("ABF_WSL_EXE");
         env::remove_var("LOCALAPPDATA");
@@ -302,7 +330,7 @@ mod tests {
 
         // Running: the user is asked once and remembered.
         env::set_var("ABF_FAKE_RUNNING", "1");
-        let running = detect_now();
+        let running = detect_now().unwrap();
         assert!(running.distros[0].running);
         assert_eq!(running.distros[0].user.as_deref(), Some("beboy"));
         assert!(mark.exists());
@@ -310,7 +338,7 @@ mod tests {
 
         // Stopped: still known by name and user, and nothing was run inside it.
         env::set_var("ABF_FAKE_RUNNING", "0");
-        let stopped = detect_now();
+        let stopped = detect_now().unwrap();
         assert!(!stopped.distros[0].running);
         assert_eq!(stopped.distros[0].user.as_deref(), Some("beboy"));
         assert!(!mark.exists(), "a stopped distribution must not be queried");
@@ -318,6 +346,39 @@ mod tests {
         for key in ["ABF_WSL_EXE", "ABF_FAKE_MARK", "ABF_FAKE_RUNNING", "LOCALAPPDATA"] {
             env::remove_var(key);
         }
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// A listing that fails after a good one keeps the distributions, but nothing is read from
+    /// them until a listing succeeds again.
+    #[test]
+    fn a_failed_listing_keeps_the_last_known_distributions() {
+        let _turn = ENVIRONMENT.lock().unwrap_or_else(|error| error.into_inner());
+        let dir = env::temp_dir().join(format!("abf-failed-wsl-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        env::set_var("LOCALAPPDATA", dir.join("data"));
+        *RECENT.lock().unwrap() = None;
+
+        let good = "@echo off\r\nif \"%1\"==\"-l\" goto list\r\nif \"%1\"==\"--list\" goto running\r\n\
+            if \"%1\"==\"-d\" goto inside\r\nexit /b 2\r\n:list\r\necho Ubuntu\r\nexit /b 0\r\n\
+            :running\r\necho Ubuntu\r\nexit /b 0\r\n:inside\r\necho beboy\r\nexit /b 0\r\n";
+        env::set_var("ABF_WSL_EXE", fake_wsl(&dir, "good.cmd", good));
+        assert_eq!(detect().distros.len(), 1);
+        assert_eq!(running_user("Ubuntu").as_deref(), Ok("beboy"));
+
+        env::set_var("ABF_WSL_EXE", fake_wsl(&dir, "broken.cmd", "@exit /b 4\r\n"));
+        let kept = detect();
+        assert_eq!(kept.distros.len(), 1, "the distribution does not vanish");
+        assert_eq!(distribution_names(), ["Ubuntu"], "the keeping processes keep their target");
+        assert!(running_user("Ubuntu").is_err(), "an unconfirmed state is never read");
+
+        env::set_var("ABF_WSL_EXE", fake_wsl(&dir, "good.cmd", good));
+        assert_eq!(detect().distros.len(), 1);
+        assert!(running_user("Ubuntu").is_ok());
+
+        *RECENT.lock().unwrap() = None;
+        env::remove_var("ABF_WSL_EXE");
+        env::remove_var("LOCALAPPDATA");
         let _ = std::fs::remove_dir_all(dir);
     }
 
