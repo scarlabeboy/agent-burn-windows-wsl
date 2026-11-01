@@ -65,6 +65,7 @@ import {
   EnvironmentSplit,
   HarnessList,
   Models,
+  OverviewIcon,
   Page,
   QuotaSection,
   SpendChart,
@@ -628,11 +629,28 @@ export default function App() {
         (range ? localReport?.agents.find((agent) => agent.agent === page) : undefined));
   const approx = report?.approxDetail ?? false;
 
-  const header = (
+  // The settings take the place of the page; choosing a page or an environment leaves them.
+  const openPage = (id: string) => {
+    setPage(id);
+    setShowSettings(false);
+  };
+  const openTab = (id: TabId) => {
+    setTab(id);
+    setShowSettings(false);
+  };
+
+  const header = showSettings ? (
+    <div className="page-head">
+      <h1 className="page-title">Réglages</h1>
+      <p className="muted page-sub">Démarrage, données, WSL et harness</p>
+    </div>
+  ) : (
     <div className="page-head">
       <h1 className="page-title">
         {page === OVERVIEW ? (
-          "Vue d'ensemble"
+          <>
+            <OverviewIcon size={22} /> Vue d'ensemble
+          </>
         ) : (
           <>
             <BrandIcon agent={page} size={22} /> {agentLabel(page)}
@@ -667,7 +685,7 @@ export default function App() {
               <button
                 key={entry.id}
                 className={`nav env${tab === entry.id ? " on" : ""}`}
-                onClick={() => setTab(entry.id)}
+                onClick={() => openTab(entry.id)}
               >
                 <span className="nav-icon">
                   <EnvIcon env={entry.id} />
@@ -691,8 +709,8 @@ export default function App() {
         )}
 
         <div className="nav-group">Vue</div>
-        <button className={`nav${page === OVERVIEW ? " on" : ""}`} onClick={() => setPage(OVERVIEW)}>
-          <span className="nav-icon">🔥</span>
+        <button className={`nav${page === OVERVIEW && !showSettings ? " on" : ""}`} onClick={() => openPage(OVERVIEW)}>
+          <OverviewIcon />
           <span className="nav-label">Vue d'ensemble</span>
           <span className="nav-value">{localReport ? formatUsd(localReport.totals.totalCost) : ""}</span>
         </button>
@@ -702,7 +720,7 @@ export default function App() {
           const left = weeklyLeft(id);
           const agent = localReport?.agents.find((entry) => entry.agent === id);
           return (
-            <button key={id} className={`nav${page === id ? " on" : ""}`} onClick={() => setPage(id)}>
+            <button key={id} className={`nav${page === id && !showSettings ? " on" : ""}`} onClick={() => openPage(id)}>
               <BrandIcon agent={id} />
               <span className="nav-label">{agentLabel(id)}</span>
               {left !== undefined ? (
@@ -718,8 +736,8 @@ export default function App() {
         {otherAgents.map((agent) => (
           <button
             key={agent.agent}
-            className={`nav${page === agent.agent ? " on" : ""}`}
-            onClick={() => setPage(agent.agent)}
+            className={`nav${page === agent.agent && !showSettings ? " on" : ""}`}
+            onClick={() => openPage(agent.agent)}
           >
             <BrandIcon agent={agent.agent} />
             <span className="nav-label">{agentLabel(agent.agent)}</span>
@@ -732,17 +750,19 @@ export default function App() {
         <header className="topbar">
           {header}
           <div className="spacer" />
-          <select
-            value={period}
-            onChange={(event) => setPeriod(event.target.value as Period)}
-            title="Période affichée"
-          >
-            {PERIODS.map((value) => (
-              <option key={value} value={value}>
-                {PERIOD_LABELS[value]}
-              </option>
-            ))}
-          </select>
+          {!showSettings && (
+            <select
+              value={period}
+              onChange={(event) => setPeriod(event.target.value as Period)}
+              title="Période affichée"
+            >
+              {PERIODS.map((value) => (
+                <option key={value} value={value}>
+                  {PERIOD_LABELS[value]}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             className="icon"
             onClick={() => {
@@ -754,93 +774,95 @@ export default function App() {
           >
             {loading ? "…" : "⟳"}
           </button>
-          <button className="icon" onClick={() => setShowSettings((value) => !value)} title="Réglages">
+          <button
+            className={`icon${showSettings ? " on" : ""}`}
+            onClick={() => setShowSettings((value) => !value)}
+            title={showSettings ? "Fermer les réglages" : "Réglages"}
+          >
             ⚙
           </button>
         </header>
 
-        {showSettings && (
-          <div className="settings">
-            <SettingsCard title="Général">
-              <SettingRow
-                title="Lancer au démarrage de Windows"
-                description="L'application s'ouvre réduite dans la zone de notification."
-              >
-                <Switch
-                  checked={autostart ?? false}
-                  disabled={autostart === null || autostartBusy}
-                  title={autostartBusy ? "Enregistrement dans Windows…" : undefined}
-                  label="Lancer au démarrage de Windows"
-                  onChange={toggleAutostart}
-                />
-              </SettingRow>
-              <SettingRow
-                title="Rester dans la zone de notification"
-                description="Fermer la fenêtre garde l'application active en arrière-plan ; « Quitter » de l'icône l'arrête."
-              >
-                <Switch
-                  checked={settings.closeToTray}
-                  label="Rester dans la zone de notification"
-                  onChange={(next) => updateSettings({ ...settings, closeToTray: next })}
-                />
-              </SettingRow>
-            </SettingsCard>
-
-            <SettingsCard title="Données">
-              <SettingRow
-                title="Rafraîchir l'usage automatiquement"
-                description="Relit les journaux des harness. Les quotas se relisent chaque minute."
-              >
-                <select
-                  value={settings.refreshMinutes}
-                  onChange={(event) => updateSettings({ ...settings, refreshMinutes: Number(event.target.value) })}
+        <main>
+          {showSettings ? (
+            <div className="settings">
+              <SettingsCard title="Général">
+                <SettingRow
+                  title="Lancer au démarrage de Windows"
+                  description="L'application s'ouvre réduite dans la zone de notification."
                 >
-                  <option value={0}>Jamais</option>
-                  <option value={1}>Chaque minute</option>
-                  <option value={5}>Toutes les 5 minutes</option>
-                  <option value={10}>Toutes les 10 minutes</option>
-                  <option value={30}>Toutes les 30 minutes</option>
-                </select>
-              </SettingRow>
-              <SettingRow
-                title="Mode hors ligne"
-                description="Aucun appel réseau, mais les modèles récents peuvent afficher 0 $."
-              >
-                <Switch
-                  checked={settings.offline}
-                  label="Mode hors ligne"
-                  onChange={(next) => updateSettings({ ...settings, offline: next })}
-                />
-              </SettingRow>
-            </SettingsCard>
-
-            {/* Hidden when there is no WSL to turn off; kept while off so it can be turned back on. */}
-            {(settings.wslMode !== "auto" || distros.length > 0) && (
-              <SettingsCard title="WSL">
-                <SettingRow title="Lecture de WSL" description={WSL_MODE_HINTS[settings.wslMode]}>
-                  <select
-                    value={settings.wslMode}
-                    onChange={(event) => updateSettings({ ...settings, wslMode: event.target.value as WslMode })}
-                  >
-                    <option value="off">Désactivé</option>
-                    <option value="auto">Automatique</option>
-                    <option value="keep">Maintenu allumé</option>
-                  </select>
+                  <Switch
+                    checked={autostart ?? false}
+                    disabled={autostart === null || autostartBusy}
+                    title={autostartBusy ? "Enregistrement dans Windows…" : undefined}
+                    label="Lancer au démarrage de Windows"
+                    onChange={toggleAutostart}
+                  />
+                </SettingRow>
+                <SettingRow
+                  title="Rester dans la zone de notification"
+                  description="Fermer la fenêtre garde l'application active en arrière-plan ; « Quitter » de l'icône l'arrête."
+                >
+                  <Switch
+                    checked={settings.closeToTray}
+                    label="Rester dans la zone de notification"
+                    onChange={(next) => updateSettings({ ...settings, closeToTray: next })}
+                  />
                 </SettingRow>
               </SettingsCard>
-            )}
 
-            <SettingsCard title="Harness">
-              <HarnessSettings groups={harnessGroups} onToggle={toggleHarness} />
-              <p className="muted small set-note">
-                Un harness désactivé n'est plus lu (le scan est plus rapide) et disparaît des totaux et des quotas.
-              </p>
-            </SettingsCard>
-          </div>
-        )}
+              <SettingsCard title="Données">
+                <SettingRow
+                  title="Rafraîchir l'usage automatiquement"
+                  description="Relit les journaux des harness. Les quotas se relisent chaque minute."
+                >
+                  <select
+                    value={settings.refreshMinutes}
+                    onChange={(event) => updateSettings({ ...settings, refreshMinutes: Number(event.target.value) })}
+                  >
+                    <option value={0}>Jamais</option>
+                    <option value={1}>Chaque minute</option>
+                    <option value={5}>Toutes les 5 minutes</option>
+                    <option value={10}>Toutes les 10 minutes</option>
+                    <option value={30}>Toutes les 30 minutes</option>
+                  </select>
+                </SettingRow>
+                <SettingRow
+                  title="Mode hors ligne"
+                  description="Aucun appel réseau, mais les modèles récents peuvent afficher 0 $."
+                >
+                  <Switch
+                    checked={settings.offline}
+                    label="Mode hors ligne"
+                    onChange={(next) => updateSettings({ ...settings, offline: next })}
+                  />
+                </SettingRow>
+              </SettingsCard>
 
-        <main>
-          {!report ? (
+              {/* Hidden when there is no WSL to turn off; kept while off so it can be turned back on. */}
+              {(settings.wslMode !== "auto" || distros.length > 0) && (
+                <SettingsCard title="WSL">
+                  <SettingRow title="Lecture de WSL" description={WSL_MODE_HINTS[settings.wslMode]}>
+                    <select
+                      value={settings.wslMode}
+                      onChange={(event) => updateSettings({ ...settings, wslMode: event.target.value as WslMode })}
+                    >
+                      <option value="off">Désactivé</option>
+                      <option value="auto">Automatique</option>
+                      <option value="keep">Maintenu allumé</option>
+                    </select>
+                  </SettingRow>
+                </SettingsCard>
+              )}
+
+              <SettingsCard title="Harness">
+                <HarnessSettings groups={harnessGroups} onToggle={toggleHarness} />
+                <p className="muted small set-note">
+                  Un harness désactivé n'est plus lu (le scan est plus rapide) et disparaît des totaux et des quotas.
+                </p>
+              </SettingsCard>
+            </div>
+          ) : !report ? (
             stoppedNames.length > 0 && !pendingState ? (
               <div className="notice">
                 WSL éteint ({stoppedNames.join(", ")}) : l'application ne le démarre pas et n'a pas encore de

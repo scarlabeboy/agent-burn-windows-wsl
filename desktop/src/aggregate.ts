@@ -54,6 +54,23 @@ function mergeModels(lists: ModelRow[][], totalCost: number): ModelRow[] {
     .sort((a, b) => b.totalCost - a.totalCost || b.totalTokens - a.totalTokens);
 }
 
+export type ModelSortKey = "model" | "tokens" | "cost" | "share";
+export interface ModelSort {
+  key: ModelSortKey;
+  descending: boolean;
+}
+
+/** Rows of the models table in the chosen order; equal values keep the model name order. */
+export function sortModels(rows: ModelRow[], sort: ModelSort): ModelRow[] {
+  const value = (row: ModelRow): number =>
+    sort.key === "tokens" ? row.totalTokens : sort.key === "cost" ? row.totalCost : row.percentage;
+  const direction = sort.descending ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    const order = sort.key === "model" ? a.model.localeCompare(b.model) : value(a) - value(b);
+    return order * direction || a.model.localeCompare(b.model);
+  });
+}
+
 /**
  * Sum distinct sources (Windows, each WSL distro) into one Computer report.
  * Sources read separate data directories, so addition does not double count.

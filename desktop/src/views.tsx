@@ -8,7 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { formatTokens, formatUsd, tokensPerDollar } from "./aggregate";
+import { formatTokens, formatUsd, sortModels, tokensPerDollar, type ModelSort, type ModelSortKey } from "./aggregate";
 import { IdleChart, QuotaChart } from "./QuotaChart";
 import { budget, cycleEnded, formatDay, formatDuration, freshness, type GaugeModel, type QuotaCard } from "./quota";
 import { useNow } from "./useNow";
@@ -76,7 +76,24 @@ export function BrandIcon({ agent, size = 22 }: { agent: string; size?: number }
   );
 }
 
-export const asReport = (agent: AgentReport, approxDetail = false): UsageReport => ({
+/** The overview's own badge, shaped like the harness icons: every harness's share of a pie. */
+export function OverviewIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg className="brand" width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+      <defs>
+        <linearGradient id="overview-badge" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ff9a3d" />
+          <stop offset="1" stopColor="#e8457c" />
+        </linearGradient>
+      </defs>
+      <rect width="24" height="24" rx="6" fill="url(#overview-badge)" />
+      <path d="M11 5.6a6.6 6.6 0 1 0 7.4 7.4H11z" fill="#fff" />
+      <path d="M13 3.8V11h7.2A7.2 7.2 0 0 0 13 3.8z" fill="#fff" fillOpacity="0.7" />
+    </svg>
+  );
+}
+
+export const asReport =(agent: AgentReport, approxDetail = false): UsageReport => ({
   agents: [agent],
   daily: agent.daily,
   models: agent.models,
@@ -266,10 +283,24 @@ function DetailPending({ title, error }: { title: string; error?: string }) {
   );
 }
 
+const MODEL_COLUMNS: { key: ModelSortKey; label: string; numeric: boolean }[] = [
+  { key: "model", label: "Modèle", numeric: false },
+  { key: "tokens", label: "Tokens", numeric: true },
+  { key: "cost", label: "Dépense", numeric: true },
+  { key: "share", label: "Part", numeric: true },
+];
+
 export function Models({ report, detailError }: { report: UsageReport; detailError?: string }) {
   const [filter, setFilter] = useState("");
+  const [sort, setSort] = useState<ModelSort>({ key: "cost", descending: true });
   if (report.approxDetail) return <DetailPending title="Modèles" error={detailError} />;
-  const rows = report.models.filter((row) => row.model.toLowerCase().includes(filter.trim().toLowerCase()));
+  const rows = sortModels(
+    report.models.filter((row) => row.model.toLowerCase().includes(filter.trim().toLowerCase())),
+    sort,
+  );
+  // The same column flips the order; another starts with names A to Z and numbers largest first.
+  const sortBy = (key: ModelSortKey, numeric: boolean) =>
+    setSort((current) => (current.key === key ? { key, descending: !current.descending } : { key, descending: numeric }));
   return (
     <section className="card">
       <header className="card-head">
@@ -280,10 +311,21 @@ export function Models({ report, detailError }: { report: UsageReport; detailErr
       <table>
         <thead>
           <tr>
-            <th>Modèle</th>
-            <th className="num">Tokens</th>
-            <th className="num">Dépense</th>
-            <th className="num">Part</th>
+            {MODEL_COLUMNS.map((column) => (
+              <th
+                key={column.key}
+                className={column.numeric ? "num" : undefined}
+                aria-sort={sort.key === column.key ? (sort.descending ? "descending" : "ascending") : undefined}
+              >
+                <button
+                  className={`sort${sort.key === column.key ? " on" : ""}`}
+                  onClick={() => sortBy(column.key, column.numeric)}
+                >
+                  {column.label}
+                  <span className="sort-arrow">{sort.key === column.key ? (sort.descending ? "▼" : "▲") : ""}</span>
+                </button>
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -292,7 +334,14 @@ export function Models({ report, detailError }: { report: UsageReport; detailErr
               <td>{row.model}</td>
               <td className="num">{formatTokens(row.totalTokens)}</td>
               <td className="num">{formatUsd(row.totalCost)}</td>
-              <td className="num">{row.percentage.toFixed(1)}%</td>
+              <td className="num">
+                <span className="share">
+                  <span className="bar share-bar">
+                    <div style={{ width: `${Math.min(100, row.percentage)}%` }} />
+                  </span>
+                  {row.percentage.toFixed(1)}%
+                </span>
+              </td>
             </tr>
           ))}
         </tbody>
