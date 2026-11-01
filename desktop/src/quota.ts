@@ -43,6 +43,14 @@ export function gauge(window: QuotaWindow, observedAt: number): GaugeModel {
 }
 
 /**
+ * A session window nobody has used: Codex reports one even without a session, untouched and
+ * resetting a full window from now, a reset that moves with every reading. A session that
+ * started a moment ago and has used nothing yet looks the same, and is just as empty.
+ */
+export const idleSession = (window: QuotaWindow): boolean =>
+  window.usedPercent === 0 && window.elapsedPercent < 1;
+
+/**
  * One card per harness. Readings with the same figures from different sources come from
  * the same account, so they collapse into a single card that lists every source.
  */
@@ -64,7 +72,10 @@ export function quotaCards(readings: { source: string; reading: QuotaReading }[]
         harness: reading.agent,
         sources: [source],
         observedAt: reading.observedAt,
-        session: reading.sessionWindow && gauge(reading.sessionWindow, reading.observedAt),
+        session:
+          reading.sessionWindow && !idleSession(reading.sessionWindow)
+            ? gauge(reading.sessionWindow, reading.observedAt)
+            : undefined,
         weekly: gauge(reading.window, reading.observedAt),
       });
     }

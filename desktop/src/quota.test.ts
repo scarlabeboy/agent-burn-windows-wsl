@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { budget, FRESH_MS, freshness, gauge } from "./quota";
+import { budget, FRESH_MS, freshness, gauge, idleSession } from "./quota";
 
 const clock = (ms: number) => new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(ms);
 
@@ -30,6 +30,14 @@ test("with days left, the budget is a daily rate", () => {
   const spend = budget(weekly(48, 2 * 1440));
   assert.equal(spend.perDay, true);
   assert.equal(spend.percent, 26);
+});
+
+test("an untouched session window that resets a full window from now is idle", () => {
+  const window = (usedPercent: number, elapsedPercent: number) =>
+    ({ usedPercent, windowMinutes: 300, elapsedPercent }) as never;
+  assert.equal(idleSession(window(0, 0)), true);
+  assert.equal(idleSession(window(1, 0.5)), false, "something was used");
+  assert.equal(idleSession(window(0, 3)), false, "the window is running");
 });
 
 test("under a day before the reset, the budget is the whole remainder", () => {

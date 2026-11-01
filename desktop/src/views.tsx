@@ -9,7 +9,7 @@ import {
   YAxis,
 } from "recharts";
 import { formatTokens, formatUsd, tokensPerDollar } from "./aggregate";
-import { QuotaChart } from "./QuotaChart";
+import { IdleChart, QuotaChart } from "./QuotaChart";
 import { budget, cycleEnded, formatDay, formatDuration, freshness, type GaugeModel, type QuotaCard } from "./quota";
 import { useNow } from "./useNow";
 import type { AgentReport, ClaudeAccount, SubscriptionAgent, TokenBreakdown, UsageReport } from "./types";
@@ -394,8 +394,9 @@ function GaugeCard({
 }
 
 /**
- * The 5-hour window has not started: the provider gives no reset time until the first message,
- * so there is nothing to chart. The card keeps its place so the layout does not jump.
+ * The 5-hour window has not started: Claude gives no reset time until the first message, and
+ * Codex gives an untouched window whose reset keeps moving, so there is nothing to chart. The
+ * card keeps its place so the layout does not jump.
  */
 function IdleSessionCard() {
   return (
@@ -408,7 +409,7 @@ function IdleSessionCard() {
         <span className="gauge-value">100%</span>
         <span className="muted"> restants</span>
       </div>
-      <p className="idle-note muted">Démarre dès votre premier message.</p>
+      <IdleChart note="Démarre dès votre premier message." />
     </div>
   );
 }
