@@ -130,7 +130,10 @@ function quotaMissing(harness: string, tab: TabId, wslRunning: boolean): string 
       "Connectez Claude Code dans cet environnement (commande claude) pour lire le quota et le plan."
     );
   }
-  return `Quota ${name} non lu ${where} : il vient des journaux de session de cet environnement, et aucune session récente n'en contient.`;
+  return (
+    `Quota ${name} non lu ${where} : aucune connexion lisible (fichier ~/.codex/auth.json), ou le service ne répond pas. ` +
+    "Connectez Codex dans cet environnement (commande codex) pour lire le quota."
+  );
 }
 
 function pillClass(remaining: number): string {
@@ -468,7 +471,8 @@ export default function App() {
     })
     .join("\n");
   useEffect(() => {
-    if (tooltip) void setTrayTooltip(`Agent Burn Windows\n${tooltip}`).catch(() => undefined);
+    // Without any quota the summary goes too, rather than keep percentages that no longer hold.
+    void setTrayTooltip(tooltip ? `Agent Burn Windows\n${tooltip}` : "Agent Burn Windows").catch(() => undefined);
   }, [tooltip]);
 
   // "Since reset" needs a weekly quota cycle, so it only applies on Claude and Codex pages.

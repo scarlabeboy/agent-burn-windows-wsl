@@ -1,8 +1,10 @@
 # Agent Burn for Windows
 
 Tauri v2 + React/TypeScript desktop app that reads Agent Burn usage for native Windows,
-for WSL (optional), and for both combined (Computer). It runs the unmodified Agent Burn
-CLI from `../rust` as a sidecar and renders its JSON; it never parses logs itself.
+for WSL (optional), and for both combined (Computer). It runs the Agent Burn CLI from
+`../rust` as a sidecar and renders its JSON; it never parses logs itself. The CLI is Melvynx's
+code with a single addition, the Codex 5-hour window (`sessionWindow`) in the quota reading;
+cost calculation is untouched.
 
 ## Build the installer
 

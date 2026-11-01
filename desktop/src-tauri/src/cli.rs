@@ -96,11 +96,9 @@ fn apply_source(
     };
     let user = sources::running_user(distro)?;
     let home = sources::wsl_home_unc(distro, &user);
-    command
-        .env("CLAUDE_CONFIG_DIR", format!(r"{home}\.claude"))
-        .env("CODEX_HOME", format!(r"{home}\.codex"))
-        // Sign-in tokens are read from the distribution's own home directory.
-        .env("HOME", &home);
+    command.envs(wsl_environment(&home));
+    // A Cursor token set on Windows belongs to the Windows source, which already counts it.
+    command.env_remove("CURSOR_ACCESS_TOKEN");
     let mut snapshot = Snapshot(None);
     if with_opencode {
         let (dir, copy) = snapshot_opencode(distro, &format!(r"{home}\.local\share\opencode"));
@@ -108,6 +106,19 @@ fn apply_source(
         snapshot = copy;
     }
     Ok((Some(home), snapshot))
+}
+
+/// Where the CLI finds each harness of a distribution. Sign-in tokens are read from the
+/// distribution's own home directory. Cursor is the one harness the CLI looks up through
+/// `%APPDATA%` on Windows, which would be the Windows sign-in counted a second time: it is
+/// pointed at the Linux location instead.
+fn wsl_environment(home: &str) -> [(&'static str, String); 4] {
+    [
+        ("CLAUDE_CONFIG_DIR", format!(r"{home}\.claude")),
+        ("CODEX_HOME", format!(r"{home}\.codex")),
+        ("CURSOR_DATA_DIR", format!(r"{home}\.config\Cursor")),
+        ("HOME", home.to_string()),
+    ]
 }
 
 const CLAUDE_PLANS: [&str; 3] = ["pro", "max-5x", "max-20x"];
@@ -361,6 +372,17 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use super::*;
+
+    /// No harness of a WSL source may be looked up on the Windows side, or Computer adds it twice.
+    #[test]
+    fn a_wsl_source_reads_every_harness_from_its_own_home() {
+        let home = r"\\wsl.localhost\Ubuntu\home\beboy";
+        for (name, value) in wsl_environment(home) {
+            assert!(value.starts_with(home), "{name} points outside the distribution: {value}");
+        }
+        let names: Vec<_> = wsl_environment(home).iter().map(|(name, _)| *name).collect();
+        assert!(names.contains(&"CURSOR_DATA_DIR"), "Cursor would read %APPDATA% on Windows");
+    }
 
     fn plan_for(json: &str) -> Option<String> {
         static NEXT: AtomicUsize = AtomicUsize::new(0);
