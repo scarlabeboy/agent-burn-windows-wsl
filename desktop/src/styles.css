@@ -27,15 +27,24 @@ button { cursor: pointer; }
   background: #19191b; border-right: 1px solid var(--line);
   display: flex; flex-direction: column; gap: 2px;
 }
-.brand-row { display: flex; align-items: center; gap: 8px; padding: 4px 10px 14px; font-size: 16px; }
-.nav-group { color: var(--muted); font-size: 12px; padding: 16px 10px 6px; }
+.brand-row { display: flex; align-items: center; gap: 8px; padding: 4px 10px 12px; font-size: 16px; }
+/* Each group opens with a rule and a small title, as in the settings. */
+.nav-group {
+  color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  margin-top: 10px; padding: 12px 10px 6px; border-top: 1px solid var(--line);
+}
 .nav {
   display: flex; align-items: center; gap: 10px; width: 100%;
   padding: 9px 10px; border: 0; border-radius: 10px; background: none; text-align: left;
 }
 .nav:hover { background: var(--panel); }
 .nav.on { background: #2f6dde; }
-.nav-icon { width: 22px; text-align: center; }
+.nav-icon { width: 22px; text-align: center; display: inline-flex; justify-content: center; }
+/* The environment uses the accent, the page the blue: both stay visible at once. */
+.nav.env { color: var(--muted); --env-icon-belly: #19191b; }
+.nav.env:hover { color: var(--text); --env-icon-belly: var(--panel); }
+.nav.env.on { background: var(--accent); color: #fff; --env-icon-belly: var(--accent); }
+.nav-select { margin: 4px 0 2px 42px; width: calc(100% - 42px); }
 .nav-label { flex: 1; white-space: nowrap; }
 .nav-value { color: var(--muted); font-variant-numeric: tabular-nums; }
 .nav.on .nav-value { color: #fff; }
@@ -48,7 +57,17 @@ button { cursor: pointer; }
 
 /* Main area */
 .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.topbar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
+.topbar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); min-height: 63px; }
+.page-head { min-width: 0; }
+.topbar .page-title { font-size: 18px; }
+.topbar .page-sub { font-size: 12px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.statusbar {
+  display: flex; align-items: center; gap: 8px; padding: 6px 20px; flex: none;
+  border-top: 1px solid var(--line); background: #19191b;
+}
+.statusbar .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.statusbar .dot.ok { background: var(--ok); }
+.statusbar .dot.busy { background: var(--accent); }
 .spacer { flex: 1; }
 .tabs { display: flex; gap: 4px; background: var(--panel); padding: 4px; border-radius: 10px; }
 .tabs button, .seg button {

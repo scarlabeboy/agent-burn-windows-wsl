@@ -23,6 +23,8 @@ import {
 import { HarnessSettings } from "./HarnessSettings";
 import { SettingRow, SettingsCard, Switch } from "./SettingsUi";
 import { EmptyState } from "./EmptyState";
+import { EnvIcon } from "./EnvIcons";
+import { StatusBar } from "./StatusBar";
 import { LimitUsageChart } from "./LimitUsageChart";
 import type { LimitUsageDay } from "./limitUsage";
 import { SUPPORTED_HARNESSES, disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
@@ -146,7 +148,7 @@ function Pending({ state, label }: { state: SourceState | undefined; label: stri
   if (state?.status === "error") {
     return (
       <div className="notice error">
-        <strong>{label} : lecture impossible.</strong> {state.message}
+        <strong>{label.charAt(0).toUpperCase() + label.slice(1)} : lecture impossible.</strong> {state.message}
       </div>
     );
   }
@@ -574,15 +576,14 @@ export default function App() {
     [activeKey, states],
   );
 
-  const tabs: { id: TabId; label: string }[] = [
-    { id: "windows", label: "Windows" },
-    ...(hasWsl
-      ? [
-          { id: "wsl" as TabId, label: "WSL" },
-          { id: "computer" as TabId, label: "Computer" },
-        ]
-      : []),
-  ];
+  // Only offered with WSL: with Windows alone there is nothing to choose.
+  const tabs: { id: TabId; label: string }[] = hasWsl
+    ? [
+        { id: "computer", label: "Ordinateur" },
+        { id: "windows", label: "Windows" },
+        { id: "wsl", label: "WSL" },
+      ]
+    : [];
 
   const loading = sourceIds.some((id) => states[id]?.status === "loading");
   // The sidebar always uses the locally filtered report, which lists every harness.
@@ -628,13 +629,13 @@ export default function App() {
   const approx = report?.approxDetail ?? false;
 
   const header = (
-    <>
+    <div className="page-head">
       <h1 className="page-title">
         {page === OVERVIEW ? (
           "Vue d'ensemble"
         ) : (
           <>
-            <BrandIcon agent={page} size={26} /> {agentLabel(page)}
+            <BrandIcon agent={page} size={22} /> {agentLabel(page)}
           </>
         )}
       </h1>
@@ -648,7 +649,7 @@ export default function App() {
         {period === "rtd" && effectivePeriod === "all" &&
           " (« Depuis le reset » s'applique aux pages Claude Code et Codex)"}
       </p>
-    </>
+    </div>
   );
 
   return (
@@ -658,6 +659,38 @@ export default function App() {
           <span className="flame">🔥</span>
           <strong>Agent Burn Windows</strong>
         </div>
+
+        {tabs.length > 0 && (
+          <>
+            <div className="nav-group">Environnement</div>
+            {tabs.map((entry) => (
+              <button
+                key={entry.id}
+                className={`nav env${tab === entry.id ? " on" : ""}`}
+                onClick={() => setTab(entry.id)}
+              >
+                <span className="nav-icon">
+                  <EnvIcon env={entry.id} />
+                </span>
+                <span className="nav-label">{entry.label}</span>
+              </button>
+            ))}
+            {tab === "wsl" && distros.length > 1 && (
+              <select
+                className="nav-select"
+                value={activeDistro?.name}
+                onChange={(event) => setDistro(event.target.value)}
+                title="Distribution WSL"
+              >
+                {distros.map((entry) => (
+                  <option key={entry.name}>{entry.name}</option>
+                ))}
+              </select>
+            )}
+          </>
+        )}
+
+        <div className="nav-group">Vue</div>
         <button className={`nav${page === OVERVIEW ? " on" : ""}`} onClick={() => setPage(OVERVIEW)}>
           <span className="nav-icon">🔥</span>
           <span className="nav-label">Vue d'ensemble</span>
@@ -681,7 +714,7 @@ export default function App() {
           );
         })}
 
-        {otherAgents.length > 0 && <div className="nav-group">Agents</div>}
+        {otherAgents.length > 0 && <div className="nav-group">Harness</div>}
         {otherAgents.map((agent) => (
           <button
             key={agent.agent}
@@ -697,20 +730,7 @@ export default function App() {
 
       <div className="content">
         <header className="topbar">
-          <nav className="tabs">
-            {tabs.map((entry) => (
-              <button key={entry.id} className={tab === entry.id ? "on" : ""} onClick={() => setTab(entry.id)}>
-                {entry.label}
-              </button>
-            ))}
-          </nav>
-          {tab === "wsl" && distros.length > 1 && (
-            <select value={activeDistro?.name} onChange={(event) => setDistro(event.target.value)}>
-              {distros.map((entry) => (
-                <option key={entry.name}>{entry.name}</option>
-              ))}
-            </select>
-          )}
+          {header}
           <div className="spacer" />
           <select
             value={period}
@@ -723,11 +743,6 @@ export default function App() {
               </option>
             ))}
           </select>
-          {lastScan > 0 && (
-            <span className="muted small" title="Dernier scan des données d'usage">
-              {loading ? "Mise à jour…" : `Mis à jour à ${new Date(lastScan).toLocaleTimeString("fr-FR")}`}
-            </span>
-          )}
           <button
             className="icon"
             onClick={() => {
@@ -832,11 +847,10 @@ export default function App() {
                 données de lui. Elles apparaîtront dès qu'il tourne.
               </div>
             ) : (
-              <Pending state={pendingState} label={tab === "computer" ? "Computer" : label(activeIds[0] ?? "windows")} />
+              <Pending state={pendingState} label={tab === "computer" ? "l'ordinateur" : label(activeIds[0] ?? "windows")} />
             )
           ) : (
             <Page>
-              <div>{header}</div>
               {stoppedNames.length > 0 && (
                 <div className="notice">
                   WSL éteint ({stoppedNames.join(", ")}) : l'application ne le démarre pas, ses chiffres
@@ -844,7 +858,7 @@ export default function App() {
                 </div>
               )}
               {tab === "computer" && localParts.length < sourceIds.length - stoppedNames.length && (
-                <div className="notice error">Une source n'a pas pu être lue : le total Computer est partiel.</div>
+                <div className="notice error">Une source n'a pas pu être lue : le total de l'ordinateur est partiel.</div>
               )}
               {page === OVERVIEW && hasNoData ? (
                 <EmptyState
@@ -917,6 +931,7 @@ export default function App() {
             </Page>
           )}
         </main>
+        <StatusBar loading={loading} lastScan={lastScan} />
       </div>
     </div>
   );

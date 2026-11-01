@@ -1,7 +1,7 @@
 # Agent Burn for Windows
 
 Tauri v2 + React/TypeScript desktop app that reads Agent Burn usage for native Windows,
-for WSL (optional), and for both combined (Computer). It runs the Agent Burn CLI from
+for WSL (optional), and for both combined (Ordinateur). It runs the Agent Burn CLI from
 `../rust` as a sidecar and renders its JSON; it never parses logs itself. The CLI is Melvynx's
 code with a single addition, the Codex 5-hour window (`sessionWindow`) in the quota reading;
 cost calculation is untouched.
@@ -33,7 +33,8 @@ For development run `npx tauri dev` after `prepare-cli.ps1`.
   `%LOCALAPPDATA%\dev.scarlabeboy.agent-burn-windows\archive`, apart from the install
   directory.
 - Subscription quotas use the CLI's quota-only mode. Each tab shows the quotas of its own
-  environment (Windows, WSL); the Computer tab keeps the freshest reading of each harness.
+  environment (Windows, WSL); the Ordinateur view keeps the freshest reading of each harness.
+  The environment is chosen in the sidebar, above the pages.
   Sign-ins (and the Claude plan) are read from the environment's own home directory: a
   Windows without a readable `~/.claude/.credentials.json` shows "quota non lu".
 - Quota history is kept in the archive while the app runs; Codex history is also rebuilt
