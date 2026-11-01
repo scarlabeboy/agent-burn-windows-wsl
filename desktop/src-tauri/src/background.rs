@@ -103,15 +103,17 @@ pub fn set_close_to_tray(state: tauri::State<CloseToTray>, enabled: bool) {
     state.0.store(enabled, Ordering::SeqCst);
 }
 
+// Async so the registry access never runs on the thread that draws the window: a slow
+// write (an antivirus checking the startup entry) would otherwise freeze the interface.
 #[tauri::command]
-pub fn get_autostart(app: AppHandle) -> Result<bool, String> {
+pub async fn get_autostart(app: AppHandle) -> Result<bool, String> {
     app.autolaunch()
         .is_enabled()
         .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub fn set_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
+pub async fn set_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
     let manager = app.autolaunch();
     let result = if enabled {
         manager.enable()
