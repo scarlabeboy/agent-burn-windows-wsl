@@ -72,15 +72,16 @@ export function LimitUsageChart({ days, where }: { days: LimitUsageDay[]; where:
             {chart.series.map((entry, index) => (
               <span key={entry.name}>
                 <i style={{ background: colorOf(entry.name, index) }} />
-                {entry.name} · {entry.total.toFixed(0)} %
+                {entry.name} · {Math.round((entry.total / total) * 100)} % du total
               </span>
             ))}
           </div>
         </>
       )}
       <p className="muted small hint">
-        Part d'une limite hebdomadaire consommée chaque jour, sur {days.length} jours : {total.toFixed(0)} % en tout. Compte
-        entier, tous les appareils confondus, d'après le tableau de bord ChatGPT · lu {where}.
+        Chaque barre est la part d'une limite hebdomadaire consommée ce jour-là, tous les appareils confondus, d'après le
+        tableau de bord ChatGPT · lu {where}. Le dernier jour est souvent incomplet : le tableau de bord compte avec du
+        retard.
       </p>
     </section>
   );

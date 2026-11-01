@@ -406,7 +406,7 @@ export function QuotaSection({ card }: { card: QuotaCard }) {
         <h2>Quota {agentLabel(card.harness)}</h2>
         <span
           className={`fresh small ${state.fresh ? "ok" : "late"}`}
-          title={`Mesuré le ${new Date(card.observedAt).toLocaleString("fr-FR")}`}
+          title={`${state.fresh ? "En direct · mesuré" : "Mesuré"} le ${new Date(card.observedAt).toLocaleString("fr-FR")}`}
         >
           <i className="dot" />
           {card.sources.join(" · ")} · {state.label}

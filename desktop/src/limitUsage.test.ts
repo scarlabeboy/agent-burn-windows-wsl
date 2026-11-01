@@ -24,6 +24,7 @@ const day = (
 test("surfaces get readable names, and unknown ones are counted as other", () => {
   assert.equal(surfaceLabel("cli"), "CLI");
   assert.equal(surfaceLabel("desktop_app"), "Application de bureau");
+  assert.equal(surfaceLabel("work_desktop"), "Application de bureau (Work)");
   assert.equal(surfaceLabel("a_surface_nobody_heard_of"), OTHER);
 });
 

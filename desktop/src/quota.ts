@@ -78,7 +78,7 @@ export const FRESH_MS = 90_000;
 export interface Freshness {
   /** Read within the last minute and a half. */
   fresh: boolean;
-  /** "En direct", or how long ago the figures were measured. */
+  /** When the figures were measured, as a clock time; a stale reading also says how long ago. */
   label: string;
 }
 
@@ -94,9 +94,11 @@ export function formatAge(ms: number): string {
 
 export function freshness(observedAt: number, nowMs: number): Freshness {
   const age = Math.max(0, nowMs - observedAt);
+  // The day is only worth showing when the reading is not from today.
+  const clock = formatClock(observedAt, age > 12 * 60 * MINUTE_MS);
   return age <= FRESH_MS
-    ? { fresh: true, label: "en direct" }
-    : { fresh: false, label: `relevé il y a ${formatAge(age)}` };
+    ? { fresh: true, label: clock }
+    : { fresh: false, label: `${clock} · il y a ${formatAge(age)}` };
 }
 
 /** The cycle a reading belongs to is over: its figures describe a window that has closed. */
