@@ -19,6 +19,7 @@ import {
   writeTab,
 } from "./api";
 import { HarnessSettings } from "./HarnessSettings";
+import { SettingRow, SettingsCard, Switch } from "./SettingsUi";
 import { disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
 import { formatUsd, mergeReports } from "./aggregate";
 import {
@@ -649,58 +650,82 @@ export default function App() {
         </header>
 
         {showSettings && (
-          <div className="settings card">
+          <div className="settings">
+            <SettingsCard title="Général">
+              <SettingRow
+                title="Lancer au démarrage de Windows"
+                description="L'application s'ouvre réduite dans la zone de notification."
+              >
+                <Switch
+                  checked={autostart ?? false}
+                  disabled={autostart === null || autostartBusy}
+                  title={autostartBusy ? "Enregistrement dans Windows…" : undefined}
+                  label="Lancer au démarrage de Windows"
+                  onChange={toggleAutostart}
+                />
+              </SettingRow>
+              <SettingRow
+                title="Rester dans la zone de notification"
+                description="Fermer la fenêtre garde l'application active en arrière-plan ; « Quitter » de l'icône l'arrête."
+              >
+                <Switch
+                  checked={settings.closeToTray}
+                  label="Rester dans la zone de notification"
+                  onChange={(next) => updateSettings({ ...settings, closeToTray: next })}
+                />
+              </SettingRow>
+            </SettingsCard>
+
+            <SettingsCard title="Données">
+              <SettingRow
+                title="Rafraîchir l'usage automatiquement"
+                description="Relit les journaux des harness. Les quotas se relisent chaque minute."
+              >
+                <select
+                  value={settings.refreshMinutes}
+                  onChange={(event) => updateSettings({ ...settings, refreshMinutes: Number(event.target.value) })}
+                >
+                  <option value={0}>Jamais</option>
+                  <option value={1}>Chaque minute</option>
+                  <option value={5}>Toutes les 5 minutes</option>
+                  <option value={10}>Toutes les 10 minutes</option>
+                  <option value={30}>Toutes les 30 minutes</option>
+                </select>
+              </SettingRow>
+              <SettingRow
+                title="Mode hors ligne"
+                description="Aucun appel réseau, mais les modèles récents peuvent afficher 0 $."
+              >
+                <Switch
+                  checked={settings.offline}
+                  label="Mode hors ligne"
+                  onChange={(next) => updateSettings({ ...settings, offline: next })}
+                />
+              </SettingRow>
+            </SettingsCard>
+
             {/* Hidden when there is no WSL to turn off; kept while off so it can be turned back on. */}
             {(!settings.wslEnabled || distros.length > 0) && (
-              <label>
-                <input
-                  type="checkbox"
-                  checked={settings.wslEnabled}
-                  onChange={(event) => updateSettings({ ...settings, wslEnabled: event.target.checked })}
-                />
-                Lire aussi WSL (désactivé = Windows uniquement, WSL n'est pas interrogé)
-              </label>
+              <SettingsCard title="WSL">
+                <SettingRow
+                  title="Lire WSL"
+                  description="Désactivé : Windows uniquement, WSL n'est jamais interrogé. Activé : lu quand il tourne, jamais réveillé."
+                >
+                  <Switch
+                    checked={settings.wslEnabled}
+                    label="Lire WSL"
+                    onChange={(next) => updateSettings({ ...settings, wslEnabled: next })}
+                  />
+                </SettingRow>
+              </SettingsCard>
             )}
-            <label>
-              <input
-                type="checkbox"
-                checked={autostart ?? false}
-                disabled={autostart === null || autostartBusy}
-                title={autostartBusy ? "Enregistrement dans Windows…" : undefined}
-                onChange={(event) => toggleAutostart(event.target.checked)}
-              />
-              Lancer au démarrage de Windows (réduit dans la zone de notification)
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={settings.closeToTray}
-                onChange={(event) => updateSettings({ ...settings, closeToTray: event.target.checked })}
-              />
-              Rester actif dans la zone de notification quand je ferme la fenêtre
-            </label>
-            <label>
-              Rafraîchir l'usage automatiquement
-              <select
-                value={settings.refreshMinutes}
-                onChange={(event) => updateSettings({ ...settings, refreshMinutes: Number(event.target.value) })}
-              >
-                <option value={0}>Jamais</option>
-                <option value={1}>Chaque minute</option>
-                <option value={5}>Toutes les 5 minutes</option>
-                <option value={10}>Toutes les 10 minutes</option>
-                <option value={30}>Toutes les 30 minutes</option>
-              </select>
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={settings.offline}
-                onChange={(event) => updateSettings({ ...settings, offline: event.target.checked })}
-              />
-              Mode hors ligne (aucun appel réseau, mais les modèles récents peuvent afficher 0 $)
-            </label>
-            <HarnessSettings groups={harnessGroups} onToggle={toggleHarness} />
+
+            <SettingsCard title="Harness">
+              <HarnessSettings groups={harnessGroups} onToggle={toggleHarness} />
+              <p className="muted small set-note">
+                Un harness désactivé n'est plus lu (le scan est plus rapide) et disparaît des totaux et des quotas.
+              </p>
+            </SettingsCard>
           </div>
         )}
 

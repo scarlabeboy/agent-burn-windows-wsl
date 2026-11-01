@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { HarnessGroups } from "./harnesses";
+import { Switch } from "./SettingsUi";
 import { BrandIcon, agentLabel } from "./views";
 
 interface Props {
@@ -11,26 +12,27 @@ function Group({
   title,
   ids,
   open,
-  action,
+  control,
 }: {
   title: string;
   ids: string[];
   open: boolean;
-  action?: (id: string) => ReactNode;
+  /** The switch of a row; groups without one list harnesses that cannot be switched. */
+  control?: (id: string) => ReactNode;
 }) {
   return (
-    <details className="harness-group" open={open}>
+    <details className="hs-group" open={open}>
       <summary>
         {title} <span className="muted">({ids.length})</span>
       </summary>
       {ids.length === 0 ? (
-        <div className="muted small harness-empty">Aucun</div>
+        <div className="muted small hs-empty">Aucun</div>
       ) : (
         ids.map((id) => (
-          <div key={id} className={`harness-row${action ? "" : " dim"}`}>
+          <div key={id} className={`hs-row${control ? "" : " dim"}`}>
             <BrandIcon agent={id} size={18} />
-            <span className="harness-name">{agentLabel(id)}</span>
-            {action?.(id)}
+            <span className="hs-name">{agentLabel(id)}</span>
+            {control?.(id)}
           </div>
         ))
       )}
@@ -38,41 +40,39 @@ function Group({
   );
 }
 
-/** Every harness the CLI reads, in three groups. Only active and disabled ones can be switched. */
+/** Every harness the CLI reads, in three groups. Only active and disabled ones have a switch. */
 export function HarnessSettings({ groups, onToggle }: Props) {
   const lastActive = groups.active.length <= 1;
   return (
-    <div className="harness-settings">
-      <div className="harness-title">Harness</div>
+    <div className="hs">
       <Group
         title="Actifs"
         ids={groups.active}
         open
-        action={(id) => (
-          <button
-            className="link"
+        control={(id) => (
+          <Switch
+            checked
+            label={`Lire ${agentLabel(id)}`}
             disabled={lastActive}
             title={lastActive ? "Au moins un harness doit rester actif" : "Ne plus lire ce harness"}
-            onClick={() => onToggle(id, true)}
-          >
-            Désactiver
-          </button>
+            onChange={() => onToggle(id, true)}
+          />
         )}
       />
       <Group
         title="Désactivés"
         ids={groups.disabled}
         open={false}
-        action={(id) => (
-          <button className="link" onClick={() => onToggle(id, false)}>
-            Réactiver
-          </button>
+        control={(id) => (
+          <Switch
+            checked={false}
+            label={`Lire ${agentLabel(id)}`}
+            title="Lire de nouveau ce harness"
+            onChange={() => onToggle(id, false)}
+          />
         )}
       />
       <Group title="Non détectés" ids={groups.undetected} open={false} />
-      <p className="muted small harness-hint">
-        Un harness désactivé n'est plus lu (le scan est plus rapide) et disparaît des totaux et des quotas.
-      </p>
     </div>
   );
 }
