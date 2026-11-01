@@ -1,5 +1,7 @@
 use std::{
     collections::BTreeMap,
+    env,
+    ffi::OsStr,
     io::Read,
     process::{Command, Stdio},
     sync::Mutex,
@@ -58,7 +60,13 @@ fn parse_names(bytes: &[u8]) -> Vec<String> {
 /// The listing commands never start a distribution; the one command that runs inside a
 /// distribution is only used on one that is already running.
 fn wsl_output(args: &[&str]) -> Option<Vec<u8>> {
-    let mut command = Command::new("wsl.exe");
+    // `ABF_WSL_EXE` points the app at another program, as the tests do with fake ones.
+    let program = env::var_os("ABF_WSL_EXE").unwrap_or_else(|| "wsl.exe".into());
+    output_within(&program, args, WSL_TIMEOUT)
+}
+
+fn output_within(program: &OsStr, args: &[&str], timeout: Duration) -> Option<Vec<u8>> {
+    let mut command = Command::new(program);
     hide_window(&mut command);
     let mut child = command
         .args(args)
@@ -73,7 +81,7 @@ fn wsl_output(args: &[&str]) -> Option<Vec<u8>> {
         let _ = stdout.read_to_end(&mut bytes);
         bytes
     });
-    let deadline = Instant::now() + WSL_TIMEOUT;
+    let deadline = Instant::now() + timeout;
     loop {
         match child.try_wait() {
             Ok(Some(status)) => {
@@ -98,8 +106,6 @@ fn saved_users() -> BTreeMap<String, String> {
         .unwrap_or_default()
 }
 
-/// Lists the distributions and which ones are running, without starting any of them:
-/// `wsl -l -q` and `wsl --list --running --quiet` only read WSL's registry.
 /// Result of the last detection, so a burst of reads (a scan, both quotas, the history) does
 /// not list WSL again for each one.
 static RECENT: Mutex<Option<(Instant, Detected)>> = Mutex::new(None);
@@ -128,6 +134,8 @@ fn detect_recent() -> Detected {
     detect()
 }
 
+/// Lists the distributions and which ones are running, without starting any of them:
+/// `wsl -l -q` and `wsl --list --running --quiet` only read WSL's registry.
 fn detect_now() -> Detected {
     let Some(listed) = wsl_output(&["-l", "-q"]) else {
         return Detected::default();
@@ -211,6 +219,91 @@ mod tests {
     #[test]
     fn reads_utf8_output() {
         assert_eq!(parse_names(b"Ubuntu\n"), ["Ubuntu"]);
+    }
+
+    /// The program path and data folder are process-wide, so tests that set them take turns.
+    static ENVIRONMENT: Mutex<()> = Mutex::new(());
+
+    fn fake_wsl(dir: &std::path::Path, name: &str, script: &str) -> std::path::PathBuf {
+        let path = dir.join(name);
+        std::fs::write(&path, script).unwrap();
+        path
+    }
+
+    /// Windows machines where `wsl.exe` has nothing to list, with fake `wsl.exe` scripts.
+    #[test]
+    fn machines_without_wsl_have_no_distributions() {
+        let _turn = ENVIRONMENT.lock().unwrap_or_else(|error| error.into_inner());
+        let dir = env::temp_dir().join(format!("abf-fake-wsl-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        env::set_var("LOCALAPPDATA", dir.join("data"));
+
+        let scripts = [
+            ("silent", "@exit /b 0\r\n"),
+            ("message", "@echo Windows Subsystem for Linux has no installed distributions.\r\n@exit /b 0\r\n"),
+            ("not enabled", "@echo The optional component is not enabled.\r\n@exit /b 1\r\n"),
+            ("failure", "@exit /b 4\r\n"),
+        ];
+        for (label, script) in scripts {
+            let fake = fake_wsl(&dir, "wsl.cmd", script);
+            env::set_var("ABF_WSL_EXE", &fake);
+            assert!(detect_now().distros.is_empty(), "{label}: expected no distribution");
+        }
+        // No wsl.exe at all.
+        env::set_var("ABF_WSL_EXE", dir.join("missing.exe"));
+        assert!(detect_now().distros.is_empty());
+
+        env::remove_var("ABF_WSL_EXE");
+        env::remove_var("LOCALAPPDATA");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_frozen_wsl_exe_is_stopped_after_the_time_limit() {
+        let dir = env::temp_dir().join(format!("abf-frozen-wsl-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let fake = fake_wsl(&dir, "wsl.cmd", "@ping -n 10 127.0.0.1 >nul\r\n");
+        let started = Instant::now();
+        let output = output_within(fake.as_os_str(), &["-l", "-q"], Duration::from_millis(800));
+        assert!(output.is_none());
+        assert!(started.elapsed() < Duration::from_secs(4), "took {:?}", started.elapsed());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// A distribution that is stopped is listed from memory and never queried.
+    #[test]
+    fn a_stopped_distribution_is_never_asked_for_its_user() {
+        let _turn = ENVIRONMENT.lock().unwrap_or_else(|error| error.into_inner());
+        let dir = env::temp_dir().join(format!("abf-stopped-wsl-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mark = dir.join("queried.txt");
+        env::set_var("LOCALAPPDATA", dir.join("data"));
+        env::set_var("ABF_FAKE_MARK", &mark);
+        let script = "@echo off\r\nif \"%1\"==\"-l\" goto list\r\nif \"%1\"==\"--list\" goto running\r\n\
+            if \"%1\"==\"-d\" goto inside\r\nexit /b 2\r\n:list\r\necho Ubuntu\r\nexit /b 0\r\n\
+            :running\r\nif \"%ABF_FAKE_RUNNING%\"==\"1\" echo Ubuntu\r\nexit /b 0\r\n\
+            :inside\r\necho x> \"%ABF_FAKE_MARK%\"\r\necho beboy\r\nexit /b 0\r\n";
+        env::set_var("ABF_WSL_EXE", fake_wsl(&dir, "wsl.cmd", script));
+
+        // Running: the user is asked once and remembered.
+        env::set_var("ABF_FAKE_RUNNING", "1");
+        let running = detect_now();
+        assert!(running.distros[0].running);
+        assert_eq!(running.distros[0].user.as_deref(), Some("beboy"));
+        assert!(mark.exists());
+        std::fs::remove_file(&mark).unwrap();
+
+        // Stopped: still known by name and user, and nothing was run inside it.
+        env::set_var("ABF_FAKE_RUNNING", "0");
+        let stopped = detect_now();
+        assert!(!stopped.distros[0].running);
+        assert_eq!(stopped.distros[0].user.as_deref(), Some("beboy"));
+        assert!(!mark.exists(), "a stopped distribution must not be queried");
+
+        for key in ["ABF_WSL_EXE", "ABF_FAKE_MARK", "ABF_FAKE_RUNNING", "LOCALAPPDATA"] {
+            env::remove_var(key);
+        }
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
