@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { formatTokens, formatUsd, tokensPerDollar } from "./aggregate";
 import { QuotaChart } from "./QuotaChart";
-import { cycleEnded, formatDay, formatDuration, freshness, type GaugeModel, type QuotaCard } from "./quota";
+import { budget, cycleEnded, formatDay, formatDuration, freshness, type GaugeModel, type QuotaCard } from "./quota";
 import { useNow } from "./useNow";
 import type { AgentReport, ClaudeAccount, SubscriptionAgent, TokenBreakdown, UsageReport } from "./types";
 import amp from "./assets/brands/amp.png";
@@ -416,7 +416,7 @@ function IdleSessionCard() {
 /** Subscription quota of one harness: warning banner plus the 5-hour and weekly charts. */
 export function QuotaSection({ card }: { card: QuotaCard }) {
   const weekly = card.weekly;
-  const perDay = weekly.remaining / Math.max(weekly.minutesToReset / 1440, 0.01);
+  const spend = budget(weekly);
   const emptyAt = weekly.minutesToEmpty !== null ? card.observedAt + weekly.minutesToEmpty * 60_000 : null;
   const nowMs = useNow(15_000);
   const state = freshness(card.observedAt, nowMs);
@@ -434,8 +434,10 @@ export function QuotaSection({ card }: { card: QuotaCard }) {
       </header>
       {emptyAt !== null && (
         <div className="banner">
-          <strong>La limite hebdomadaire sera atteinte ≈ {formatDay(emptyAt)}.</strong> Restez sous{" "}
-          {perDay.toFixed(1)} %/jour pour tenir jusqu'au reset ({formatDay(weekly.endMs)}).
+          <strong>La limite hebdomadaire sera atteinte ≈ {formatDay(emptyAt)}.</strong>{" "}
+          {spend.perDay
+            ? `Restez sous ${spend.percent.toFixed(1)} %/jour pour tenir jusqu'au reset (${formatDay(weekly.endMs)}).`
+            : `Il reste ${PERCENT.format(spend.percent)} % pour tenir jusqu'au reset (${formatDay(weekly.endMs)}).`}
         </div>
       )}
       <div className="gauge-grid">
@@ -474,9 +476,7 @@ export function SubscriptionCard({
   const extra = harness === "claude" && account?.extraEnabled ? account : undefined;
   if (!sub && scoped.length === 0 && !extra) return null;
   const known = sub?.plan && sub.plan !== "";
-  const perDay = card
-    ? card.weekly.remaining / Math.max(card.weekly.minutesToReset / 1440, 0.01)
-    : null;
+  const spend = card ? budget(card.weekly) : null;
   return (
     <section className="card">
       <header className="card-head">
@@ -507,8 +507,18 @@ export function SubscriptionCard({
           />
           <Stat
             title="Rythme conseillé"
-            value={perDay !== null ? `${perDay.toFixed(1)} %/j` : "n/a"}
-            hint="Pour tenir jusqu'au reset"
+            value={
+              spend === null
+                ? "n/a"
+                : spend.perDay
+                  ? `${spend.percent.toFixed(1)} %/j`
+                  : `${PERCENT.format(spend.percent)} %`
+            }
+            hint={
+              spend !== null && card && !spend.perDay
+                ? `D'ici le reset (dans ${formatDuration(card.weekly.minutesToReset)})`
+                : "Pour tenir jusqu'au reset"
+            }
           />
         </div>
       )}

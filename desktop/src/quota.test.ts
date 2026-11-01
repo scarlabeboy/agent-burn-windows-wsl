@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { FRESH_MS, freshness } from "./quota";
+import { budget, FRESH_MS, freshness, gauge } from "./quota";
 
 const clock = (ms: number) => new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(ms);
 
@@ -17,4 +17,23 @@ test("a stale reading says how long ago it was measured", () => {
   const state = freshness(observed, observed + FRESH_MS + 4 * 60_000);
   assert.equal(state.fresh, false);
   assert.equal(state.label, `${clock(observed)} · il y a 5 min`);
+});
+
+const WEEK = 7 * 1440;
+const weekly = (usedPercent: number, minutesToReset: number) =>
+  gauge(
+    { usedPercent, windowMinutes: WEEK, elapsedPercent: 100 * (1 - minutesToReset / WEEK) } as never,
+    Date.now(),
+  );
+
+test("with days left, the budget is a daily rate", () => {
+  const spend = budget(weekly(48, 2 * 1440));
+  assert.equal(spend.perDay, true);
+  assert.equal(spend.percent, 26);
+});
+
+test("under a day before the reset, the budget is the whole remainder", () => {
+  const spend = budget(weekly(48, 90));
+  assert.equal(spend.perDay, false);
+  assert.equal(spend.percent, 52);
 });

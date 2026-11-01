@@ -114,6 +114,23 @@ export function formatDuration(minutes: number): string {
   return `${mins}m`;
 }
 
+export interface Budget {
+  /** Percentage per day while a day or more is left; otherwise the whole remainder. */
+  percent: number;
+  perDay: boolean;
+}
+
+/**
+ * What can still be spent to last until the reset. A daily rate only makes sense while a day
+ * or more is left: 52 % for the last 1 h 30 would read as an absurd 830 %/day.
+ */
+export function budget(model: GaugeModel): Budget {
+  const days = model.minutesToReset / 1440;
+  return days >= 1
+    ? { percent: model.remaining / days, perDay: true }
+    : { percent: model.remaining, perDay: false };
+}
+
 export interface Forecast {
   /** Remaining percentage expected at the reset when the current rate continues. */
   remainingAtReset: number;
