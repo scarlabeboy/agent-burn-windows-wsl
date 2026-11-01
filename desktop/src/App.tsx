@@ -310,11 +310,18 @@ export default function App() {
   useEffect(() => {
     void setCloseToTray(settings.closeToTray).catch(() => undefined);
   }, [settings.closeToTray]);
+  // The box follows the click at once; writing the startup entry can take seconds on a machine
+  // whose security software inspects it. The real state is read back when the write is over.
+  const [autostartBusy, setAutostartBusy] = useState(false);
   const toggleAutostart = (enabled: boolean) => {
+    setAutostartState(enabled);
+    setAutostartBusy(true);
     setAutostart(enabled)
+      .catch(() => undefined)
       .then(() => getAutostart())
       .then(setAutostartState)
-      .catch(() => getAutostart().then(setAutostartState).catch(() => undefined));
+      .catch(() => undefined)
+      .finally(() => setAutostartBusy(false));
   };
 
   useEffect(() => {
@@ -658,7 +665,8 @@ export default function App() {
               <input
                 type="checkbox"
                 checked={autostart ?? false}
-                disabled={autostart === null}
+                disabled={autostart === null || autostartBusy}
+                title={autostartBusy ? "Enregistrement dans Windows…" : undefined}
                 onChange={(event) => toggleAutostart(event.target.checked)}
               />
               Lancer au démarrage de Windows (réduit dans la zone de notification)

@@ -155,6 +155,12 @@ fn is_agent_name(text: &str) -> bool {
     !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_lowercase())
 }
 
+/// Whether a scan of `agents` (empty = every harness) will read OpenCode. Only then is its
+/// database worth copying: a copy for a harness that is turned off is wasted work.
+fn reads_opencode(agents: &[String]) -> bool {
+    agents.is_empty() || agents.iter().any(|agent| agent == "opencode")
+}
+
 pub fn run_summary(
     distro: Option<&str>,
     offline: bool,
@@ -187,7 +193,7 @@ pub fn run_summary(
     if offline {
         command.arg("--offline");
     }
-    let (home, _snapshot) = apply_source(&mut command, distro, true)?;
+    let (home, _snapshot) = apply_source(&mut command, distro, reads_opencode(&scope.agents))?;
     if !period_scoped {
         if let Some(plan) = resolve_claude_plan(claude_plan, home.as_deref()) {
             command.args(["--claude-plan", &plan]);
@@ -412,6 +418,31 @@ mod tests {
         assert!(new_scan.exists(), "a recent file may belong to a running scan");
         assert!(other.exists() && similar.exists(), "files of other programs stay");
         let _ = fs::remove_dir_all(dir);
+    }
+
+    // With OpenCode turned off the scan lists every other harness in `--agents`, so its
+    /// database must not be copied.
+    #[test]
+    fn opencode_is_copied_only_when_the_scan_reads_it() {
+        let names = |list: &[&str]| list.iter().map(|name| name.to_string()).collect::<Vec<_>>();
+        assert!(reads_opencode(&[]), "no selection scans every harness");
+        assert!(reads_opencode(&names(&["claude", "opencode"])));
+        assert!(!reads_opencode(&names(&["claude", "codex", "cursor"])));
+        assert!(!reads_opencode(&names(&["claude"])));
+    }
+
+    #[test]
+    fn a_copy_of_the_opencode_database_is_made_and_removed() {
+        let source = env::temp_dir().join(format!("abf-source-test-{}", std::process::id()));
+        fs::create_dir_all(&source).unwrap();
+        fs::write(source.join("opencode.db"), b"x").unwrap();
+        let (dir, copy) = snapshot_opencode("Test", source.to_str().unwrap());
+        let copied = copy.0.clone().expect("a copy is made");
+        assert!(copied.join("opencode.db").is_file());
+        assert_eq!(Path::new(&dir), copied);
+        drop(copy);
+        assert!(!copied.exists());
+        let _ = fs::remove_dir_all(source);
     }
 
     #[test]
