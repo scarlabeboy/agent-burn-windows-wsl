@@ -1,10 +1,8 @@
 import { archiveRead, archiveWrite, type BackfillSeries } from "./api";
-import type { QuotaReading, UsageReport } from "./types";
+import { consistentSamples, currentUsed, type Sample } from "./quotaFilter";
+import type { QuotaReading, QuotaWindow, UsageReport } from "./types";
 
-export interface Sample {
-  t: number;
-  used: number;
-}
+export type { Sample };
 
 interface QuotaStore {
   version: 1;
@@ -133,12 +131,18 @@ function resolveKey(harness: string, windowMinutes: number, endMinute: number): 
   );
 }
 
+/** The samples of one cycle for a chart, without the provider's over-counts (see quotaFilter). */
 export function readSeries(harness: string, windowMinutes: number, startMs: number): Sample[] {
-  return quota.series[resolveKey(harness, windowMinutes, endMinuteOf(windowMinutes, startMs))] ?? [];
+  const raw = quota.series[resolveKey(harness, windowMinutes, endMinuteOf(windowMinutes, startMs))] ?? [];
+  return consistentSamples(raw, windowMinutes);
 }
 
-/** Keep one point per change, and a heartbeat every few minutes. */
-export function recordReading(reading: QuotaReading) {
+/**
+ * Keep one point per change, and a heartbeat every few minutes. The reading is stored as
+ * measured; the one returned is what to show: an over-count that nothing has confirmed yet is
+ * replaced by the last plausible usage.
+ */
+export function recordReading(reading: QuotaReading): QuotaReading {
   const now = reading.observedAt;
   for (const key of Object.keys(quota.series)) {
     if (Number(key.split("|")[2]) * 60_000 < now - KEEP_MS) delete quota.series[key];
@@ -147,6 +151,7 @@ export function recordReading(reading: QuotaReading) {
     (window): window is NonNullable<typeof window> => window !== undefined,
   );
   let dirty = false;
+  const shown = new Map<QuotaWindow, QuotaWindow>();
   for (const window of windows) {
     const start = now - (window.elapsedPercent / 100) * window.windowMinutes * 60_000;
     const end = endMinuteOf(window.windowMinutes, start);
@@ -157,11 +162,20 @@ export function recordReading(reading: QuotaReading) {
       quota.series[key] = [...samples, { t: now, used: window.usedPercent }];
       dirty = true;
     }
+    const held = currentUsed(quota.series[key] ?? [], window.windowMinutes);
+    if (held !== undefined && held !== window.usedPercent) {
+      shown.set(window, { ...window, usedPercent: held });
+    }
   }
   if (dirty) {
     save("quota-history");
     changed();
   }
+  return {
+    ...reading,
+    window: shown.get(reading.window) ?? reading.window,
+    sessionWindow: reading.sessionWindow && (shown.get(reading.sessionWindow) ?? reading.sessionWindow),
+  };
 }
 
 export const backfilledAt = (sourceId: string): number | undefined => quota.backfilled[sourceId];

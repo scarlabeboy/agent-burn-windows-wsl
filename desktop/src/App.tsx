@@ -304,8 +304,9 @@ export default function App() {
         for (const harness of ["claude", "codex"].filter((entry) => !disabled.includes(entry))) {
           loadQuota(harness, name, force)
             .then((reading) => {
-              recordReading(reading);
-              setQuotas((current) => ({ ...current, [id]: { ...current[id], [harness]: reading } }));
+              // Stored as measured; what is shown has an unconfirmed over-count held back.
+              const shown = recordReading(reading);
+              setQuotas((current) => ({ ...current, [id]: { ...current[id], [harness]: shown } }));
             })
             // A source without a sign-in for this harness simply has no quota to show.
             .catch(() =>
