@@ -89,16 +89,19 @@ mod job {
 fn spawn(distro: &str) -> Option<Child> {
     let mut command = Command::new(sources::wsl_program());
     hide_window(&mut command);
-    let child = command
+    let mut child = command
         .args(["-d", distro, "--exec", "sleep", "infinity"])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
         .ok()?;
+    // Outside the job, the process would outlive an app that is killed and keep WSL awake for
+    // good: better not to keep the distribution awake at all.
     #[cfg(windows)]
-    if let Some(job) = job::app_job() {
-        job.adopt(&child);
+    if !job::app_job().is_some_and(|job| job.adopt(&child)) {
+        stop(&mut child);
+        return None;
     }
     Some(child)
 }

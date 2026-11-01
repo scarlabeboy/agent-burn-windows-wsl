@@ -65,9 +65,18 @@ fn wsl_output(args: &[&str]) -> Option<Vec<u8>> {
     output_within(&wsl_program(), args, WSL_TIMEOUT)
 }
 
-/// `wsl.exe`, or the program `ABF_WSL_EXE` names (the tests use fake ones).
+/// The system's `wsl.exe` by its full path, so a `wsl.exe` placed in the app folder or the
+/// current folder is never run instead. A development build also accepts `ABF_WSL_EXE` (the
+/// tests use fake ones).
 pub fn wsl_program() -> std::ffi::OsString {
-    env::var_os("ABF_WSL_EXE").unwrap_or_else(|| "wsl.exe".into())
+    #[cfg(debug_assertions)]
+    if let Some(program) = env::var_os("ABF_WSL_EXE") {
+        return program;
+    }
+    match env::var_os("SystemRoot") {
+        Some(root) => std::path::Path::new(&root).join("System32").join("wsl.exe").into_os_string(),
+        None => "wsl.exe".into(),
+    }
 }
 
 /// Names of the installed distributions, without starting any of them.

@@ -25,8 +25,11 @@ pub fn hide_window(command: &mut Command) {
     let _ = command;
 }
 
-/// Bundled next to the app, an explicit override, or a dev build of the Rust workspace.
+/// Bundled next to the app. A development build also accepts an explicit override and a build
+/// of the Rust workspace; an installed app only runs the CLI it was installed with, so neither a
+/// variable nor the folder it is started from can make it run another program.
 fn locate_cli() -> Result<PathBuf, String> {
+    #[cfg(debug_assertions)]
     if let Some(path) = env::var_os("ABF_CLI").map(PathBuf::from) {
         return path
             .is_file()
@@ -40,19 +43,27 @@ fn locate_cli() -> Result<PathBuf, String> {
             candidates.push(dir.join("resources").join(CLI_NAME));
         }
     }
-    let mut dir = env::current_dir().ok();
-    while let Some(current) = dir {
-        for profile in ["release", "debug"] {
-            candidates.push(current.join("rust/target").join(profile).join(CLI_NAME));
+    #[cfg(debug_assertions)]
+    {
+        let mut dir = env::current_dir().ok();
+        while let Some(current) = dir {
+            for profile in ["release", "debug"] {
+                candidates.push(current.join("rust/target").join(profile).join(CLI_NAME));
+            }
+            dir = current.parent().map(Path::to_path_buf);
         }
-        dir = current.parent().map(Path::to_path_buf);
     }
     candidates
         .into_iter()
         .find(|path| path.is_file())
         .ok_or_else(|| {
-            "agent-burn.exe not found. Build it with `cargo build -p agent-burn` in rust/, or set ABF_CLI."
-                .to_string()
+            if cfg!(debug_assertions) {
+                "agent-burn.exe not found. Build it with `cargo build -p agent-burn` in rust/, or set ABF_CLI."
+                    .to_string()
+            } else {
+                "agent-burn.exe is missing from the app folder: reinstall the app (an antivirus may have removed it)."
+                    .to_string()
+            }
         })
 }
 
