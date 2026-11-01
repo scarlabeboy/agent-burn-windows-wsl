@@ -54,7 +54,8 @@ fn parse_names(bytes: &[u8]) -> Vec<String> {
 }
 
 /// Runs `wsl.exe` and returns its output, or `None` on failure or after `WSL_TIMEOUT`.
-/// Only listing commands go through here: they never start a distribution.
+/// The listing commands never start a distribution; the one command that runs inside a
+/// distribution is only used on one that is already running.
 fn wsl_output(args: &[&str]) -> Option<Vec<u8>> {
     let mut command = Command::new("wsl.exe");
     hide_window(&mut command);
@@ -130,13 +131,12 @@ pub fn detect() -> Detected {
     Detected { distros }
 }
 
-/// Only called for a distribution reported as running.
+/// Only called for a distribution reported as running, and only once per distribution (the
+/// answer is remembered). It has the same time limit as the listing commands.
 fn default_user(distro: &str) -> Option<String> {
-    let mut command = Command::new("wsl.exe");
-    hide_window(&mut command);
-    let output = command.args(["-d", distro, "-e", "whoami"]).output().ok()?;
-    let user = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    (output.status.success() && !user.is_empty()).then_some(user)
+    let bytes = wsl_output(&["-d", distro, "-e", "whoami"])?;
+    let user = String::from_utf8_lossy(&bytes).trim().to_string();
+    (!user.is_empty() && !user.contains(char::is_whitespace)).then_some(user)
 }
 
 /// Default user of a running distribution. A stopped distribution is an error: reading its
