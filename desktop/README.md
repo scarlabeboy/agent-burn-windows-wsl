@@ -16,6 +16,23 @@ npx tauri build                            # NSIS installer in src-tauri/target/
 
 For development run `npx tauri dev` after `prepare-cli.ps1`.
 
+## Releases and updates
+
+The app updates itself from the GitHub releases of this repository: it reads
+`releases/latest/download/latest.json` at startup and every 6 hours (never in offline mode), and
+only installs a file signed with the release key, whose public half is in `tauri.conf.json`.
+
+```powershell
+$env:TAURI_SIGNING_PRIVATE_KEY = "$env:USERPROFILE\.tauri\agent-burn-windows.key"
+$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<password>"
+npx tauri build                              # installer and its .sig
+& .\scripts\prepare-release.ps1 -Notes "…"   # release/v<version>: installer, .sig, latest.json
+```
+
+The three files of `release/v<version>` are the assets of the `v<version>` release. Releases are
+not marked as pre-releases: `releases/latest` skips those, and the 0.x version already says the
+app is not 1.0 yet.
+
 ## Notes
 
 - WSL is optional. The settings only offer a WSL choice when a distribution exists. The

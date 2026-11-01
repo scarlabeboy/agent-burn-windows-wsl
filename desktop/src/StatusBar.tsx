@@ -1,10 +1,26 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState } from "react";
 import { formatAge } from "./quota";
+import type { UpdateState } from "./updater";
 import { useNow } from "./useNow";
 
-/** Bottom bar, always visible: when usage was last read, when it is read next, and the app version. */
-export function StatusBar({ loading, lastScan, nextScan }: { loading: boolean; lastScan: number; nextScan: number }) {
+/**
+ * Bottom bar, always visible: when usage was last read, when it is read next, a new release
+ * when there is one, and the app version.
+ */
+export function StatusBar({
+  loading,
+  lastScan,
+  nextScan,
+  update,
+  onInstall,
+}: {
+  loading: boolean;
+  lastScan: number;
+  nextScan: number;
+  update: UpdateState;
+  onInstall: () => void;
+}) {
   const [version, setVersion] = useState("");
   useEffect(() => {
     getVersion().then(setVersion, () => undefined);
@@ -24,6 +40,16 @@ export function StatusBar({ loading, lastScan, nextScan }: { loading: boolean; l
             : "Pas encore lu"}
       </span>
       <div className="spacer" />
+      {update.status === "available" && (
+        <button className="update-link" onClick={onInstall} title="L'application se ferme pendant l'installation puis redémarre">
+          Version {update.version} disponible · Installer
+        </button>
+      )}
+      {update.status === "installing" && (
+        <span className="update-link">
+          Mise à jour{update.percent !== undefined ? ` · ${update.percent} %` : "…"}
+        </span>
+      )}
       {version && <span>v{version}</span>}
     </footer>
   );

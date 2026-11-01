@@ -131,6 +131,9 @@ fn main() {
                 .args([background::BACKGROUND_FLAG])
                 .build(),
         )
+        // Updates come signed from the GitHub releases; the page checks and installs them.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(background::CloseToTray::default())
         .on_window_event(|window, event| background::on_window_event(window, event))
         .setup(|app| {

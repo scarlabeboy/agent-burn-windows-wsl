@@ -25,6 +25,7 @@ import { SettingRow, SettingsCard, Switch } from "./SettingsUi";
 import { EmptyState } from "./EmptyState";
 import { EnvIcon } from "./EnvIcons";
 import { StatusBar } from "./StatusBar";
+import { useUpdater, type UpdateState } from "./updater";
 import { LimitUsageChart } from "./LimitUsageChart";
 import type { LimitUsageDay } from "./limitUsage";
 import { SUPPORTED_HARNESSES, disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
@@ -137,6 +138,24 @@ function quotaMissing(harness: string, tab: TabId, wslRunning: boolean): string 
     `Quota ${name} non lu ${where} : aucune connexion lisible (fichier ~/.codex/auth.json), ou le service ne répond pas. ` +
     "Connectez Codex dans cet environnement (commande codex) pour lire le quota."
   );
+}
+
+/** What the settings say about updates, after the last check. */
+function updateHint(state: UpdateState): string {
+  switch (state.status) {
+    case "checking":
+      return "Recherche en cours…";
+    case "none":
+      return `À jour (vérifié à ${new Date(state.checkedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}).`;
+    case "available":
+      return `La version ${state.version} est disponible. L'application se ferme pendant l'installation puis redémarre.`;
+    case "installing":
+      return state.percent !== undefined ? `Téléchargement… ${state.percent} %` : "Installation…";
+    case "error":
+      return `Recherche impossible : ${state.message}`;
+    default:
+      return "Pas encore vérifié.";
+  }
 }
 
 function pillClass(remaining: number): string {
@@ -421,6 +440,7 @@ export default function App() {
     };
   }, [refreshQuotas]);
 
+  const updater = useUpdater(settings.autoUpdate, settings.offline);
   const updateSettings = (next: Settings) => {
     setSettings(next);
     writeSettings(next);
@@ -865,6 +885,34 @@ export default function App() {
                 </SettingsCard>
               )}
 
+              <SettingsCard title="Mises à jour">
+                <SettingRow
+                  title="Rechercher les mises à jour automatiquement"
+                  description="Au démarrage puis toutes les 6 heures, sur les versions publiées sur GitHub. Jamais en mode hors ligne."
+                >
+                  <Switch
+                    checked={settings.autoUpdate}
+                    label="Rechercher les mises à jour automatiquement"
+                    onChange={(next) => updateSettings({ ...settings, autoUpdate: next })}
+                  />
+                </SettingRow>
+                <SettingRow title="Version installée" description={updateHint(updater.state)}>
+                  {updater.state.status === "available" ? (
+                    <button className="btn primary" onClick={() => void updater.install()}>
+                      Installer la {updater.state.version}
+                    </button>
+                  ) : (
+                    <button
+                      className="btn"
+                      disabled={settings.offline || updater.state.status === "checking" || updater.state.status === "installing"}
+                      onClick={() => void updater.checkNow()}
+                    >
+                      Rechercher maintenant
+                    </button>
+                  )}
+                </SettingRow>
+              </SettingsCard>
+
               <SettingsCard title="Harness">
                 <HarnessSettings groups={harnessGroups} onToggle={toggleHarness} />
                 <p className="muted small set-note">
@@ -963,7 +1011,13 @@ export default function App() {
             </Page>
           )}
         </main>
-        <StatusBar loading={loading} lastScan={lastScan} nextScan={nextScan} />
+        <StatusBar
+          loading={loading}
+          lastScan={lastScan}
+          nextScan={nextScan}
+          update={updater.state}
+          onInstall={() => void updater.install()}
+        />
       </div>
     </div>
   );

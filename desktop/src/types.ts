@@ -120,6 +120,8 @@ export interface Settings {
   refreshMinutes: number;
   /** Closing the window keeps the app running in the notification area. */
   closeToTray: boolean;
+  /** Look for a new release at startup and every few hours (never in offline mode). */
+  autoUpdate: boolean;
   /** Harnesses turned off: not scanned and removed from the data. */
   harnessStates: HarnessStates;
 }

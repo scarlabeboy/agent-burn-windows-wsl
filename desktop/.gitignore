@@ -8,3 +8,4 @@ src-tauri/binaries
 
 # Built installers are published as releases, never committed.
 *.exe
+release

@@ -60,6 +60,7 @@ const defaults: Settings = {
   offline: false,
   refreshMinutes: 10,
   closeToTray: false,
+  autoUpdate: true,
   harnessStates: {},
 };
 
