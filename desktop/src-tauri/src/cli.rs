@@ -56,30 +56,47 @@ fn locate_cli() -> Result<PathBuf, String> {
         })
 }
 
+/// A temporary copy of OpenCode's database, removed as soon as it goes out of use, so no copy
+/// of a user's conversations stays in the temp folder.
+struct Snapshot(Option<PathBuf>);
+
+impl Drop for Snapshot {
+    fn drop(&mut self) {
+        if let Some(dir) = &self.0 {
+            let _ = fs::remove_dir_all(dir);
+        }
+    }
+}
+
+/// Numbers the temporary files of this process, so overlapping runs never share one.
+static NEXT_RUN: AtomicU64 = AtomicU64::new(0);
+
 /// Point the CLI at one source: native Windows (no change) or a WSL distribution.
-/// Returns the distribution's home directory (UNC path) for WSL sources.
+/// Returns the distribution's home directory (UNC path) for WSL sources, and the OpenCode
+/// copy to keep alive until the run is over. Only a usage scan needs OpenCode; a quota
+/// reading does not, so it skips the copy.
 fn apply_source(
     command: &mut Command,
     distro: Option<&str>,
-    with_home: bool,
-) -> Result<Option<String>, String> {
+    with_opencode: bool,
+) -> Result<(Option<String>, Snapshot), String> {
     let Some(distro) = distro else {
-        return Ok(None);
+        return Ok((None, Snapshot(None)));
     };
     let user = sources::running_user(distro)?;
     let home = sources::wsl_home_unc(distro, &user);
     command
         .env("CLAUDE_CONFIG_DIR", format!(r"{home}\.claude"))
         .env("CODEX_HOME", format!(r"{home}\.codex"))
-        .env(
-            "OPENCODE_DATA_DIR",
-            snapshot_opencode(distro, &format!(r"{home}\.local\share\opencode")),
-        );
-    if with_home {
         // Sign-in tokens are read from the distribution's own home directory.
-        command.env("HOME", &home);
+        .env("HOME", &home);
+    let mut snapshot = Snapshot(None);
+    if with_opencode {
+        let (dir, copy) = snapshot_opencode(distro, &format!(r"{home}\.local\share\opencode"));
+        command.env("OPENCODE_DATA_DIR", dir);
+        snapshot = copy;
     }
-    Ok(Some(home))
+    Ok((Some(home), snapshot))
 }
 
 const CLAUDE_PLANS: [&str; 3] = ["pro", "max-5x", "max-20x"];
@@ -170,7 +187,7 @@ pub fn run_summary(
     if offline {
         command.arg("--offline");
     }
-    let home = apply_source(&mut command, distro, true)?;
+    let (home, _snapshot) = apply_source(&mut command, distro, true)?;
     if !period_scoped {
         if let Some(plan) = resolve_claude_plan(claude_plan, home.as_deref()) {
             command.args(["--claude-plan", &plan]);
@@ -191,14 +208,13 @@ pub fn run_quota(harness: &str, distro: Option<&str>, force: bool) -> Result<Val
     if force {
         command.env("AGENT_BURN_FORCE_REFRESH", "1");
     }
-    apply_source(&mut command, distro, true)?;
+    let (_, _snapshot) = apply_source(&mut command, distro, false)?;
     run_json(command, distro, harness)
 }
 
 fn run_json(mut command: Command, distro: Option<&str>, label: &str) -> Result<Value, String> {
     hide_window(&mut command);
     // Unique per run: two overlapping runs of the same source must not share a file.
-    static NEXT_RUN: AtomicU64 = AtomicU64::new(0);
     let output_path = env::temp_dir().join(format!(
         "abf-{}-{}-{}-{}.json",
         std::process::id(),
@@ -214,28 +230,59 @@ fn run_json(mut command: Command, distro: Option<&str>, label: &str) -> Result<V
 
 /// OpenCode keeps its usage in a SQLite WAL database, which cannot be opened in place on
 /// the `\\wsl.localhost` network share. Read a local copy of the database files instead.
-/// Returns the directory OpenCode should read: the copy, or the original when it is absent.
-fn snapshot_opencode(distro: &str, source: &str) -> String {
+/// Returns the directory OpenCode should read (the copy, or the original when there is none to
+/// copy) and the guard that deletes the copy. Each run has its own copy.
+fn snapshot_opencode(distro: &str, source: &str) -> (String, Snapshot) {
     let source_dir = Path::new(source);
     if !source_dir.join("opencode.db").is_file() {
-        return source.to_string();
+        return (source.to_string(), Snapshot(None));
     }
-    let target = env::temp_dir().join(format!("abf-opencode-{}", distro.replace(['/', '\\'], "_")));
+    let target = env::temp_dir().join(format!(
+        "abf-opencode-{}-{}-{}",
+        std::process::id(),
+        NEXT_RUN.fetch_add(1, Ordering::SeqCst),
+        distro.replace(['/', '\\'], "_")
+    ));
     if fs::create_dir_all(&target).is_err() {
-        return source.to_string();
+        return (source.to_string(), Snapshot(None));
     }
+    // From here the guard removes whatever was copied, including after a failed copy.
+    let guard = Snapshot(Some(target.clone()));
     for name in ["opencode.db", "opencode.db-wal", "opencode.db-shm"] {
         let from = source_dir.join(name);
-        let to = target.join(name);
-        if from.is_file() {
-            if fs::copy(&from, &to).is_err() {
-                return source.to_string();
-            }
-        } else {
-            let _ = fs::remove_file(&to);
+        if from.is_file() && fs::copy(&from, target.join(name)).is_err() {
+            return (source.to_string(), guard);
         }
     }
-    target.to_string_lossy().into_owned()
+    (target.to_string_lossy().into_owned(), guard)
+}
+
+/// Removes temporary files an earlier run of the app left behind (it was stopped in the
+/// middle of a scan), including the old fixed-name OpenCode copy. Recent files are kept: a
+/// scan may be running.
+pub fn clean_stale_temp() {
+    clean_stale_in(&env::temp_dir(), Duration::from_secs(3600));
+}
+
+fn clean_stale_in(dir: &Path, min_age: Duration) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let ours = (name.starts_with("abf-") && name.ends_with(".json"))
+            || name.starts_with("abf-opencode-");
+        let old = entry
+            .metadata()
+            .and_then(|meta| meta.modified())
+            .ok()
+            .and_then(|modified| modified.elapsed().ok())
+            .is_some_and(|age| age >= min_age);
+        if ours && old {
+            let path = entry.path();
+            let _ = if path.is_dir() { fs::remove_dir_all(path) } else { fs::remove_file(path) };
+        }
+    }
 }
 
 fn run_to_file(
@@ -320,6 +367,60 @@ mod tests {
             None
         );
         assert_eq!(plan_for("not json"), None);
+    }
+
+    fn aged(path: &Path, hours: u64) {
+        let file = fs::OpenOptions::new().write(true).open(path).unwrap();
+        file.set_modified(std::time::SystemTime::now() - Duration::from_secs(hours * 3600))
+            .unwrap();
+    }
+
+    #[test]
+    fn cleans_only_old_files_of_the_app() {
+        let dir = env::temp_dir().join(format!("abf-clean-test-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let old_scan = dir.join("abf-1-summary-windows-0.json");
+        let new_scan = dir.join("abf-2-summary-windows-0.json");
+        let old_copy = dir.join("abf-opencode-Ubuntu");
+        let other = dir.join("notes.json");
+        let similar = dir.join("abf-notes.txt");
+        for file in [&old_scan, &new_scan, &other, &similar] {
+            fs::write(file, b"{}").unwrap();
+        }
+        fs::create_dir_all(&old_copy).unwrap();
+        fs::write(old_copy.join("opencode.db"), b"x").unwrap();
+        for path in [&old_scan, &other, &similar] {
+            aged(path, 3);
+        }
+        // A directory's own age is what counts; Windows opens a directory only with this flag.
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
+            fs::OpenOptions::new()
+                .write(true)
+                .custom_flags(FILE_FLAG_BACKUP_SEMANTICS)
+                .open(&old_copy)
+                .unwrap()
+                .set_modified(std::time::SystemTime::now() - Duration::from_secs(3 * 3600))
+                .unwrap();
+        }
+
+        clean_stale_in(&dir, Duration::from_secs(3600));
+
+        assert!(!old_scan.exists(), "an old scan file goes");
+        assert!(!old_copy.exists(), "an old OpenCode copy goes");
+        assert!(new_scan.exists(), "a recent file may belong to a running scan");
+        assert!(other.exists() && similar.exists(), "files of other programs stay");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn the_opencode_copy_is_removed_with_its_guard() {
+        let dir = env::temp_dir().join(format!("abf-guard-test-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("opencode.db"), b"x").unwrap();
+        drop(Snapshot(Some(dir.clone())));
+        assert!(!dir.exists());
     }
 
     #[test]

@@ -117,6 +117,8 @@ fn main() {
         .manage(background::CloseToTray::default())
         .on_window_event(|window, event| background::on_window_event(window, event))
         .setup(|app| {
+            // Leftovers of a run that was stopped mid-scan; off the startup path.
+            std::thread::spawn(cli::clean_stale_temp);
             background::build_tray(app.handle())?;
             // The window starts hidden; a startup launch keeps it in the notification area.
             if !background::started_in_background() {
