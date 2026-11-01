@@ -51,6 +51,8 @@ fn parse_names(bytes: &[u8]) -> Vec<String> {
         .filter(|name| {
             !name.is_empty()
                 && !name.contains(char::is_whitespace)
+                // An option of the help text ("--install", "--status"), not a distribution.
+                && !name.starts_with('-')
                 && !name.starts_with("docker-desktop")
         })
         .collect()
@@ -243,6 +245,8 @@ mod tests {
             ("message", "@echo Windows Subsystem for Linux has no installed distributions.\r\n@exit /b 0\r\n"),
             ("not enabled", "@echo The optional component is not enabled.\r\n@exit /b 1\r\n"),
             ("failure", "@exit /b 4\r\n"),
+            // The usage text a Windows 10 without WSL prints, even with a success code.
+            ("usage text", "@echo Utilisation : wsl.exe [Argument]\r\n@echo     --install\r\n@echo     --status\r\n@echo    --help\r\n@exit /b 0\r\n"),
         ];
         for (label, script) in scripts {
             let fake = fake_wsl(&dir, "wsl.cmd", script);
@@ -304,6 +308,19 @@ mod tests {
             env::remove_var(key);
         }
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    /// What `wsl.exe -l -q` printed on a Windows 10 22H2 machine without WSL (exit code 1).
+    #[test]
+    fn ignores_the_usage_text_of_wsl_without_the_feature() {
+        let help = "Copyright (c) Microsoft Corporation. Tous droits réservés.\r\n\r\n\
+            Utilisation : wsl.exe [Argument]\r\n\r\nArguments :\r\n\r\n    --install <Options>\r\n\
+            \x20       Installez les fonctionnalités du sous-système Windows pour Linux.\r\n\
+            \x20           --inbox\r\n                Installez la fonctionnalité optionnelle.\r\n\
+            \x20       --list, -| [Options]\r\n    --status\r\n       Affiche l'état.\r\n   --help\r\n\
+            \x20       Affiche des informations sur l'utilisation.\r\n";
+        assert!(parse_names(help.as_bytes()).is_empty());
+        assert!(parse_names(&utf16(help)).is_empty());
     }
 
     #[test]
