@@ -334,14 +334,14 @@ mod tests {
         let script = "@echo off\r\nif \"%1\"==\"-l\" goto list\r\nif \"%1\"==\"--list\" goto running\r\n\
             if \"%1\"==\"-d\" goto inside\r\nexit /b 2\r\n:list\r\necho Ubuntu\r\nexit /b 0\r\n\
             :running\r\nif \"%ABF_FAKE_RUNNING%\"==\"1\" echo Ubuntu\r\nexit /b 0\r\n\
-            :inside\r\necho x> \"%ABF_FAKE_MARK%\"\r\necho beboy\r\nexit /b 0\r\n";
+            :inside\r\necho x> \"%ABF_FAKE_MARK%\"\r\necho user\r\nexit /b 0\r\n";
         env::set_var("ABF_WSL_EXE", fake_wsl(&dir, "wsl.cmd", script));
 
         // Running: the user is asked once and remembered.
         env::set_var("ABF_FAKE_RUNNING", "1");
         let running = detect_now().unwrap();
         assert!(running.distros[0].running);
-        assert_eq!(running.distros[0].user.as_deref(), Some("beboy"));
+        assert_eq!(running.distros[0].user.as_deref(), Some("user"));
         assert!(mark.exists());
         std::fs::remove_file(&mark).unwrap();
 
@@ -349,7 +349,7 @@ mod tests {
         env::set_var("ABF_FAKE_RUNNING", "0");
         let stopped = detect_now().unwrap();
         assert!(!stopped.distros[0].running);
-        assert_eq!(stopped.distros[0].user.as_deref(), Some("beboy"));
+        assert_eq!(stopped.distros[0].user.as_deref(), Some("user"));
         assert!(!mark.exists(), "a stopped distribution must not be queried");
 
         for key in ["ABF_WSL_EXE", "ABF_FAKE_MARK", "ABF_FAKE_RUNNING", "LOCALAPPDATA"] {
@@ -370,10 +370,10 @@ mod tests {
 
         let good = "@echo off\r\nif \"%1\"==\"-l\" goto list\r\nif \"%1\"==\"--list\" goto running\r\n\
             if \"%1\"==\"-d\" goto inside\r\nexit /b 2\r\n:list\r\necho Ubuntu\r\nexit /b 0\r\n\
-            :running\r\necho Ubuntu\r\nexit /b 0\r\n:inside\r\necho beboy\r\nexit /b 0\r\n";
+            :running\r\necho Ubuntu\r\nexit /b 0\r\n:inside\r\necho user\r\nexit /b 0\r\n";
         env::set_var("ABF_WSL_EXE", fake_wsl(&dir, "good.cmd", good));
         assert_eq!(detect().distros.len(), 1);
-        assert_eq!(running_user("Ubuntu").as_deref(), Ok("beboy"));
+        assert_eq!(running_user("Ubuntu").as_deref(), Ok("user"));
 
         env::set_var("ABF_WSL_EXE", fake_wsl(&dir, "broken.cmd", "@exit /b 4\r\n"));
         let kept = detect();

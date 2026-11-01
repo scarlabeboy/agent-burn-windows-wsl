@@ -376,7 +376,7 @@ mod tests {
     /// No harness of a WSL source may be looked up on the Windows side, or Computer adds it twice.
     #[test]
     fn a_wsl_source_reads_every_harness_from_its_own_home() {
-        let home = r"\\wsl.localhost\Ubuntu\home\beboy";
+        let home = r"\\wsl.localhost\Ubuntu\home\user";
         for (name, value) in wsl_environment(home) {
             assert!(value.starts_with(home), "{name} points outside the distribution: {value}");
         }

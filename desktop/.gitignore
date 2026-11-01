@@ -5,3 +5,6 @@ src-tauri/gen
 src-tauri/binaries
 
 .test-build
+
+# Built installers are published as releases, never committed.
+*.exe
