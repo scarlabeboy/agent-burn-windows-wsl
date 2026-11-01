@@ -184,7 +184,12 @@ export function SpendChart({
               tickLine={false}
               axisLine={false}
               width={64}
-              tickFormatter={(value: number) => (metric === "tokens" ? formatTokens(value) : `$${Math.round(value)}`)}
+              tickFormatter={(value: number) =>
+                metric === "tokens"
+                  ? formatTokens(value)
+                  : // Small totals need cents, or every tick of the axis reads "$0".
+                    `$${Math.abs(value) < 10 && value % 1 !== 0 ? value.toFixed(2) : Math.round(value)}`
+              }
             />
             <Tooltip
               cursor={{ fill: "rgba(255,255,255,0.05)" }}
@@ -444,8 +449,8 @@ export function SubscriptionCard({
       </header>
       {!known && harness === "claude" && (
         <p className="muted small hint-top">
-          Le plan n'a pas pu être détecté : choisissez-le dans les réglages pour obtenir la valeur de
-          l'abonnement.
+          Le plan n'a pas pu être détecté : il est lu dans la connexion de Claude Code (commande
+          claude) de cet environnement.
         </p>
       )}
       {estimate && (
