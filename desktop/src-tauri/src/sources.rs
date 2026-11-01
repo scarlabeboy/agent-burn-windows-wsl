@@ -2,6 +2,7 @@ use std::{
     collections::BTreeMap,
     io::Read,
     process::{Command, Stdio},
+    sync::Mutex,
     thread,
     time::{Duration, Instant},
 };
@@ -15,12 +16,12 @@ const WSL_TIMEOUT: Duration = Duration::from_secs(5);
 /// is already running, so that a stopped one never has to be started to find its home.
 const USERS_ARCHIVE: &str = "wsl-users";
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Clone)]
 pub struct Detected {
     pub distros: Vec<Distro>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Distro {
     pub name: String,
     pub user: Option<String>,
@@ -99,7 +100,35 @@ fn saved_users() -> BTreeMap<String, String> {
 
 /// Lists the distributions and which ones are running, without starting any of them:
 /// `wsl -l -q` and `wsl --list --running --quiet` only read WSL's registry.
+/// Result of the last detection, so a burst of reads (a scan, both quotas, the history) does
+/// not list WSL again for each one.
+static RECENT: Mutex<Option<(Instant, Detected)>> = Mutex::new(None);
+/// Short on purpose: it is also what keeps the app from reading a distribution that has just
+/// stopped, which would start it again.
+const RECENT_TTL: Duration = Duration::from_secs(2);
+
+/// A fresh detection, used by the periodic check of the interface.
 pub fn detect() -> Detected {
+    let detected = detect_now();
+    if let Ok(mut recent) = RECENT.lock() {
+        *recent = Some((Instant::now(), detected.clone()));
+    }
+    detected
+}
+
+/// The last detection when it is under `RECENT_TTL` old, otherwise a fresh one.
+fn detect_recent() -> Detected {
+    if let Ok(recent) = RECENT.lock() {
+        if let Some((at, detected)) = recent.as_ref() {
+            if at.elapsed() < RECENT_TTL {
+                return detected.clone();
+            }
+        }
+    }
+    detect()
+}
+
+fn detect_now() -> Detected {
     let Some(listed) = wsl_output(&["-l", "-q"]) else {
         return Detected::default();
     };
@@ -142,7 +171,7 @@ fn default_user(distro: &str) -> Option<String> {
 /// Default user of a running distribution. A stopped distribution is an error: reading its
 /// files through `\\wsl.localhost` would start it.
 pub fn running_user(distro: &str) -> Result<String, String> {
-    let found = detect()
+    let found = detect_recent()
         .distros
         .into_iter()
         .find(|candidate| candidate.name == distro)
