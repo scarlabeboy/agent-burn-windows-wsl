@@ -21,7 +21,8 @@ import {
 } from "./api";
 import { HarnessSettings } from "./HarnessSettings";
 import { SettingRow, SettingsCard, Switch } from "./SettingsUi";
-import { disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
+import { EmptyState } from "./EmptyState";
+import { SUPPORTED_HARNESSES, disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
 import { formatUsd, mergeReports } from "./aggregate";
 import {
   backfilledAt,
@@ -368,6 +369,14 @@ export default function App() {
   const activeIds: string[] =
     tab === "windows" ? ["windows"] : tab === "wsl" ? (activeDistro ? [`wsl:${activeDistro.name}`] : []) : sourceIds;
   const activeKey = activeIds.join(",");
+  // Every source of this tab answered and none has any harness: a first launch, or a machine
+  // where no supported agent was used yet.
+  const hasNoData =
+    activeIds.length > 0 &&
+    activeIds.every((id) => {
+      const state = states[id];
+      return state?.status === "ready" && state.report.agents.length === 0;
+    });
   const stoppedNames = distros
     .filter((entry) => !entry.running && activeIds.includes(`wsl:${entry.name}`))
     .map((entry) => entry.name);
@@ -768,7 +777,13 @@ export default function App() {
               {tab === "computer" && localParts.length < sourceIds.length - stoppedNames.length && (
                 <div className="notice error">Une source n'a pas pu être lue : le total Computer est partiel.</div>
               )}
-              {page === OVERVIEW ? (
+              {page === OVERVIEW && hasNoData ? (
+                <EmptyState
+                  where={tab === "windows" ? "sur ce Windows" : tab === "wsl" ? "dans WSL" : "sur Windows ni dans WSL"}
+                  harnesses={SUPPORTED_HARNESSES.map(agentLabel)}
+                  disabledCount={disabled.length}
+                />
+              ) : page === OVERVIEW ? (
                 <>
                   <Stats report={report} label="Tous harness confondus" period={PERIOD_LABELS[effectivePeriod]} />
                   {tab === "computer" && <EnvironmentSplit parts={localParts} />}
