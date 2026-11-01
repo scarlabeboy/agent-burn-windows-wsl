@@ -110,8 +110,11 @@ export type SourceState =
 
 export type TabId = "windows" | "wsl" | "computer";
 
+export type WslMode = "off" | "auto" | "keep";
+
 export interface Settings {
-  wslEnabled: boolean;
+  /** off: WSL is never queried; auto: read when it runs, never woken; keep: kept awake. */
+  wslMode: WslMode;
   offline: boolean;
   /** Minutes between automatic usage scans; 0 disables them. */
   refreshMinutes: number;

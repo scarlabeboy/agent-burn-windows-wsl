@@ -1,8 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { PERIODS, type Period } from "./periods";
-import type { Detected, QuotaReading, Settings, TabId, UsageReport } from "./types";
+import type { Detected, QuotaReading, Settings, TabId, UsageReport, WslMode } from "./types";
 
 export const detectSources = () => invoke<Detected>("detect_sources");
+
+/** Keeps every WSL distribution awake while on; call again to renew, with false to stop. */
+export const setWslKeepalive = (enabled: boolean) => invoke<void>("set_wsl_keepalive", { enabled });
 
 export interface UsageScope {
   /** Compact dates, `YYYYMMDD`. */
@@ -48,7 +51,7 @@ export const backfillCodex = (distro: string | null, sinceMs: number) =>
 
 const SETTINGS_KEY = "abf.settings";
 const defaults: Settings = {
-  wslEnabled: true,
+  wslMode: "auto",
   offline: false,
   refreshMinutes: 10,
   closeToTray: false,
@@ -75,10 +78,21 @@ export function writeSeen(seen: string[]) {
   }
 }
 
+const WSL_MODES: WslMode[] = ["off", "auto", "keep"];
+
 export function readSettings(): Settings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    return raw ? { ...defaults, ...JSON.parse(raw) } : defaults;
+    if (!raw) return defaults;
+    const stored = JSON.parse(raw);
+    // Settings saved before the WSL list had a switch: off meant "Windows only".
+    const mode: WslMode = WSL_MODES.includes(stored.wslMode)
+      ? stored.wslMode
+      : stored.wslEnabled === false
+        ? "off"
+        : "auto";
+    const { wslEnabled: _old, ...rest } = stored;
+    return { ...defaults, ...rest, wslMode: mode };
   } catch {
     return defaults;
   }

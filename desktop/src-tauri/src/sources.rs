@@ -62,9 +62,17 @@ fn parse_names(bytes: &[u8]) -> Vec<String> {
 /// The listing commands never start a distribution; the one command that runs inside a
 /// distribution is only used on one that is already running.
 fn wsl_output(args: &[&str]) -> Option<Vec<u8>> {
-    // `ABF_WSL_EXE` points the app at another program, as the tests do with fake ones.
-    let program = env::var_os("ABF_WSL_EXE").unwrap_or_else(|| "wsl.exe".into());
-    output_within(&program, args, WSL_TIMEOUT)
+    output_within(&wsl_program(), args, WSL_TIMEOUT)
+}
+
+/// `wsl.exe`, or the program `ABF_WSL_EXE` names (the tests use fake ones).
+pub fn wsl_program() -> std::ffi::OsString {
+    env::var_os("ABF_WSL_EXE").unwrap_or_else(|| "wsl.exe".into())
+}
+
+/// Names of the installed distributions, without starting any of them.
+pub fn distribution_names() -> Vec<String> {
+    detect_recent().distros.into_iter().map(|distro| distro.name).collect()
 }
 
 fn output_within(program: &OsStr, args: &[&str], timeout: Duration) -> Option<Vec<u8>> {
@@ -202,6 +210,10 @@ pub fn wsl_home_unc(distro: &str, user: &str) -> String {
     }
 }
 
+/// The program path and data folder are process-wide, so tests that set them take turns.
+#[cfg(test)]
+pub static TEST_ENVIRONMENT: Mutex<()> = Mutex::new(());
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -223,8 +235,7 @@ mod tests {
         assert_eq!(parse_names(b"Ubuntu\n"), ["Ubuntu"]);
     }
 
-    /// The program path and data folder are process-wide, so tests that set them take turns.
-    static ENVIRONMENT: Mutex<()> = Mutex::new(());
+    use super::TEST_ENVIRONMENT as ENVIRONMENT;
 
     fn fake_wsl(dir: &std::path::Path, name: &str, script: &str) -> std::path::PathBuf {
         let path = dir.join(name);

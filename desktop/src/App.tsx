@@ -13,6 +13,7 @@ import {
   setAutostart,
   setCloseToTray,
   setTrayTooltip,
+  setWslKeepalive,
   writePeriod,
   writeSeen,
   writeSettings,
@@ -51,6 +52,7 @@ import type {
   SourceState,
   TabId,
   UsageReport,
+  WslMode,
 } from "./types";
 import {
   BrandIcon,
@@ -69,6 +71,11 @@ import {
 
 const SUBSCRIPTIONS = ["codex", "claude", "cursor"];
 const OVERVIEW = "overview";
+const WSL_MODE_HINTS: Record<WslMode, string> = {
+  off: "Windows uniquement : WSL n'est jamais interrogé et son onglet est caché.",
+  auto: "WSL est lu quand il tourne déjà ; l'application ne le réveille jamais.",
+  keep: "L'application garde WSL allumé tant qu'elle tourne (« Quitter » de l'icône l'arrête). Fermer la fenêtre ne change rien.",
+};
 /** Each source's Claude plan is read from its own sign-in file; there is no manual choice. */
 const CLAUDE_PLAN = "auto";
 /** Period scans are reused for this long before being fetched again. */
@@ -134,8 +141,8 @@ export default function App() {
   };
 
   const distros = useMemo(
-    () => (settings.wslEnabled ? (detected?.distros ?? []) : []),
-    [settings.wslEnabled, detected],
+    () => (settings.wslMode !== "off" ? (detected?.distros ?? []) : []),
+    [settings.wslMode, detected],
   );
   const sourceIds = useMemo<SourceId[]>(
     () => ["windows", ...distros.map((entry) => `wsl:${entry.name}` as SourceId)],
@@ -182,10 +189,10 @@ export default function App() {
     return () => window.removeEventListener("beforeunload", flush);
   }, []);
 
-  // WSL is only listed, never started: this check is cheap, so it repeats to notice a
-  // distribution starting or stopping. With WSL turned off, WSL is not queried at all.
+  // The detection only lists WSL, it never starts it: this check is cheap, so it repeats to
+  // notice a distribution starting or stopping. With WSL off, WSL is not queried at all.
   useEffect(() => {
-    if (!settings.wslEnabled) {
+    if (settings.wslMode === "off") {
       setDetected({ distros: [] });
       return;
     }
@@ -202,7 +209,17 @@ export default function App() {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [settings.wslEnabled]);
+  }, [settings.wslMode]);
+
+  // "Maintenu allumé": the app keeps each distribution awake while it runs and renews that every
+  // few seconds, so a distribution that was shut down comes back. Any other mode stops it.
+  useEffect(() => {
+    const keep = settings.wslMode === "keep";
+    void setWslKeepalive(keep).catch(() => undefined);
+    if (!keep) return;
+    const timer = setInterval(() => void setWslKeepalive(true).catch(() => undefined), 15_000);
+    return () => clearInterval(timer);
+  }, [settings.wslMode]);
 
   const scanning = useRef(false);
   const rescan = useRef(false);
@@ -705,17 +722,17 @@ export default function App() {
             </SettingsCard>
 
             {/* Hidden when there is no WSL to turn off; kept while off so it can be turned back on. */}
-            {(!settings.wslEnabled || distros.length > 0) && (
+            {(settings.wslMode !== "auto" || distros.length > 0) && (
               <SettingsCard title="WSL">
-                <SettingRow
-                  title="Lire WSL"
-                  description="Désactivé : Windows uniquement, WSL n'est jamais interrogé. Activé : lu quand il tourne, jamais réveillé."
-                >
-                  <Switch
-                    checked={settings.wslEnabled}
-                    label="Lire WSL"
-                    onChange={(next) => updateSettings({ ...settings, wslEnabled: next })}
-                  />
+                <SettingRow title="Lecture de WSL" description={WSL_MODE_HINTS[settings.wslMode]}>
+                  <select
+                    value={settings.wslMode}
+                    onChange={(event) => updateSettings({ ...settings, wslMode: event.target.value as WslMode })}
+                  >
+                    <option value="off">Désactivé</option>
+                    <option value="auto">Automatique</option>
+                    <option value="keep">Maintenu allumé</option>
+                  </select>
                 </SettingRow>
               </SettingsCard>
             )}

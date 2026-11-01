@@ -4,6 +4,7 @@ mod archive;
 mod backfill;
 mod background;
 mod cli;
+mod keepalive;
 mod sources;
 
 use serde_json::Value;
@@ -13,6 +14,13 @@ async fn detect_sources() -> sources::Detected {
     tauri::async_runtime::spawn_blocking(sources::detect)
         .await
         .unwrap_or_default()
+}
+
+/// "Keep WSL awake" on or off (see `keepalive`). Called again every few seconds while it is on,
+/// so a distribution that was shut down gets its keeping process back.
+#[tauri::command]
+async fn set_wsl_keepalive(enabled: bool) {
+    let _ = tauri::async_runtime::spawn_blocking(move || keepalive::ensure(enabled)).await;
 }
 
 /// Run the Agent Burn CLI for one source and return its JSON report.
@@ -133,6 +141,7 @@ fn main() {
             archive_read,
             archive_write,
             backfill_codex,
+            set_wsl_keepalive,
             background::set_close_to_tray,
             background::get_autostart,
             background::set_autostart,
