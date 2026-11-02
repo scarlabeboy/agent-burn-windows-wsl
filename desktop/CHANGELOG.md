@@ -4,6 +4,12 @@ Each version's section becomes the notes of its GitHub release and of `latest.js
 app shows before installing an update (`scripts/prepare-release.ps1`). Only `### ` titles and
 `- ` items are shown in the app. Sections: Nouveautés, Améliorations, Corrections, Retiré.
 
+## 0.3.3
+
+### Corrections
+- Une lecture de l'usage en cours s'arrête avec l'application : elle ne bloque plus l'installation d'une mise à jour (« Erreur lors de l'ouverture du fichier en écriture : agent-burn.exe »).
+- Le message affiché quand agent-burn.exe manque dans le dossier de l'application est en français.
+
 ## 0.3.2
 
 ### Améliorations

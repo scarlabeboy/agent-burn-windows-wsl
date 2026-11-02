@@ -61,7 +61,7 @@ fn locate_cli() -> Result<PathBuf, String> {
                 "agent-burn.exe not found. Build it with `cargo build -p agent-burn` in rust/, or set ABF_CLI."
                     .to_string()
             } else {
-                "agent-burn.exe is missing from the app folder: reinstall the app (an antivirus may have removed it)."
+                "agent-burn.exe est absent du dossier de l'application : réinstallez-la (un antivirus a pu le supprimer)."
                     .to_string()
             }
         })
@@ -349,6 +349,12 @@ fn run_to_file(
         .stderr(Stdio::null())
         .spawn()
         .map_err(|error| format!("could not start agent-burn: {error}"))?;
+    // The run ends with the app: a scan left running would keep agent-burn.exe locked and stop
+    // an update from replacing it. Outside the job it still runs, as before.
+    #[cfg(windows)]
+    if let Some(job) = crate::job::app_job() {
+        job.adopt(&child);
+    }
     let deadline = Instant::now() + TIMEOUT;
     let status = loop {
         match child.try_wait().map_err(|error| error.to_string())? {

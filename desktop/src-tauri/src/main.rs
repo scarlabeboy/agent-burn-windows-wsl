@@ -4,6 +4,8 @@ mod archive;
 mod backfill;
 mod background;
 mod cli;
+#[cfg(windows)]
+mod job;
 mod keepalive;
 mod sources;
 
