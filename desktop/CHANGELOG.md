@@ -4,6 +4,12 @@ Each version's section becomes the notes of its GitHub release and of `latest.js
 app shows before installing an update (`scripts/prepare-release.ps1`). Only `### ` titles and
 `- ` items are shown in the app. Sections: Nouveautés, Améliorations, Corrections, Retiré.
 
+## 0.2.3
+
+### Améliorations
+- Première version construite, testée et signée par GitHub Actions, et non plus sur un PC.
+- Guide du projet pour les agents de code (`desktop/AGENTS.md`).
+
 ## 0.2.2
 
 ### Améliorations
