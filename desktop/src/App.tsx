@@ -24,8 +24,10 @@ import { HarnessSettings } from "./HarnessSettings";
 import { SettingRow, SettingsCard, Switch } from "./SettingsUi";
 import { EmptyState } from "./EmptyState";
 import { EnvIcon } from "./EnvIcons";
-import { StatusBar } from "./StatusBar";
-import { useUpdater, type UpdateState } from "./updater";
+import { StatusBar, useAppVersion } from "./StatusBar";
+import { UpdateDialog } from "./UpdateDialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { REPO_URL, useUpdater, type UpdateState } from "./updater";
 import { LimitUsageChart } from "./LimitUsageChart";
 import type { LimitUsageDay } from "./limitUsage";
 import { SUPPORTED_HARNESSES, disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
@@ -78,6 +80,7 @@ import {
 } from "./views";
 
 const SUBSCRIPTIONS = ["codex", "claude", "cursor"];
+const MELVYNX_URL = "https://github.com/Melvynx/agent-burn";
 const OVERVIEW = "overview";
 /** The weekly Codex limit per day changes slowly: read again after this long. */
 const LIMIT_USAGE_TTL_MS = 5 * 60_000;
@@ -140,6 +143,18 @@ function quotaMissing(harness: string, tab: TabId, wslRunning: boolean): string 
   );
 }
 
+const noUsage = (tokens: number, cost: number) => tokens === 0 && cost === 0;
+
+/** A chosen period without any usage, instead of a page of zeros. */
+function EmptyPeriod({ period, harness }: { period: string; harness?: string }) {
+  return (
+    <div className="notice">
+      Aucun usage{harness ? ` de ${harness}` : ""} sur la période « {period} ». Choisissez une autre période en haut
+      à droite.
+    </div>
+  );
+}
+
 /** What the settings say about updates, after the last check. */
 function updateHint(state: UpdateState): string {
   switch (state.status) {
@@ -148,7 +163,7 @@ function updateHint(state: UpdateState): string {
     case "none":
       return `À jour (vérifié à ${new Date(state.checkedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}).`;
     case "available":
-      return `La version ${state.version} est disponible. L'application se ferme pendant l'installation puis redémarre.`;
+      return `La version ${state.version} est disponible : voir ses nouveautés avant de l'installer.`;
     case "installing":
       return state.percent !== undefined ? `Téléchargement… ${state.percent} %` : "Installation…";
     case "error":
@@ -441,6 +456,8 @@ export default function App() {
   }, [refreshQuotas]);
 
   const updater = useUpdater(settings.autoUpdate, settings.offline);
+  const [showUpdate, setShowUpdate] = useState(false);
+  const appVersion = useAppVersion();
   const updateSettings = (next: Settings) => {
     setSettings(next);
     writeSettings(next);
@@ -672,7 +689,7 @@ export default function App() {
   const header = showSettings ? (
     <div className="page-head">
       <h1 className="page-title">Réglages</h1>
-      <p className="muted page-sub">Démarrage, données, WSL et harness</p>
+      <p className="muted page-sub">Démarrage, données, WSL, mises à jour et harness</p>
     </div>
   ) : (
     <div className="page-head">
@@ -896,10 +913,13 @@ export default function App() {
                     onChange={(next) => updateSettings({ ...settings, autoUpdate: next })}
                   />
                 </SettingRow>
-                <SettingRow title="Version installée" description={updateHint(updater.state)}>
+                <SettingRow
+                  title={appVersion ? `Version installée : ${appVersion}` : "Version installée"}
+                  description={updateHint(updater.state)}
+                >
                   {updater.state.status === "available" ? (
-                    <button className="btn primary" onClick={() => void updater.install()}>
-                      Installer la {updater.state.version}
+                    <button className="btn primary" onClick={() => setShowUpdate(true)}>
+                      Voir la {updater.state.version}
                     </button>
                   ) : (
                     <button
@@ -918,6 +938,22 @@ export default function App() {
                 <p className="muted small set-note">
                   Un harness désactivé n'est plus lu (le scan est plus rapide) et disparaît des totaux et des quotas.
                 </p>
+              </SettingsCard>
+
+              <SettingsCard title="À propos">
+                <SettingRow
+                  title={`Agent Burn Windows${appVersion ? ` ${appVersion}` : ""}`}
+                  description="Portage Windows et WSL non officiel d'Agent Burn, de Melvynx. Licence MIT. Les coûts viennent de son CLI, sans modification."
+                >
+                  <button className="btn" onClick={() => void openUrl(REPO_URL)}>
+                    Dépôt GitHub ↗
+                  </button>
+                </SettingRow>
+                <SettingRow title="Projet d'origine" description="Agent Burn : le CLI, l'application macOS et le site de Melvynx.">
+                  <button className="btn" onClick={() => void openUrl(MELVYNX_URL)}>
+                    Agent Burn ↗
+                  </button>
+                </SettingRow>
               </SettingsCard>
             </div>
           ) : !report ? (
@@ -946,6 +982,8 @@ export default function App() {
                   harnesses={SUPPORTED_HARNESSES.map(agentLabel)}
                   disabledCount={disabled.length}
                 />
+              ) : page === OVERVIEW && range && noUsage(report.totals.totalTokens, report.totals.totalCost) ? (
+                <EmptyPeriod period={PERIOD_LABELS[effectivePeriod]} />
               ) : page === OVERVIEW ? (
                 <>
                   <Stats report={report} label="Tous harness confondus" period={PERIOD_LABELS[effectivePeriod]} />
@@ -966,7 +1004,11 @@ export default function App() {
                     <div className="notice">{quotaMissing(page, tab, activeDistro?.running ?? false)}</div>
                   )}
                   {pageCards.map((card) => (
-                    <QuotaSection key={`${card.harness}-${card.sources.join()}`} card={card} />
+                    <QuotaSection
+                      key={`${card.harness}-${card.sources.join()}`}
+                      card={card}
+                      resetCredits={pickSubscription(sourceReports, card.harness)?.resetCreditsAvailable ?? undefined}
+                    />
                   ))}
                   {(page === "claude" || page === "codex") && (
                     <SubscriptionCard
@@ -984,7 +1026,9 @@ export default function App() {
                       label={label}
                     />
                   )}
-                  {selected ? (
+                  {range && (!selected || noUsage(selected.totalTokens, selected.totalCost)) ? (
+                    <EmptyPeriod period={PERIOD_LABELS[effectivePeriod]} harness={agentLabel(page)} />
+                  ) : selected ? (
                     <>
                       <Stats
                         report={asReport(selected, approx)}
@@ -1016,9 +1060,16 @@ export default function App() {
           lastScan={lastScan}
           nextScan={nextScan}
           update={updater.state}
-          onInstall={() => void updater.install()}
+          onOpenUpdate={() => setShowUpdate(true)}
         />
       </div>
+      {showUpdate && (
+        <UpdateDialog
+          state={updater.state}
+          onInstall={() => void updater.install()}
+          onClose={() => setShowUpdate(false)}
+        />
+      )}
     </div>
   );
 }

@@ -4,6 +4,15 @@ import { formatAge } from "./quota";
 import type { UpdateState } from "./updater";
 import { useNow } from "./useNow";
 
+/** The installed version, read once from the app. */
+export function useAppVersion(): string {
+  const [version, setVersion] = useState("");
+  useEffect(() => {
+    getVersion().then(setVersion, () => undefined);
+  }, []);
+  return version;
+}
+
 /**
  * Bottom bar, always visible: when usage was last read, when it is read next, a new release
  * when there is one, and the app version.
@@ -13,18 +22,15 @@ export function StatusBar({
   lastScan,
   nextScan,
   update,
-  onInstall,
+  onOpenUpdate,
 }: {
   loading: boolean;
   lastScan: number;
   nextScan: number;
   update: UpdateState;
-  onInstall: () => void;
+  onOpenUpdate: () => void;
 }) {
-  const [version, setVersion] = useState("");
-  useEffect(() => {
-    getVersion().then(setVersion, () => undefined);
-  }, []);
+  const version = useAppVersion();
   const nowMs = useNow(15_000);
   // Rounded up: "dans 1 min" until the scan starts, never "dans 0 min".
   const nextIn = Math.ceil((nextScan - nowMs) / 60_000);
@@ -41,8 +47,8 @@ export function StatusBar({
       </span>
       <div className="spacer" />
       {update.status === "available" && (
-        <button className="update-link" onClick={onInstall} title="L'application se ferme pendant l'installation puis redémarre">
-          Version {update.version} disponible · Installer
+        <button className="update-link" onClick={onOpenUpdate} title="Voir les nouveautés avant d'installer">
+          Version {update.version} disponible · Voir
         </button>
       )}
       {update.status === "installing" && (

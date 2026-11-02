@@ -4,12 +4,18 @@
 #   $env:TAURI_SIGNING_PRIVATE_KEY = "$env:USERPROFILE\.tauri\agent-burn-windows.key"
 #   $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<password>"
 #   npx tauri build
-param([string]$Notes = "")
+# The notes are the version's section of CHANGELOG.md; they also go to notes.md for the release.
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
 $repo = "scarlabeboy/agent-burn-windows-wsl"
 $version = (Get-Content "$root/src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json).version
+
+# Read as UTF-8 explicitly: Windows PowerShell would otherwise read the accents as ANSI.
+$changelog = [IO.File]::ReadAllText("$root/CHANGELOG.md", [Text.Encoding]::UTF8) -replace "`r", ""
+$section = [regex]::Match($changelog, "(?ms)^## $([regex]::Escape($version))\s*$\n(.*?)(?=^## |\z)")
+if (-not $section.Success) { throw "CHANGELOG.md has no section for $version." }
+$Notes = $section.Groups[1].Value.Trim()
 
 $bundle = "$root/src-tauri/target/release/bundle/nsis"
 $built = Get-Item "$bundle/*_${version}_x64-setup.exe"
@@ -34,5 +40,7 @@ $latest = [ordered]@{
   }
 }
 # UTF-8 without a byte order mark: the updater parses the file as plain JSON.
-[IO.File]::WriteAllText("$out/latest.json", ($latest | ConvertTo-Json -Depth 4), (New-Object Text.UTF8Encoding $false))
+$utf8 = New-Object Text.UTF8Encoding $false
+[IO.File]::WriteAllText("$out/latest.json", ($latest | ConvertTo-Json -Depth 4), $utf8)
+[IO.File]::WriteAllText("$out/notes.md", $Notes, $utf8)
 Get-ChildItem $out | Select-Object Name, Length

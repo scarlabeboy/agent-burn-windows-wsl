@@ -2,17 +2,28 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { flush } from "./archive";
+import { updateError } from "./releaseNotes";
 
 /** First automatic check after startup, then this often. */
 const FIRST_CHECK_MS = 20_000;
 const CHECK_EVERY_MS = 6 * 3600_000;
+export const REPO_URL ="https://github.com/scarlabeboy/agent-burn-windows-wsl";
+
+export const releaseUrl = (version: string) => `${REPO_URL}/releases/tag/v${version}`;
+
+export interface AvailableUpdate {
+  version: string;
+  currentVersion: string;
+  date?: string;
+  notes?: string;
+}
 
 export type UpdateState =
   | { status: "idle" }
   | { status: "checking" }
   | { status: "none"; checkedAt: number }
-  | { status: "available"; version: string; notes?: string }
-  | { status: "installing"; percent?: number }
+  | ({ status: "available" } & AvailableUpdate)
+  | ({ status: "installing"; percent?: number } & AvailableUpdate)
   | { status: "error"; message: string };
 
 /**
@@ -31,11 +42,17 @@ export function useUpdater(auto: boolean, offline: boolean) {
       update.current = found;
       setState(
         found
-          ? { status: "available", version: found.version, notes: found.body ?? undefined }
+          ? {
+              status: "available",
+              version: found.version,
+              currentVersion: found.currentVersion,
+              date: found.date ?? undefined,
+              notes: found.body ?? undefined,
+            }
           : { status: "none", checkedAt: Date.now() },
       );
     } catch (error) {
-      setState({ status: "error", message: String(error) });
+      setState({ status: "error", message: updateError(error) });
     }
   }, []);
 
@@ -53,22 +70,32 @@ export function useUpdater(auto: boolean, offline: boolean) {
   const install = useCallback(async () => {
     const pending = update.current;
     if (!pending) return;
+    const release: AvailableUpdate = {
+      version: pending.version,
+      currentVersion: pending.currentVersion,
+      date: pending.date ?? undefined,
+      notes: pending.body ?? undefined,
+    };
     // The installer ends the process: the quota history is saved first.
     flush();
     let total = 0;
     let received = 0;
-    setState({ status: "installing" });
+    setState({ status: "installing", ...release });
     try {
       await pending.downloadAndInstall((event) => {
         if (event.event === "Started") total = event.data.contentLength ?? 0;
         if (event.event === "Progress") {
           received += event.data.chunkLength;
-          setState({ status: "installing", percent: total > 0 ? Math.round((received / total) * 100) : undefined });
+          setState({
+            status: "installing",
+            ...release,
+            percent: total > 0 ? Math.round((received / total) * 100) : undefined,
+          });
         }
       });
       await relaunch();
     } catch (error) {
-      setState({ status: "error", message: String(error) });
+      setState({ status: "error", message: updateError(error) });
     }
   }, []);
 

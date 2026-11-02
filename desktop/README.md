@@ -26,10 +26,12 @@ only installs a file signed with the release key, whose public half is in `tauri
 $env:TAURI_SIGNING_PRIVATE_KEY = "$env:USERPROFILE\.tauri\agent-burn-windows.key"
 $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<password>"
 npx tauri build                              # installer and its .sig
-& .\scripts\prepare-release.ps1 -Notes "…"   # release/v<version>: installer, .sig, latest.json
+& .\scripts\prepare-release.ps1             # release/v<version>: installer, .sig, latest.json, notes.md
 ```
 
-The three files of `release/v<version>` are the assets of the `v<version>` release. Releases are
+The notes come from the version's section of `CHANGELOG.md`, written before the build. The
+installer, its `.sig` and `latest.json` are the assets of the `v<version>` release, and
+`notes.md` is its description. Releases are
 not marked as pre-releases: `releases/latest` skips those, and the 0.x version already says the
 app is not 1.0 yet.
 

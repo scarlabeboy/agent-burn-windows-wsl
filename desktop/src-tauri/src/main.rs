@@ -134,6 +134,8 @@ fn main() {
         // Updates come signed from the GitHub releases; the page checks and installs them.
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        // Opens the release notes and the repository in the browser (github.com only).
+        .plugin(tauri_plugin_opener::init())
         .manage(background::CloseToTray::default())
         .on_window_event(|window, event| background::on_window_event(window, event))
         .setup(|app| {

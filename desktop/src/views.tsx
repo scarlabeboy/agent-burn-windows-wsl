@@ -339,7 +339,7 @@ export function Models({ report, detailError }: { report: UsageReport; detailErr
                   <span className="bar share-bar">
                     <div style={{ width: `${Math.min(100, row.percentage)}%` }} />
                   </span>
-                  {row.percentage.toFixed(1)}%
+                  <span className="share-value">{row.percentage.toFixed(1)}%</span>
                 </span>
               </td>
             </tr>
@@ -464,7 +464,7 @@ function IdleSessionCard() {
 }
 
 /** Subscription quota of one harness: warning banner plus the 5-hour and weekly charts. */
-export function QuotaSection({ card }: { card: QuotaCard }) {
+export function QuotaSection({ card, resetCredits }: { card: QuotaCard; resetCredits?: number }) {
   const weekly = card.weekly;
   const spend = budget(weekly);
   const emptyAt = weekly.minutesToEmpty !== null ? card.observedAt + weekly.minutesToEmpty * 60_000 : null;
@@ -474,6 +474,11 @@ export function QuotaSection({ card }: { card: QuotaCard }) {
     <section className="card">
       <header className="card-head">
         <h2>Quota {agentLabel(card.harness)}</h2>
+        {resetCredits ? (
+          <span className="chip" title="Resets de limite gardés par le fournisseur, à utiliser quand une limite est atteinte">
+            ↺ {resetCredits} {resetCredits > 1 ? "resets" : "reset"} en stock
+          </span>
+        ) : null}
         <span
           className={`fresh small ${state.fresh ? "ok" : "late"}`}
           title={`${state.fresh ? "En direct · mesuré" : "Mesuré"} le ${new Date(card.observedAt).toLocaleString("fr-FR")}`}
@@ -572,11 +577,6 @@ export function SubscriptionCard({
           />
         </div>
       )}
-      {sub && sub.resetCreditsAvailable ? (
-        <p className="muted small hint-top">
-          Resets de limite disponibles : {sub.resetCreditsAvailable}
-        </p>
-      ) : null}
       {scoped.length > 0 && (
         <div className="scoped">
           {scoped.map((window) => (

@@ -75,6 +75,26 @@ button { cursor: pointer; }
 .btn:hover:not(:disabled) { border-color: var(--muted); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.link { background: none; border: 0; padding: 0; color: var(--accent); text-align: left; }
+.link:hover { text-decoration: underline; }
+
+/* Update confirmation */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: rgba(0, 0, 0, 0.55);
+}
+.modal {
+  width: min(520px, 100%); max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+.modal h2 { margin: 0; font-size: 17px; }
+.modal p { margin: 0; }
+.notes { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 4px 14px 10px; }
+.notes h3 { margin: 10px 0 4px; font-size: 13px; color: var(--accent); }
+.notes ul { margin: 0; padding-left: 18px; }
+.notes li { margin: 3px 0; line-height: 1.4; }
+.modal-actions { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 4px; }
 .spacer { flex: 1; }
 .tabs { display: flex; gap: 4px; background: var(--panel); padding: 4px; border-radius: 10px; }
 .tabs button, .seg button {
@@ -161,6 +181,8 @@ th .sort:hover, th .sort.on { color: var(--text); }
 .num .sort { flex-direction: row-reverse; }
 .share { display: inline-flex; align-items: center; justify-content: flex-end; gap: 10px; }
 .share-bar { width: 90px; }
+/* Fixed width, so the bars line up whatever the number of digits ("5.8%" or "54.4%"). */
+.share-value { min-width: 48px; text-align: right; }
 
 .notice { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; color: var(--muted); }
 .notice.error { color: var(--danger); border-color: rgba(255, 93, 108, 0.4); }
