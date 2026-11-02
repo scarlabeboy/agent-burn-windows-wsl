@@ -15,13 +15,14 @@ export function useAppVersion(): string {
 
 /**
  * Bottom bar, always visible: when usage was last read, when it is read next, a new release
- * when there is one, and the app version.
+ * when there is one (not in offline mode, which cannot install it), and the app version.
  */
 export function StatusBar({
   loading,
   lastScan,
   nextScan,
   error,
+  offline,
   update,
   onOpenUpdate,
 }: {
@@ -30,6 +31,7 @@ export function StatusBar({
   nextScan: number;
   /** The last read of a source failed (for example the CLI removed by an antivirus). */
   error?: string;
+  offline: boolean;
   update: UpdateState;
   onOpenUpdate: () => void;
 }) {
@@ -55,7 +57,12 @@ export function StatusBar({
         </span>
       )}
       <div className="spacer" />
-      {update.status === "available" && (
+      {offline && (
+        <span className="offline-tag" title="Aucun appel réseau : quotas et mises à jour suspendus (Réglages › Données)">
+          Hors ligne
+        </span>
+      )}
+      {update.status === "available" && !offline && (
         <button className="update-link" onClick={onOpenUpdate} title="Voir les nouveautés avant d'installer">
           Version {update.version} disponible · Voir
         </button>

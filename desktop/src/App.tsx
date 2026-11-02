@@ -54,6 +54,15 @@ import {
   type Period,
 } from "./periods";
 import { quotaCards, type QuotaCard } from "./quota";
+import {
+  autoUpdateActive,
+  autoUpdateHint,
+  offlineHint,
+  quotaHint,
+  quotaOffReason,
+  quotasActive,
+  refreshHint,
+} from "./settingsHints";
 import { pickClaudeAccount, pickSubscription } from "./subscription";
 import type {
   Detected,
@@ -158,7 +167,10 @@ function EmptyPeriod({ period, harness }: { period: string; harness?: string }) 
 }
 
 /** What the settings say about updates, after the last check. */
-function updateHint(state: UpdateState): string {
+function updateHint(state: UpdateState, offline: boolean): string {
+  if (offline && state.status === "available") {
+    return `La version ${state.version} a été trouvée : repassez en ligne pour l'installer.`;
+  }
   switch (state.status) {
     case "checking":
       return "Recherche en cours…";
@@ -440,22 +452,26 @@ export default function App() {
       .finally(() => setAutostartBusy(false));
   };
 
+  // Quotas off, or offline: no read at all; the readings already shown stay with their time.
+  const quotasOn = quotasActive(settings);
   useEffect(() => {
+    if (!quotasOn) return;
     refreshQuotas(false);
     const timer = setInterval(() => refreshQuotas(false), 60_000);
     return () => clearInterval(timer);
-  }, [detected, refreshQuotas]);
+  }, [detected, refreshQuotas, quotasOn]);
 
   // Tray menu actions, and a last save of the archive before the tray "Quit" ends the process.
+  // "Actualiser" reads the quotas; with quotas off it reads the usage instead.
   useEffect(() => {
     const unlisten = [
-      listen("tray-refresh", () => refreshQuotas(true)),
+      listen("tray-refresh", () => (quotasOn ? refreshQuotas(true) : refresh())),
       listen("quit-requested", () => flush()),
     ];
     return () => {
       unlisten.forEach((pending) => void pending.then((stop) => stop()));
     };
-  }, [refreshQuotas]);
+  }, [refreshQuotas, refresh, quotasOn]);
 
   const updater = useUpdater(settings.autoUpdate, settings.offline);
   const [showUpdate, setShowUpdate] = useState(false);
@@ -831,7 +847,7 @@ export default function App() {
             className="icon"
             onClick={() => {
               refresh();
-              refreshQuotas(true);
+              if (quotasOn) refreshQuotas(true);
             }}
             disabled={loading}
             title="Actualiser"
@@ -876,10 +892,22 @@ export default function App() {
               </SettingsCard>
 
               <SettingsCard title="Données">
-                <SettingRow
-                  title="Rafraîchir l'usage automatiquement"
-                  description="Relit les journaux des harness. Les quotas se relisent chaque minute."
-                >
+                <SettingRow title="Mode hors ligne" description={offlineHint(settings.offline)}>
+                  <Switch
+                    checked={settings.offline}
+                    label="Mode hors ligne"
+                    onChange={(next) => updateSettings({ ...settings, offline: next })}
+                  />
+                </SettingRow>
+                <SettingRow title="Lecture des quotas" description={quotaHint(settings)}>
+                  <Switch
+                    checked={quotasOn}
+                    disabled={settings.offline}
+                    label="Lecture des quotas"
+                    onChange={(next) => updateSettings({ ...settings, quotas: next })}
+                  />
+                </SettingRow>
+                <SettingRow title="Rafraîchir l'usage automatiquement" description={refreshHint(settings.refreshMinutes)}>
                   <select
                     value={settings.refreshMinutes}
                     onChange={(event) => updateSettings({ ...settings, refreshMinutes: Number(event.target.value) })}
@@ -892,16 +920,6 @@ export default function App() {
                     <option value={10}>Toutes les 10 minutes</option>
                     <option value={30}>Toutes les 30 minutes</option>
                   </select>
-                </SettingRow>
-                <SettingRow
-                  title="Mode hors ligne"
-                  description="Aucun appel réseau, mais les modèles récents peuvent afficher 0 $."
-                >
-                  <Switch
-                    checked={settings.offline}
-                    label="Mode hors ligne"
-                    onChange={(next) => updateSettings({ ...settings, offline: next })}
-                  />
                 </SettingRow>
               </SettingsCard>
 
@@ -924,17 +942,18 @@ export default function App() {
               <SettingsCard title="Mises à jour">
                 <SettingRow
                   title="Rechercher les mises à jour automatiquement"
-                  description="Au démarrage puis toutes les 6 heures, sur les versions publiées sur GitHub. Jamais en mode hors ligne."
+                  description={autoUpdateHint(settings.offline)}
                 >
                   <Switch
-                    checked={settings.autoUpdate}
+                    checked={autoUpdateActive(settings)}
+                    disabled={settings.offline}
                     label="Rechercher les mises à jour automatiquement"
                     onChange={(next) => updateSettings({ ...settings, autoUpdate: next })}
                   />
                 </SettingRow>
                 <SettingRow
                   title={appVersion ? `Version installée : ${appVersion}` : "Version installée"}
-                  description={updateHint(updater.state)}
+                  description={updateHint(updater.state, settings.offline)}
                 >
                   {updater.state.status === "available" ? (
                     <button className="btn primary" onClick={() => setShowUpdate(true)}>
@@ -1020,7 +1039,9 @@ export default function App() {
               ) : (
                 <>
                   {(page === "claude" || page === "codex") && pageCards.length === 0 && (
-                    <div className="notice">{quotaMissing(page, tab, activeDistro?.running ?? false)}</div>
+                    <div className="notice">
+                      {quotaOffReason(settings) ?? quotaMissing(page, tab, activeDistro?.running ?? false)}
+                    </div>
                   )}
                   {pageCards.map((card) => (
                     <QuotaSection
@@ -1035,6 +1056,7 @@ export default function App() {
                       sub={pickSubscription(sourceReports, page)}
                       account={pickClaudeAccount(sourceReports)}
                       card={pageCards[0]}
+                      offline={settings.offline}
                     />
                   )}
                   {page === "codex" && (
@@ -1079,6 +1101,7 @@ export default function App() {
           lastScan={lastScan}
           nextScan={nextScan}
           error={scanError}
+          offline={settings.offline}
           update={updater.state}
           onOpenUpdate={() => setShowUpdate(true)}
         />
@@ -1086,7 +1109,11 @@ export default function App() {
       {showUpdate && (
         <UpdateDialog
           state={updater.state}
-          onInstall={() => void updater.install()}
+          offline={settings.offline}
+          onInstall={() => {
+            // Installing downloads the release: never in offline mode.
+            if (!settings.offline) void updater.install();
+          }}
           onClose={() => setShowUpdate(false)}
         />
       )}

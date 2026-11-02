@@ -58,6 +58,7 @@ const SETTINGS_KEY = "abf.settings";
 const defaults: Settings = {
   wslMode: "auto",
   offline: false,
+  quotas: true,
   refreshMinutes: 10,
   closeToTray: false,
   autoUpdate: true,

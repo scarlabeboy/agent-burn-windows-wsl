@@ -119,12 +119,15 @@ export type WslMode = "off" | "auto" | "keep";
 export interface Settings {
   /** off: WSL is never queried; auto: read when it runs, never woken; keep: kept awake. */
   wslMode: WslMode;
+  /** No network call at all: quotas and updates are off, usage is priced offline. */
   offline: boolean;
+  /** Quotas read every minute (never in offline mode, whatever this says). */
+  quotas: boolean;
   /** Minutes between automatic usage scans; 0 disables them. */
   refreshMinutes: number;
   /** Closing the window keeps the app running in the notification area. */
   closeToTray: boolean;
-  /** Look for a new release at startup and every few hours (never in offline mode). */
+  /** Look for a new release at startup and every few hours (never in offline mode, whatever this says). */
   autoUpdate: boolean;
   /** Harnesses turned off: not scanned and removed from the data. */
   harnessStates: HarnessStates;

@@ -527,11 +527,13 @@ export function SubscriptionCard({
   sub,
   account,
   card,
+  offline,
 }: {
   harness: string;
   sub?: SubscriptionAgent;
   account?: ClaudeAccount;
   card?: QuotaCard;
+  offline: boolean;
 }) {
   const estimate = sub?.estimate ?? null;
   const scoped = harness === "claude" ? (account?.scoped ?? []) : [];
@@ -552,6 +554,12 @@ export function SubscriptionCard({
         <p className="muted small hint-top">
           Le plan n'a pas pu être détecté : il est lu dans la connexion de Claude Code (commande
           claude) de cet environnement.
+        </p>
+      )}
+      {!estimate && offline && harness === "claude" && (
+        <p className="muted small hint-top">
+          Valeur et rythme indisponibles en mode hors ligne : ils demandent la limite hebdomadaire en direct
+          d'Anthropic.
         </p>
       )}
       {estimate && (

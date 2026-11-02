@@ -9,10 +9,13 @@ import { releaseUrl, type UpdateState } from "./updater";
  */
 export function UpdateDialog({
   state,
+  offline,
   onInstall,
   onClose,
 }: {
   state: UpdateState;
+  /** The release can be read but not downloaded: Install waits for the app to be online. */
+  offline: boolean;
   onInstall: () => void;
   onClose: () => void;
 }) {
@@ -57,7 +60,11 @@ export function UpdateDialog({
             <button className="link" onClick={() => void openUrl(releaseUrl(release.version))}>
               Voir les notes complètes sur GitHub ↗
             </button>
-            <p className="muted small">L'application se fermera pendant l'installation, puis redémarrera.</p>
+            <p className="muted small">
+              {offline
+                ? "Mode hors ligne : repassez en ligne (Réglages › Données) pour l'installer."
+                : "L'application se fermera pendant l'installation, puis redémarrera."}
+            </p>
           </>
         ) : (
           <p className="notice error">Installation impossible : {state.status === "error" ? state.message : ""}</p>
@@ -73,7 +80,7 @@ export function UpdateDialog({
                 {release ? "Plus tard" : "Fermer"}
               </button>
               {release && (
-                <button className="btn primary" onClick={onInstall}>
+                <button className="btn primary" onClick={onInstall} disabled={offline}>
                   Installer
                 </button>
               )}
