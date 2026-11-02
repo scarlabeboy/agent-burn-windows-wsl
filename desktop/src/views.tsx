@@ -543,16 +543,12 @@ export function SubscriptionCard({
   const known = sub?.plan && sub.plan !== "";
   const spend = card ? budget(card.weekly) : null;
   if (offReason) {
-    // Without live data the plan may be missing too: show it only when it is known.
+    // Without quotas the plan is not shown either, even when a local file still names one.
     return (
       <section className="card">
         <header className="card-head">
           <h2>Abonnement</h2>
-          <span className="chip">
-            {agentLabel(harness)}
-            {known && ` · ${sub?.plan}`}
-            {known && sub?.pricePerMonth != null && ` · ${formatUsd(sub.pricePerMonth)}/mois`}
-          </span>
+          <span className="chip">{agentLabel(harness)} · plan non lu</span>
         </header>
         <p className="muted small hint-top">{offReason}</p>
       </section>

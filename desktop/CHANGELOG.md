@@ -4,6 +4,11 @@ Each version's section becomes the notes of its GitHub release and of `latest.js
 app shows before installing an update (`scripts/prepare-release.ps1`). Only `### ` titles and
 `- ` items are shown in the app. Sections: Nouveautés, Améliorations, Corrections, Retiré.
 
+## 0.3.4
+
+### Corrections
+- En mode hors ligne ou avec la lecture des quotas coupée, le bloc Abonnement affiche « plan non lu » sur toutes les vues, au lieu d'un plan figé sur certaines et de rien sur d'autres.
+
 ## 0.3.3
 
 ### Corrections
