@@ -44,7 +44,7 @@ export interface BackfillSeries {
   samples: [number, number][];
 }
 
-type ArchiveName = "quota-history" | "report-cache";
+type ArchiveName = "quota-history" | "report-cache" | "daily-metrics";
 
 export const archiveRead = <T>(name: ArchiveName) => invoke<T | null>("archive_read", { name });
 

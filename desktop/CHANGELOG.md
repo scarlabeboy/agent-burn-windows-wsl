@@ -4,6 +4,12 @@ Each version's section becomes the notes of its GitHub release and of `latest.js
 app shows before installing an update (`scripts/prepare-release.ps1`). Only `### ` titles and
 `- ` items are shown in the app. Sections: Nouveautés, Améliorations, Corrections, Retiré.
 
+## 0.3.0
+
+### Nouveautés
+- Archive journalière : chaque jour d'usage lu est conservé par l'application. Quand un harness supprime ses anciens journaux (Claude Code le fait après environ 30 jours), ses dépenses et ses tokens restent dans les graphiques et les totaux.
+- Une journée qui vient de l'archive est signalée sous le tableau des modèles : elle compte dans les totaux, mais n'est pas détaillée par modèle.
+
 ## 0.2.3
 
 ### Améliorations

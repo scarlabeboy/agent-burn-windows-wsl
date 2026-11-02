@@ -79,7 +79,7 @@ export function defaultGranularity(period: Period): "daily" | "weekly" | "monthl
   return "daily";
 }
 
-const inRange = (date: string, range: DateRange) =>
+export const inRange = (date: string, range: DateRange) =>
   date >= range.since && (range.until === undefined || date <= range.until);
 
 const sum = (points: DailyPoint[], key: "tokens" | "cost") =>

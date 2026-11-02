@@ -27,6 +27,8 @@ export interface AgentReport {
   tokenBreakdown: TokenBreakdown;
   totalCost: number;
   totalTokens: number;
+  /** Frontend-only: days added from the daily archive, without per-model detail. */
+  archivedDays?: number;
 }
 
 export interface SubscriptionEstimate {
@@ -73,6 +75,8 @@ export interface UsageReport {
   claudeAccount?: ClaudeAccount;
   /** Frontend-only: totals are exact but per-model and token-type detail is not yet known. */
   approxDetail?: boolean;
+  /** Frontend-only: days added from the daily archive, without per-model detail. */
+  archivedDays?: number;
 }
 
 export interface Distro {

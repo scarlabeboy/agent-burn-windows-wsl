@@ -93,6 +93,7 @@ export function mergeReports(reports: UsageReport[]): UsageReport {
       tokenBreakdown,
       totalCost,
       totalTokens: parts.reduce((sum, part) => sum + part.totalTokens, 0),
+      archivedDays: parts.reduce((sum, part) => sum + (part.archivedDays ?? 0), 0) || undefined,
     };
   });
   agents.sort((a, b) => b.totalCost - a.totalCost || b.totalTokens - a.totalTokens);
@@ -104,6 +105,7 @@ export function mergeReports(reports: UsageReport[]): UsageReport {
     models: mergeModels(reports.map((report) => report.models), totalCost),
     totals: { totalCost, totalTokens },
     approxDetail: reports.some((report) => report.approxDetail) || undefined,
+    archivedDays: reports.reduce((sum, report) => sum + (report.archivedDays ?? 0), 0) || undefined,
   };
 }
 

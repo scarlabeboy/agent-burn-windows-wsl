@@ -1,4 +1,5 @@
 import { archiveRead, archiveWrite, type BackfillSeries } from "./api";
+import { recordDays, type DayStore } from "./dailyArchive";
 import { consistentSamples, currentUsed, type Sample } from "./quotaFilter";
 import type { QuotaReading, QuotaWindow, UsageReport } from "./types";
 
@@ -21,6 +22,14 @@ interface ReportStore {
   sources: Record<string, CachedReport>;
 }
 
+/** Per source: every day of every harness seen in a full scan (see dailyArchive). Kept forever. */
+interface DailyStore {
+  version: 1;
+  sources: Record<string, DayStore>;
+}
+
+type StoreName = "quota-history" | "report-cache" | "daily-metrics";
+
 const LEGACY_KEY = "abf.quotaHistory";
 const KEEP_MS = 400 * 24 * 3600_000;
 const MIN_GAP_MS = 10 * 60_000;
@@ -28,9 +37,12 @@ const SAVE_DELAY_MS = 2000;
 
 let quota: QuotaStore = { version: 1, series: {}, backfilled: {} };
 let reports: ReportStore = { version: 1, sources: {} };
+let daily: DailyStore = { version: 1, sources: {} };
 let version = 0;
 const listeners = new Set<() => void>();
-const timers: Partial<Record<"quota-history" | "report-cache", ReturnType<typeof setTimeout>>> = {};
+const timers: Partial<Record<StoreName, ReturnType<typeof setTimeout>>> = {};
+const contentOf = (name: StoreName) =>
+  name === "quota-history" ? quota : name === "report-cache" ? reports : daily;
 
 export const subscribe = (listener: () => void) => {
   listeners.add(listener);
@@ -44,10 +56,10 @@ const changed = () => {
   listeners.forEach((listener) => listener());
 };
 
-function save(name: "quota-history" | "report-cache") {
+function save(name: StoreName) {
   clearTimeout(timers[name]);
   timers[name] = setTimeout(() => {
-    void archiveWrite(name, name === "quota-history" ? quota : reports).catch(() => {
+    void archiveWrite(name, contentOf(name)).catch(() => {
       // The in-memory copy stays valid; the next change retries the write.
     });
   }, SAVE_DELAY_MS);
@@ -55,11 +67,11 @@ function save(name: "quota-history" | "report-cache") {
 
 /** Write pending changes now, for when the window is closing. */
 export function flush() {
-  for (const name of ["quota-history", "report-cache"] as const) {
+  for (const name of ["quota-history", "report-cache", "daily-metrics"] as const) {
     if (timers[name] === undefined) continue;
     clearTimeout(timers[name]);
     timers[name] = undefined;
-    void archiveWrite(name, name === "quota-history" ? quota : reports).catch(() => undefined);
+    void archiveWrite(name, contentOf(name)).catch(() => undefined);
   }
 }
 
@@ -94,14 +106,21 @@ function migrateLegacy() {
 
 /** Load saved quota history and report cache; missing or unreadable data just means a fresh start. */
 export async function loadArchive(): Promise<void> {
-  const [savedQuota, savedReports] = await Promise.all([
+  const [savedQuota, savedReports, savedDaily] = await Promise.all([
     archiveRead<QuotaStore>("quota-history").catch(() => null),
     archiveRead<ReportStore>("report-cache").catch(() => null),
+    archiveRead<DailyStore>("daily-metrics").catch(() => null),
   ]);
   if (savedQuota?.series) {
     quota = { version: 1, series: savedQuota.series, backfilled: savedQuota.backfilled ?? {} };
   }
   if (savedReports?.sources) reports = savedReports;
+  if (savedDaily?.sources) daily = savedDaily;
+  // First run with the daily archive: the last saved reports seed it, so no day already seen
+  // is lost even if a harness purges it before the next scan.
+  for (const [sourceId, cached] of Object.entries(reports.sources)) {
+    if (!daily.sources[sourceId]) recordDaily(sourceId, cached.report);
+  }
   migrateLegacy();
   changed();
 }
@@ -111,7 +130,17 @@ export const cachedReports = (): Record<string, CachedReport> => reports.sources
 export function cacheReport(sourceId: string, report: UsageReport, loadedAt: number) {
   reports.sources[sourceId] = { report, loadedAt };
   save("report-cache");
+  recordDaily(sourceId, report);
 }
+
+/** Store the days of a full scan of one source (a period scan must never be recorded here). */
+function recordDaily(sourceId: string, report: UsageReport) {
+  daily.sources[sourceId] = recordDays(daily.sources[sourceId] ?? {}, report);
+  save("daily-metrics");
+}
+
+/** The archived days of one source, to add back what its harnesses no longer report. */
+export const archivedDays = (sourceId: string): DayStore => daily.sources[sourceId] ?? {};
 
 const endMinuteOf = (windowMinutes: number, startMs: number) =>
   Math.round((startMs + windowMinutes * 60_000) / 60_000);

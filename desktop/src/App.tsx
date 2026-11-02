@@ -32,7 +32,9 @@ import { LimitUsageChart } from "./LimitUsageChart";
 import type { LimitUsageDay } from "./limitUsage";
 import { SUPPORTED_HARNESSES, disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
 import { formatUsd, mergeReports } from "./aggregate";
+import { withArchive } from "./dailyArchive";
 import {
+  archivedDays,
   backfilledAt,
   cacheReport,
   cachedReports,
@@ -555,9 +557,12 @@ export default function App() {
         .filter(Boolean)
         .flatMap((id) => {
           const base = reportOf(states[id]);
-          return base ? [{ id, label: label(id), report: range ? filterReport(base, range) : base }] : [];
+          if (!base) return [];
+          // Days a harness no longer reports (old logs purged) come back from the daily archive.
+          const report = withArchive(range ? filterReport(base, range) : base, archivedDays(id), disabled, range ?? undefined);
+          return [{ id, label: label(id), report }];
         }),
-    [activeKey, states, rangeSince, rangeUntil],
+    [activeKey, states, rangeSince, rangeUntil, disabledKey],
   );
   const localReport = useMemo(
     () => (localParts.length ? mergeReports(localParts.map((part) => part.report)) : undefined),
@@ -566,8 +571,13 @@ export default function App() {
   const report = useMemo(() => {
     if (!localReport) return undefined;
     if (!range) return localReport;
-    return mergeReports(localParts.map((part) => details[detailKey(part.id)]?.report ?? part.report));
-  }, [localReport, localParts, details, rangeSince, rangeUntil, detailScope]);
+    return mergeReports(
+      localParts.map((part) => {
+        const detail = details[detailKey(part.id)]?.report;
+        return detail ? withArchive(detail, archivedDays(part.id), disabled, range) : part.report;
+      }),
+    );
+  }, [localReport, localParts, details, rangeSince, rangeUntil, detailScope, disabledKey]);
   const detailError = activeKey
     .split(",")
     .map((id) => detailErrors[detailKey(id)])

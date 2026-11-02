@@ -99,6 +99,7 @@ export const asReport =(agent: AgentReport, approxDetail = false): UsageReport =
   models: agent.models,
   totals: { totalCost: agent.totalCost, totalTokens: agent.totalTokens },
   approxDetail: approxDetail || undefined,
+  archivedDays: agent.archivedDays,
 });
 
 type Granularity = "daily" | "weekly" | "monthly";
@@ -346,6 +347,12 @@ export function Models({ report, detailError }: { report: UsageReport; detailErr
           ))}
         </tbody>
       </table>
+      {report.archivedDays ? (
+        <p className="muted small hint-top">
+          {report.archivedDays} {report.archivedDays > 1 ? "journées viennent" : "journée vient"} de l'archive de
+          l'application (journaux supprimés depuis) : comptées dans les totaux, mais pas détaillées par modèle.
+        </p>
+      ) : null}
     </section>
   );
 }

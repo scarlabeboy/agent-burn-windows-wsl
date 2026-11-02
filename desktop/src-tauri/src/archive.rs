@@ -6,7 +6,7 @@ use std::{
 use serde_json::Value;
 
 /// Files the app may keep in its data directory; nothing else is ever read or written.
-const NAMES: [&str; 3] = ["quota-history", "report-cache", "wsl-users"];
+const NAMES: [&str; 4] = ["quota-history", "report-cache", "daily-metrics", "wsl-users"];
 const MAX_BYTES: usize = 64 * 1024 * 1024;
 
 fn local_data() -> PathBuf {
