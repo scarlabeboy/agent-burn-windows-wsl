@@ -1,3 +1,4 @@
+import { locale, t } from "./i18n";
 import type { QuotaReading, QuotaWindow } from "./types";
 
 const MINUTE_MS = 60_000;
@@ -96,11 +97,11 @@ export interface Freshness {
 /** How long ago, in words: seconds are not worth a number. */
 export function formatAge(ms: number): string {
   const minutes = Math.floor(Math.max(0, ms) / MINUTE_MS);
-  if (minutes < 1) return "moins d'une minute";
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 1) return t().time.underMinute;
+  if (minutes < 60) return t().time.minutes(minutes);
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} h`;
-  return `${Math.floor(hours / 24)} j`;
+  if (hours < 24) return t().time.hours(hours);
+  return t().time.days(Math.floor(hours / 24));
 }
 
 export function freshness(observedAt: number, nowMs: number): Freshness {
@@ -109,7 +110,7 @@ export function freshness(observedAt: number, nowMs: number): Freshness {
   const clock = formatClock(observedAt, age > 12 * 60 * MINUTE_MS);
   return age <= FRESH_MS
     ? { fresh: true, label: clock }
-    : { fresh: false, label: `${clock} · il y a ${formatAge(age)}` };
+    : { fresh: false, label: t().time.ago(clock, formatAge(age)) };
 }
 
 /** The cycle a reading belongs to is over: its figures describe a window that has closed. */
@@ -120,7 +121,7 @@ export function formatDuration(minutes: number): string {
   const days = Math.floor(total / 1440);
   const hours = Math.floor((total % 1440) / 60);
   const mins = total % 60;
-  if (days > 0) return `${days}j ${hours}h`;
+  if (days > 0) return t().time.durationDays(days, hours);
   if (hours > 0) return `${hours}h ${String(mins).padStart(2, "0")}m`;
   return `${mins}m`;
 }
@@ -164,7 +165,7 @@ export function forecast(model: GaugeModel): Forecast | null {
 }
 
 export const formatClock = (ms: number, withDay: boolean): string =>
-  new Intl.DateTimeFormat("fr-FR", {
+  new Intl.DateTimeFormat(locale(), {
     ...(withDay ? { weekday: "short" } : {}),
     hour: "2-digit",
     minute: "2-digit",
@@ -172,13 +173,13 @@ export const formatClock = (ms: number, withDay: boolean): string =>
 
 /** Chart axis ends: the time, with the date on a weekly window whose two ends share a weekday. */
 export const formatAxis = (ms: number, weekly: boolean): string =>
-  new Intl.DateTimeFormat("fr-FR", {
+  new Intl.DateTimeFormat(locale(), {
     ...(weekly ? { weekday: "short", day: "2-digit", month: "2-digit" } : {}),
     hour: "2-digit",
     minute: "2-digit",
   }).format(ms);
 
 export const formatDay = (ms: number): string =>
-  new Intl.DateTimeFormat("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit" }).format(
+  new Intl.DateTimeFormat(locale(), { weekday: "short", hour: "2-digit", minute: "2-digit" }).format(
     ms,
   );

@@ -1,5 +1,6 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { useEffect, useState } from "react";
+import { locale, t } from "./i18n";
 import { formatAge } from "./quota";
 import type { UpdateState } from "./updater";
 import { useNow } from "./useNow";
@@ -37,9 +38,10 @@ export function StatusBar({
 }) {
   const version = useAppVersion();
   const nowMs = useNow(15_000);
-  // Rounded up: "dans 1 min" until the scan starts, never "dans 0 min".
+  // Rounded up: "in 1 min" until the scan starts, never "in 0 min".
   const nextIn = Math.ceil((nextScan - nowMs) / 60_000);
-  const next = nextScan > 0 && nextIn > 0 ? ` (prochaine dans ${nextIn} min)` : "";
+  const text = t().status;
+  const next = nextScan > 0 && nextIn > 0 ? text.nextIn(nextIn) : "";
   return (
     <footer className="statusbar small muted">
       <i className={`dot${loading ? " busy" : error ? " bad" : lastScan > 0 ? " ok" : ""}`} />
@@ -48,30 +50,26 @@ export function StatusBar({
           {error}
         </span>
       ) : (
-        <span title="Dernière lecture des journaux des harness">
+        <span title={text.lastRead}>
           {loading
-            ? "Mise à jour…"
+            ? text.updating
             : lastScan > 0
-              ? `Mis à jour à ${new Date(lastScan).toLocaleTimeString("fr-FR")} · il y a ${formatAge(nowMs - lastScan)}${next}`
-              : "Pas encore lu"}
+              ? text.updatedAt(new Date(lastScan).toLocaleTimeString(locale()), formatAge(nowMs - lastScan)) + next
+              : text.notRead}
         </span>
       )}
       <div className="spacer" />
       {offline && (
-        <span className="offline-tag" title="Aucun appel réseau : quotas et mises à jour suspendus (Réglages › Données)">
-          Hors ligne
+        <span className="offline-tag" title={text.offlineTitle}>
+          {text.offline}
         </span>
       )}
       {update.status === "available" && !offline && (
-        <button className="update-link" onClick={onOpenUpdate} title="Voir les nouveautés avant d'installer">
-          Version {update.version} disponible · Voir
+        <button className="update-link" onClick={onOpenUpdate} title={text.updateTitle}>
+          {text.updateAvailable(update.version)}
         </button>
       )}
-      {update.status === "installing" && (
-        <span className="update-link">
-          Mise à jour{update.percent !== undefined ? ` · ${update.percent} %` : "…"}
-        </span>
-      )}
+      {update.status === "installing" && <span className="update-link">{text.installing(update.percent)}</span>}
       {version && <span>v{version}</span>}
     </footer>
   );

@@ -1,6 +1,7 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect } from "react";
-import { parseNotes, releaseDay } from "./releaseNotes";
+import { getLang, t } from "./i18n";
+import { parseNotes, releaseDay, updateError } from "./releaseNotes";
 import { releaseUrl, type UpdateState } from "./updater";
 
 /**
@@ -31,18 +32,16 @@ export function UpdateDialog({
   if (state.status !== "available" && state.status !== "installing" && state.status !== "error") return null;
   const release = state.status === "error" ? undefined : state;
   const day = releaseDay(release?.date);
-  const sections = parseNotes(release?.notes);
+  const sections = parseNotes(release?.notes, getLang());
+  const text = t().update;
 
   return (
     <div className="modal-backdrop" onClick={installing ? undefined : onClose}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="update-title" onClick={(event) => event.stopPropagation()}>
-        <h2 id="update-title">Mise à jour disponible</h2>
+        <h2 id="update-title">{text.dialogTitle}</h2>
         {release ? (
           <>
-            <p className="muted small">
-              Version {release.version}
-              {day && ` · publiée le ${day}`} · vous avez la {release.currentVersion}
-            </p>
+            <p className="muted small">{text.dialogVersion(release.version, day, release.currentVersion)}</p>
             {sections.length > 0 && (
               <div className="notes">
                 {sections.map((section, index) => (
@@ -58,30 +57,26 @@ export function UpdateDialog({
               </div>
             )}
             <button className="link" onClick={() => void openUrl(releaseUrl(release.version))}>
-              Voir les notes complètes sur GitHub ↗
+              {text.fullNotes}
             </button>
-            <p className="muted small">
-              {offline
-                ? "Mode hors ligne : repassez en ligne (Réglages › Données) pour l'installer."
-                : "L'application se fermera pendant l'installation, puis redémarrera."}
-            </p>
+            <p className="muted small">{offline ? text.offlineInstall : text.restartNote}</p>
           </>
         ) : (
-          <p className="notice error">Installation impossible : {state.status === "error" ? state.message : ""}</p>
+          <p className="notice error">{text.cannotInstall(state.status === "error" ? updateError(state.message) : "")}</p>
         )}
         <div className="modal-actions">
           {installing ? (
             <span className="muted">
-              {state.percent !== undefined ? `Téléchargement… ${state.percent} %` : "Préparation…"}
+              {state.percent !== undefined ? text.downloading(state.percent) : text.preparing}
             </span>
           ) : (
             <>
               <button className="btn" onClick={onClose}>
-                {release ? "Plus tard" : "Fermer"}
+                {release ? text.later : text.close}
               </button>
               {release && (
                 <button className="btn primary" onClick={onInstall} disabled={offline}>
-                  Installer
+                  {text.install}
                 </button>
               )}
             </>

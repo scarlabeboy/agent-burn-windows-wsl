@@ -11,6 +11,7 @@ import {
 import { formatTokens, formatUsd, sortModels, tokensPerDollar, type ModelSort, type ModelSortKey } from "./aggregate";
 import { IdleChart, QuotaChart } from "./QuotaChart";
 import { budget, cycleEnded, formatDay, formatDuration, freshness, type GaugeModel, type QuotaCard } from "./quota";
+import { locale, percent, t } from "./i18n";
 import { useNow } from "./useNow";
 import type { AgentReport, ClaudeAccount, SubscriptionAgent, TokenBreakdown, UsageReport } from "./types";
 import amp from "./assets/brands/amp.png";
@@ -132,7 +133,7 @@ function chartRows(agents: AgentReport[], granularity: Granularity, metric: Metr
 export function Stats({
   report,
   label,
-  period = "Sur toute la période",
+  period = t().views.wholePeriod,
 }: {
   report: UsageReport;
   label: string;
@@ -140,12 +141,13 @@ export function Stats({
 }) {
   const tokens = report.totals.totalTokens;
   const cost = report.totals.totalCost;
+  const text = t().views;
   return (
     <section className="card stats">
-      <Stat title="Dépense totale" value={formatUsd(cost)} hint="Valeur équivalente API" />
-      <Stat title="Tokens" value={formatTokens(tokens)} hint="Entrée, sortie et cache" />
-      <Stat title="Tokens moyens / $" value={tokensPerDollar(tokens, cost)} hint={period} />
-      <Stat title="Modèles" value={report.approxDetail ? "…" : String(report.models.length)} hint={label} />
+      <Stat title={text.totalSpend} value={formatUsd(cost)} hint={text.apiValue} />
+      <Stat title={text.tokens} value={formatTokens(tokens)} hint={text.tokensHint} />
+      <Stat title={text.tokensPerDollar} value={tokensPerDollar(tokens, cost)} hint={period} />
+      <Stat title={text.models} value={report.approxDetail ? "…" : String(report.models.length)} hint={label} />
     </section>
   );
 }
@@ -173,11 +175,11 @@ export function SpendChart({
     () => chartRows(report.agents, granularity, metric),
     [report, granularity, metric],
   );
-  const labels = { daily: "Jour", weekly: "Semaine", monthly: "Mois" } as const;
+  const labels = t().views.granularity;
   return (
     <section className="card chart-card">
       <header className="card-head">
-        <h2>{metric === "cost" ? "Dépense" : "Tokens"}</h2>
+        <h2>{metric === "cost" ? t().views.spend : t().views.tokens}</h2>
         <div className="seg">
           {(Object.keys(labels) as Granularity[]).map((value) => (
             <button key={value} className={granularity === value ? "on" : ""} onClick={() => setGranularity(value)}>
@@ -241,8 +243,8 @@ export function HarnessList({ report, onSelect }: { report: UsageReport; onSelec
   return (
     <section className="card">
       <header className="card-head">
-        <h2>Par harness</h2>
-        <span className="muted">{report.agents.length} actifs</span>
+        <h2>{t().views.byHarness}</h2>
+        <span className="muted">{t().views.activeCount(report.agents.length)}</span>
       </header>
       <ul className="harness-list">
         {report.agents.map((agent) => (
@@ -276,25 +278,24 @@ function DetailPending({ title, error }: { title: string; error?: string }) {
         <h2>{title}</h2>
       </header>
       <p className="muted small">
-        {error
-          ? `Détail indisponible pour cette période : ${error}`
-          : "Calcul du détail pour cette période en cours… Les totaux et le graphique sont déjà exacts."}
+        {error ? t().views.detailUnavailable(error) : t().views.detailPending}
       </p>
     </section>
   );
 }
 
-const MODEL_COLUMNS: { key: ModelSortKey; label: string; numeric: boolean }[] = [
-  { key: "model", label: "Modèle", numeric: false },
-  { key: "tokens", label: "Tokens", numeric: true },
-  { key: "cost", label: "Dépense", numeric: true },
-  { key: "share", label: "Part", numeric: true },
+const MODEL_COLUMNS: { key: ModelSortKey; numeric: boolean }[] = [
+  { key: "model", numeric: false },
+  { key: "tokens", numeric: true },
+  { key: "cost", numeric: true },
+  { key: "share", numeric: true },
 ];
 
 export function Models({ report, detailError }: { report: UsageReport; detailError?: string }) {
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<ModelSort>({ key: "cost", descending: true });
-  if (report.approxDetail) return <DetailPending title="Modèles" error={detailError} />;
+  const text = t().views;
+  if (report.approxDetail) return <DetailPending title={text.models} error={detailError} />;
   const rows = sortModels(
     report.models.filter((row) => row.model.toLowerCase().includes(filter.trim().toLowerCase())),
     sort,
@@ -305,9 +306,9 @@ export function Models({ report, detailError }: { report: UsageReport; detailErr
   return (
     <section className="card">
       <header className="card-head">
-        <h2>Modèles</h2>
+        <h2>{text.models}</h2>
         <span className="muted">{report.models.length}</span>
-        <input className="filter" placeholder="Filtrer les modèles" value={filter} onChange={(event) => setFilter(event.target.value)} />
+        <input className="filter" placeholder={text.filterModels} value={filter} onChange={(event) => setFilter(event.target.value)} />
       </header>
       <table>
         <thead>
@@ -322,7 +323,7 @@ export function Models({ report, detailError }: { report: UsageReport; detailErr
                   className={`sort${sort.key === column.key ? " on" : ""}`}
                   onClick={() => sortBy(column.key, column.numeric)}
                 >
-                  {column.label}
+                  {text.columns[column.key]}
                   <span className="sort-arrow">{sort.key === column.key ? (sort.descending ? "▼" : "▲") : ""}</span>
                 </button>
               </th>
@@ -348,10 +349,7 @@ export function Models({ report, detailError }: { report: UsageReport; detailErr
         </tbody>
       </table>
       {report.archivedDays ? (
-        <p className="muted small hint-top">
-          {report.archivedDays} {report.archivedDays > 1 ? "journées viennent" : "journée vient"} de l'archive de
-          l'application (journaux supprimés depuis) : comptées dans les totaux, mais pas détaillées par modèle.
-        </p>
+        <p className="muted small hint-top">{text.archivedDays(report.archivedDays)}</p>
       ) : null}
     </section>
   );
@@ -366,17 +364,18 @@ export function TokenBreakdownCard({
   pending?: boolean;
   detailError?: string;
 }) {
-  if (pending) return <DetailPending title="Répartition des tokens" error={detailError} />;
+  const text = t().views;
+  if (pending) return <DetailPending title={text.breakdown} error={detailError} />;
   return (
     <section className="card">
       <header className="card-head">
-        <h2>Répartition des tokens</h2>
+        <h2>{text.breakdown}</h2>
       </header>
       <div className="stats">
-        <Stat title="Entrée" value={formatTokens(breakdown.input)} hint="Hors cache" />
-        <Stat title="Sortie" value={formatTokens(breakdown.output)} hint="Générés" />
-        <Stat title="Écriture cache" value={formatTokens(breakdown.cacheWrite)} hint="Cache write" />
-        <Stat title="Lecture cache" value={formatTokens(breakdown.cacheRead)} hint="Cache read" />
+        <Stat title={text.input} value={formatTokens(breakdown.input)} hint={text.inputHint} />
+        <Stat title={text.output} value={formatTokens(breakdown.output)} hint={text.outputHint} />
+        <Stat title={text.cacheWrite} value={formatTokens(breakdown.cacheWrite)} hint="Cache write" />
+        <Stat title={text.cacheRead} value={formatTokens(breakdown.cacheRead)} hint="Cache read" />
       </div>
     </section>
   );
@@ -387,8 +386,8 @@ export function EnvironmentSplit({ parts }: { parts: { label: string; report: Us
   return (
     <section className="card">
       <header className="card-head">
-        <h2>Par environnement</h2>
-        <span className="muted">Sources distinctes, additionnées</span>
+        <h2>{t().views.byEnvironment}</h2>
+        <span className="muted">{t().views.byEnvironmentHint}</span>
       </header>
       <div className="env-split">
         {parts.map((part) => (
@@ -426,22 +425,23 @@ function GaugeCard({
   const color = agentColor(card.harness);
   // Counted from now, not from the reading: an old reading must not show a frozen countdown.
   const ended = cycleEnded(model, nowMs);
+  const text = t().views;
   return (
     <div className={`gauge-card${weekly && model.minutesToEmpty !== null ? " danger" : ""}${ended ? " ended" : ""}`}>
       <div className="row small muted">
         <span className="caps">{title}</span>
         {ended ? (
-          <span className="late">Cycle terminé · nouveau relevé attendu</span>
+          <span className="late">{text.cycleEnded}</span>
         ) : (
-          <span>Reset dans {formatDuration((model.endMs - nowMs) / 60_000)}</span>
+          <span>{text.resetIn(formatDuration((model.endMs - nowMs) / 60_000))}</span>
         )}
       </div>
       <div className="gauge-main">
         <span className="gauge-value">{model.remaining.toFixed(0)}%</span>
-        <span className="muted"> restants</span>
+        <span className="muted">{text.remaining}</span>
         <span className={ahead ? "pace ok" : "pace bad"}>
           {ahead ? "+" : "−"}
-          {Math.abs(model.pace).toFixed(1)} pts {ahead ? "d'avance" : "de retard"}
+          {text.pace(Math.abs(model.pace).toFixed(1), ahead)}
         </span>
       </div>
       <QuotaChart harness={card.harness} model={model} observedAt={card.observedAt} color={color} weekly={weekly} />
@@ -455,17 +455,18 @@ function GaugeCard({
  * card keeps its place so the layout does not jump.
  */
 function IdleSessionCard() {
+  const text = t().views;
   return (
     <div className="gauge-card idle">
       <div className="row small muted">
-        <span className="caps">Session 5 h</span>
-        <span>Pas de session en cours</span>
+        <span className="caps">{text.session}</span>
+        <span>{text.noSession}</span>
       </div>
       <div className="gauge-main">
         <span className="gauge-value">100%</span>
-        <span className="muted"> restants</span>
+        <span className="muted">{text.remaining}</span>
       </div>
-      <IdleChart note="Démarre dès votre premier message." />
+      <IdleChart note={text.startsOnFirst} />
     </div>
   );
 }
@@ -477,18 +478,19 @@ export function QuotaSection({ card, resetCredits }: { card: QuotaCard; resetCre
   const emptyAt = weekly.minutesToEmpty !== null ? card.observedAt + weekly.minutesToEmpty * 60_000 : null;
   const nowMs = useNow(15_000);
   const state = freshness(card.observedAt, nowMs);
+  const text = t().views;
   return (
     <section className="card">
       <header className="card-head">
-        <h2>Quota {agentLabel(card.harness)}</h2>
+        <h2>{t().app.quotaTitle(agentLabel(card.harness))}</h2>
         {resetCredits ? (
-          <span className="chip" title="Resets de limite gardés par le fournisseur, à utiliser quand une limite est atteinte">
-            ↺ {resetCredits} {resetCredits > 1 ? "resets" : "reset"} en stock
+          <span className="chip" title={text.resetsTitle}>
+            {text.resetsInStock(resetCredits)}
           </span>
         ) : null}
         <span
           className={`fresh small ${state.fresh ? "ok" : "late"}`}
-          title={`${state.fresh ? "En direct · mesuré" : "Mesuré"} le ${new Date(card.observedAt).toLocaleString("fr-FR")}`}
+          title={text.measured(state.fresh, new Date(card.observedAt).toLocaleString(locale()))}
         >
           <i className="dot" />
           {card.sources.join(" · ")} · {state.label}
@@ -496,30 +498,29 @@ export function QuotaSection({ card, resetCredits }: { card: QuotaCard; resetCre
       </header>
       {emptyAt !== null && (
         <div className="banner">
-          <strong>La limite hebdomadaire sera atteinte ≈ {formatDay(emptyAt)}.</strong>{" "}
+          <strong>{text.limitReached(formatDay(emptyAt))}</strong>{" "}
           {spend.perDay
-            ? `Restez sous ${spend.percent.toFixed(1)} %/jour pour tenir jusqu'au reset (${formatDay(weekly.endMs)}).`
-            : `Il reste ${PERCENT.format(spend.percent)} % pour tenir jusqu'au reset (${formatDay(weekly.endMs)}).`}
+            ? text.stayUnder(decimal(spend.percent), formatDay(weekly.endMs))
+            : text.leftToLast(whole(spend.percent), formatDay(weekly.endMs))}
         </div>
       )}
       <div className="gauge-grid">
         {card.session ? (
-          <GaugeCard title="Session 5 h" model={card.session} card={card} weekly={false} nowMs={nowMs} />
+          <GaugeCard title={text.session} model={card.session} card={card} weekly={false} nowMs={nowMs} />
         ) : (
           <IdleSessionCard />
         )}
-        <GaugeCard title="Hebdomadaire" model={weekly} card={card} weekly nowMs={nowMs} />
+        <GaugeCard title={text.weekly} model={weekly} card={card} weekly nowMs={nowMs} />
       </div>
-      <p className="muted small hint">
-        {card.harness === "codex"
-          ? "Historique reconstitué depuis vos logs Codex, puis complété par les relevés de l'application."
-          : "Les relevés sont enregistrés tant que l'application est ouverte ; la courbe commence au premier relevé."}
-      </p>
+      <p className="muted small hint">{card.harness === "codex" ? text.codexHistory : text.claudeHistory}</p>
     </section>
   );
 }
 
-const PERCENT = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
+/** A percentage without decimals, or with one, in the interface's number format. */
+const whole = (value: number) => new Intl.NumberFormat(locale(), { maximumFractionDigits: 0 }).format(value);
+const decimal = (value: number) =>
+  new Intl.NumberFormat(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
 
 /** Plan, price and value of one subscription, from `summary --value`. */
 export function SubscriptionCard({
@@ -542,13 +543,16 @@ export function SubscriptionCard({
   if (!offReason && !sub && scoped.length === 0 && !extra) return null;
   const known = sub?.plan && sub.plan !== "";
   const spend = card ? budget(card.weekly) : null;
+  const text = t().views;
   if (offReason) {
     // Without quotas the plan is not shown either, even when a local file still names one.
     return (
       <section className="card">
         <header className="card-head">
-          <h2>Abonnement</h2>
-          <span className="chip">{agentLabel(harness)} · plan non lu</span>
+          <h2>{text.subscription}</h2>
+          <span className="chip">
+            {agentLabel(harness)} · {text.planNotRead}
+          </span>
         </header>
         <p className="muted small hint-top">{offReason}</p>
       </section>
@@ -557,44 +561,39 @@ export function SubscriptionCard({
   return (
     <section className="card">
       <header className="card-head">
-        <h2>Abonnement</h2>
+        <h2>{text.subscription}</h2>
         <span className="chip">
-          {agentLabel(harness)} · {known ? sub?.plan : "plan inconnu"}
-          {sub?.pricePerMonth != null && ` · ${formatUsd(sub.pricePerMonth)}/mois`}
+          {agentLabel(harness)} · {known ? sub?.plan : text.planUnknown}
+          {sub?.pricePerMonth != null && ` · ${formatUsd(sub.pricePerMonth)}${text.perMonth}`}
         </span>
       </header>
-      {!known && harness === "claude" && (
-        <p className="muted small hint-top">
-          Le plan n'a pas pu être détecté : il est lu dans la connexion de Claude Code (commande
-          claude) de cet environnement.
-        </p>
-      )}
+      {!known && harness === "claude" && <p className="muted small hint-top">{text.claudePlanUnknown}</p>}
       {estimate && (
         <div className="stats">
           <Stat
-            title="Valeur / prix du forfait"
-            value={estimate.valueMultiple != null ? `${estimate.valueMultiple.toFixed(1)}×` : "n/a"}
-            hint="Usage mensuel estimé ÷ prix"
+            title={text.value}
+            value={estimate.valueMultiple != null ? `${decimal(estimate.valueMultiple)}×` : "n/a"}
+            hint={text.valueHint}
           />
-          <Stat title="Valeur mensuelle estimée" value={formatUsd(estimate.monthlyValue)} hint="Équivalent API" />
+          <Stat title={text.monthlyValue} value={formatUsd(estimate.monthlyValue)} hint={text.monthlyValueHint} />
           <Stat
-            title="Consommation projetée"
-            value={`${PERCENT.format(estimate.projectedUsePercent)}%`}
-            hint="Du quota, au rythme actuel"
+            title={text.projected}
+            value={percent(whole(estimate.projectedUsePercent))}
+            hint={text.projectedHint}
           />
           <Stat
-            title="Rythme conseillé"
+            title={text.advisedPace}
             value={
               spend === null
                 ? "n/a"
                 : spend.perDay
-                  ? `${spend.percent.toFixed(1)} %/j`
-                  : `${PERCENT.format(spend.percent)} %`
+                  ? text.perDay(decimal(spend.percent))
+                  : percent(whole(spend.percent))
             }
             hint={
               spend !== null && card && !spend.perDay
-                ? `D'ici le reset (dans ${formatDuration(card.weekly.minutesToReset)})`
-                : "Pour tenir jusqu'au reset"
+                ? text.untilReset(formatDuration(card.weekly.minutesToReset))
+                : text.toLast
             }
           />
         </div>
@@ -604,8 +603,8 @@ export function SubscriptionCard({
           {scoped.map((window) => (
             <div key={window.name}>
               <div className="row small">
-                <span>{window.name} · hebdomadaire</span>
-                <span>{Math.max(0, 100 - window.usedPercent).toFixed(0)}% restants</span>
+                <span>{text.scopedWeekly(window.name)}</span>
+                <span>{text.percentLeft(Math.max(0, 100 - window.usedPercent).toFixed(0))}</span>
               </div>
               <div className="bar">
                 <div style={{ width: `${Math.max(0, 100 - window.usedPercent)}%`, background: agentColor(harness) }} />
@@ -616,13 +615,13 @@ export function SubscriptionCard({
       )}
       {extra && (
         <p className="small hint-top">
-          Crédits d'usage supplémentaire : {formatUsd(extra.extraUsedUSD ?? 0)}
-          {extra.extraLimitUSD != null && ` sur ${formatUsd(extra.extraLimitUSD)}`}
+          {text.extraCredits(
+            formatUsd(extra.extraUsedUSD ?? 0),
+            extra.extraLimitUSD != null ? formatUsd(extra.extraLimitUSD) : undefined,
+          )}
         </p>
       )}
-      <p className="muted small hint-top">
-        La dépense affichée est un équivalent API, pas votre facture d'abonnement.
-      </p>
+      <p className="muted small hint-top">{text.apiNote}</p>
     </section>
   );
 }

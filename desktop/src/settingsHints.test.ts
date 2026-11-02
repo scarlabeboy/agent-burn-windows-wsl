@@ -1,6 +1,9 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { formatUsd } from "./aggregate";
+import { setLang } from "./i18n";
+import { formatAge } from "./quota";
 import {
   autoUpdateActive,
   limitUsageOffReason,
@@ -54,4 +57,18 @@ test("every quota-based block gives the offline reason first, then the quota swi
 test("the usage refresh hint names the interval, or the manual button when it is off", () => {
   assert.equal(refreshHint(5), "Relit les journaux des harness toutes les 5 minutes.");
   assert.match(refreshHint(0), /démarrage et avec le bouton/);
+});
+
+test("hints, amounts and ages follow the chosen language", () => {
+  setLang("en");
+  try {
+    assert.equal(refreshHint(5), "Reads the harness logs again every 5 minutes.");
+    assert.match(quotaOffReason({ ...base, offline: true }) ?? "", /offline mode/);
+    assert.equal(formatUsd(1684.3), "$1,684.30");
+    assert.equal(formatAge(2 * 86_400_000), "2 days");
+  } finally {
+    setLang("fr");
+  }
+  assert.equal(formatUsd(1684.3).replace(/\s/g, " "), "1 684,30 $US");
+  assert.equal(formatAge(2 * 86_400_000), "2 j");
 });

@@ -2,7 +2,25 @@
 
 Each version's section becomes the notes of its GitHub release and of `latest.json`, which the
 app shows before installing an update (`scripts/prepare-release.ps1`). Only `### ` titles and
-`- ` items are shown in the app. Sections: Nouveautés, Améliorations, Corrections, Retiré.
+`- ` items are shown in the app. From 0.4.0 a section has an `#### English` block (New,
+Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
+Corrections, Retiré); the app shows the block of its language. Older sections are French only.
+
+## 0.4.0
+
+#### English
+
+### New
+- The app is available in English: Settings › General › Language. Until a language is chosen, it follows the Windows language.
+- Amounts and dates follow the language ("$1,684.30" in English, "1 684,30 $US" in French), still in dollars.
+- Update notes are shown in the chosen language.
+
+#### Français
+
+### Nouveautés
+- L'application existe en anglais : Réglages › Général › Langue. Tant qu'aucune langue n'est choisie, elle suit celle de Windows.
+- Les montants et les dates suivent la langue (« 1 684,30 $US » en français, « $1,684.30 » en anglais), toujours en dollars.
+- Les notes de mise à jour s'affichent dans la langue choisie.
 
 ## 0.3.4
 

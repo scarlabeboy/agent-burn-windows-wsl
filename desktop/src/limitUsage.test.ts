@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  OTHER,
+  otherLabel,
   buildChart,
   modelLabel,
   surfaceLabel,
@@ -25,7 +25,7 @@ test("surfaces get readable names, and unknown ones are counted as other", () =>
   assert.equal(surfaceLabel("cli"), "CLI");
   assert.equal(surfaceLabel("desktop_app"), "Application de bureau");
   assert.equal(surfaceLabel("work_desktop"), "Application de bureau (Work)");
-  assert.equal(surfaceLabel("a_surface_nobody_heard_of"), OTHER);
+  assert.equal(surfaceLabel("a_surface_nobody_heard_of"), otherLabel());
 });
 
 test("a model shows its speed only when it is not the standard one", () => {
@@ -66,10 +66,10 @@ test("only the five biggest series are kept, the rest become other", () => {
   const chart = buildChart([day("2026-10-31", surfaces)], "surface");
   assert.deepEqual(
     chart.series.map((entry) => entry.name),
-    ["CLI", "Application de bureau", "Extension IDE", "Cloud", "Mobile", OTHER],
+    ["CLI", "Application de bureau", "Extension IDE", "Cloud", "Mobile", otherLabel()],
   );
   assert.equal(chart.series[5].total, 5);
-  assert.equal(chart.rows[0][OTHER], 5);
+  assert.equal(chart.rows[0][otherLabel()], 5);
 });
 
 test("models can be grouped instead of surfaces", () => {

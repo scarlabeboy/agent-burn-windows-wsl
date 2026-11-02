@@ -1,3 +1,4 @@
+import { locale } from "./i18n";
 import type {
   AgentReport,
   DailyPoint,
@@ -118,7 +119,7 @@ export const formatTokens = (value: number): string => {
 };
 
 export const formatUsd = (value: number): string =>
-  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "USD" }).format(value);
+  new Intl.NumberFormat(locale(), { style: "currency", currency: "USD" }).format(value);
 
 export const tokensPerDollar = (tokens: number, cost: number): string =>
   cost > 0 ? `${formatTokens(tokens / cost)} / $` : "n/a";

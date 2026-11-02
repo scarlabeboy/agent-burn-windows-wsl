@@ -24,7 +24,9 @@ for changes under `desktop/`, the Windows desktop app of this fork. Everything o
   clean (disable upstream workflows through GitHub, never by editing them).
 - WSL is never woken up: list distributions with `wsl -l -q` / `--list --running`, read only
   running ones, and call `%SystemRoot%\System32\wsl.exe`. Never run `wsl --shutdown`.
-- The UI is in French. Code, comments and commit messages are in English.
+- The UI is in French and English. Every text goes in `src/i18n/fr.ts` and `src/i18n/en.ts`
+  (the English one is typed on the French one, so a missing text breaks the build), read with
+  `t()`; numbers and dates use `locale()`. Code, comments and commit messages are in English.
 - Use npm (not pnpm) in this folder.
 - Tests must not touch the real profile: run them with `LOCALAPPDATA`, `TEMP` and `TMP` pointing
   at a scratch folder. That is not enough for the app itself: WebView2 (and with it the
@@ -47,7 +49,8 @@ cargo test --manifest-path src-tauri/Cargo.toml
 ## Releases
 
 Bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `package.json`,
-write its section in `CHANGELOG.md` (French; `### Nouveautés`, `Améliorations`, `Corrections`,
-`Retiré`), push, then run the "Windows release" workflow. It drafts the release; a person
+write its section in `CHANGELOG.md` in both languages: an `#### English` block (`### New`,
+`Improvements`, `Fixes`, `Removed`) then an `#### Français` block (`### Nouveautés`,
+`Améliorations`, `Corrections`, `Retiré`); the app shows only the block of its language. Push, then run the "Windows release" workflow. It drafts the release; a person
 reviews and publishes it. Never mark a release as a pre-release: the updater reads
 `releases/latest`.

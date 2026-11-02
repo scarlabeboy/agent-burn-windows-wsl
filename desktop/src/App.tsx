@@ -1,6 +1,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  CLI_MISSING,
   backfillCodex,
   detectSources,
   getAutostart,
@@ -13,6 +14,7 @@ import {
   readTab,
   setAutostart,
   setCloseToTray,
+  setTrayLabels,
   setTrayTooltip,
   setWslKeepalive,
   writePeriod,
@@ -43,16 +45,18 @@ import {
   mergeBackfill,
   recordReading,
 } from "./archive";
+import { LANG_NAMES, locale, setLang, systemLang, t, type Lang } from "./i18n";
 import {
-  PERIOD_LABELS,
   PERIODS,
   compactDate,
   defaultGranularity,
   filterReport,
   isoDate,
+  periodLabel,
   rangeFor,
   type Period,
 } from "./periods";
+import { updateError } from "./releaseNotes";
 import { quotaCards, type QuotaCard } from "./quota";
 import {
   autoUpdateActive,
@@ -97,11 +101,6 @@ const MELVYNX_URL = "https://github.com/Melvynx/agent-burn";
 const OVERVIEW = "overview";
 /** The weekly Codex limit per day changes slowly: read again after this long. */
 const LIMIT_USAGE_TTL_MS = 5 * 60_000;
-const WSL_MODE_HINTS: Record<WslMode, string> = {
-  off: "Windows uniquement : WSL n'est jamais interrogé et son onglet est caché.",
-  auto: "WSL est lu quand il tourne déjà ; l'application ne le réveille jamais.",
-  keep: "L'application garde WSL allumé tant qu'elle tourne (« Quitter » de l'icône l'arrête). Fermer la fenêtre ne change rien.",
-};
 /** Each source's Claude plan is read from its own sign-in file; there is no manual choice. */
 const CLAUDE_PLAN = "auto";
 /** Period scans are reused for this long before being fetched again. */
@@ -128,64 +127,49 @@ function LimitUsageSection({
 }) {
   if (offReason) return <div className="notice">{offReason}</div>;
   if (best) return <LimitUsageChart days={best.days} where={label(best.id)} />;
-  return (
-    <div className="notice">
-      {attempted
-        ? "Limite hebdomadaire par jour non lue : connexion Codex introuvable dans cet environnement, ou tableau de bord injoignable."
-        : "Lecture de la limite hebdomadaire par jour…"}
-    </div>
-  );
+  return <div className="notice">{attempted ? t().app.limitUsageUnread : t().app.limitUsageLoading}</div>;
 }
 
 /** Why a harness page has no quota, in the words of the open tab. */
 function quotaMissing(harness: string, tab: TabId, wslRunning: boolean): string {
   const name = agentLabel(harness);
-  if (tab === "wsl" && !wslRunning) return `Quota ${name} non lu : WSL est éteint et l'application ne le démarre pas.`;
-  const where = tab === "windows" ? "sous Windows" : tab === "wsl" ? "dans WSL" : "sur cet ordinateur";
-  if (harness === "claude") {
-    return (
-      `Quota ${name} non lu ${where} : aucune connexion lisible (fichier ~/.claude/.credentials.json). ` +
-      "Connectez Claude Code dans cet environnement (commande claude) pour lire le quota et le plan."
-    );
-  }
-  return (
-    `Quota ${name} non lu ${where} : aucune connexion lisible (fichier ~/.codex/auth.json), ou le service ne répond pas. ` +
-    "Connectez Codex dans cet environnement (commande codex) pour lire le quota."
-  );
+  const text = t().app;
+  if (tab === "wsl" && !wslRunning) return text.quotaWslOff(name);
+  const where = text.quotaWhere[tab];
+  return harness === "claude" ? text.quotaMissingClaude(name, where) : text.quotaMissingCodex(name, where);
 }
 
 const noUsage = (tokens: number, cost: number) => tokens === 0 && cost === 0;
 
 /** A chosen period without any usage, instead of a page of zeros. */
 function EmptyPeriod({ period, harness }: { period: string; harness?: string }) {
-  return (
-    <div className="notice">
-      Aucun usage{harness ? ` de ${harness}` : ""} sur la période « {period} ». Choisissez une autre période en haut
-      à droite.
-    </div>
-  );
+  return <div className="notice">{t().app.emptyPeriod(period, harness)}</div>;
 }
 
 /** What the settings say about updates, after the last check. */
 function updateHint(state: UpdateState, offline: boolean): string {
-  if (offline && state.status === "available") {
-    return `La version ${state.version} a été trouvée : repassez en ligne pour l'installer.`;
-  }
+  const text = t().update;
+  if (offline && state.status === "available") return text.foundOffline(state.version);
   switch (state.status) {
     case "checking":
-      return "Recherche en cours…";
+      return text.checking;
     case "none":
-      return `À jour (vérifié à ${new Date(state.checkedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}).`;
+      return text.upToDate(
+        new Date(state.checkedAt).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }),
+      );
     case "available":
-      return `La version ${state.version} est disponible : voir ses nouveautés avant de l'installer.`;
+      return text.available(state.version);
     case "installing":
-      return state.percent !== undefined ? `Téléchargement… ${state.percent} %` : "Installation…";
+      return state.percent !== undefined ? text.downloading(state.percent) : text.installing;
     case "error":
-      return `Recherche impossible : ${state.message}`;
+      return text.checkFailed(updateError(state.message));
     default:
-      return "Pas encore vérifié.";
+      return text.notChecked;
   }
 }
+
+/** A source's read error, with the app's own errors said in the interface language. */
+const sourceError = (message: string) => (message.includes(CLI_MISSING) ? t().status.cliMissing : message);
 
 function pillClass(remaining: number): string {
   if (remaining < 20) return "pill bad";
@@ -197,15 +181,20 @@ function Pending({ state, label }: { state: SourceState | undefined; label: stri
   if (state?.status === "error") {
     return (
       <div className="notice error">
-        <strong>{label.charAt(0).toUpperCase() + label.slice(1)} : lecture impossible.</strong> {state.message}
+        <strong>{t().app.readFailed(label.charAt(0).toUpperCase() + label.slice(1))}</strong>{" "}
+        {sourceError(state.message)}
       </div>
     );
   }
-  return <div className="notice">Lecture de {label} en cours…</div>;
+  return <div className="notice">{t().app.reading(label)}</div>;
 }
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(readSettings);
+  // Set before anything renders: every text and format below reads it.
+  const lang = settings.language ?? systemLang();
+  setLang(lang);
+  const text = t();
   const [detected, setDetected] = useState<Detected | null>(null);
   const [states, setStates] = useState<Record<string, SourceState>>({});
   const [quotas, setQuotas] = useState<Record<string, Record<string, QuotaReading>>>({});
@@ -503,7 +492,9 @@ export default function App() {
   const failedId = readableIds.find((id) => states[id]?.status === "error");
   const failedState = failedId ? states[failedId] : undefined;
   const scanError =
-    failedId && failedState?.status === "error" ? `${label(failedId)} : lecture impossible (${failedState.message})` : undefined;
+    failedId && failedState?.status === "error"
+      ? text.app.scanError(label(failedId), sourceError(failedState.message))
+      : undefined;
   const lastScan = Math.max(
     0,
     ...sourceIds.map((id) => {
@@ -542,15 +533,22 @@ export default function App() {
 
   // Quota summary on the notification-area icon: the account, whatever tab is open.
   const tooltip = accountCards
-    .map((card) => {
-      const session = card.session ? `5 h ${card.session.remaining.toFixed(0)}% · ` : "";
-      return `${agentLabel(card.harness)} : ${session}sem. ${card.weekly.remaining.toFixed(0)}%`;
-    })
+    .map((card) =>
+      text.app.tooltipLine(
+        agentLabel(card.harness),
+        card.session?.remaining.toFixed(0),
+        card.weekly.remaining.toFixed(0),
+      ),
+    )
     .join("\n");
   useEffect(() => {
     // Without any quota the summary goes too, rather than keep percentages that no longer hold.
     void setTrayTooltip(tooltip ? `Agent Burn Windows\n${tooltip}` : "Agent Burn Windows").catch(() => undefined);
   }, [tooltip]);
+  // The notification-area menu is built by the Rust side: it gets its words from here.
+  useEffect(() => {
+    void setTrayLabels(t().tray).catch(() => undefined);
+  }, [lang]);
 
   // "Since reset" needs a weekly quota cycle, so it only applies on Claude and Codex pages.
   const effectivePeriod: Period =
@@ -662,7 +660,7 @@ export default function App() {
   // Only offered with WSL: with Windows alone there is nothing to choose.
   const tabs: { id: TabId; label: string }[] = hasWsl
     ? [
-        { id: "computer", label: "Ordinateur" },
+        { id: "computer", label: text.app.computer },
         { id: "windows", label: "Windows" },
         { id: "wsl", label: "WSL" },
       ]
@@ -723,15 +721,15 @@ export default function App() {
 
   const header = showSettings ? (
     <div className="page-head">
-      <h1 className="page-title">Réglages</h1>
-      <p className="muted page-sub">Démarrage, données, WSL, mises à jour et harness</p>
+      <h1 className="page-title">{text.app.settings}</h1>
+      <p className="muted page-sub">{text.app.settingsSub}</p>
     </div>
   ) : (
     <div className="page-head">
       <h1 className="page-title">
         {page === OVERVIEW ? (
           <>
-            <OverviewIcon size={22} /> Vue d'ensemble
+            <OverviewIcon size={22} /> {text.app.overview}
           </>
         ) : (
           <>
@@ -741,13 +739,12 @@ export default function App() {
       </h1>
       <p className="muted page-sub">
         {tab === "computer"
-          ? "Windows + WSL additionnés"
+          ? text.app.subComputer
           : tab === "wsl"
             ? `WSL · ${activeDistro?.name ?? ""}`
-            : "Windows natif"}{" "}
-        · {PERIOD_LABELS[effectivePeriod]}
-        {period === "rtd" && effectivePeriod === "all" &&
-          " (« Depuis le reset » s'applique aux pages Claude Code et Codex)"}
+            : text.app.subWindows}{" "}
+        · {periodLabel(effectivePeriod)}
+        {period === "rtd" && effectivePeriod === "all" && text.app.rtdNote}
       </p>
     </div>
   );
@@ -762,7 +759,7 @@ export default function App() {
 
         {tabs.length > 0 && (
           <>
-            <div className="nav-group">Environnement</div>
+            <div className="nav-group">{text.app.environment}</div>
             {tabs.map((entry) => (
               <button
                 key={entry.id}
@@ -780,7 +777,7 @@ export default function App() {
                 className="nav-select"
                 value={activeDistro?.name}
                 onChange={(event) => setDistro(event.target.value)}
-                title="Distribution WSL"
+                title={text.app.wslDistro}
               >
                 {distros.map((entry) => (
                   <option key={entry.name}>{entry.name}</option>
@@ -790,14 +787,14 @@ export default function App() {
           </>
         )}
 
-        <div className="nav-group">Vue</div>
+        <div className="nav-group">{text.app.view}</div>
         <button className={`nav${page === OVERVIEW && !showSettings ? " on" : ""}`} onClick={() => openPage(OVERVIEW)}>
           <OverviewIcon />
-          <span className="nav-label">Vue d'ensemble</span>
+          <span className="nav-label">{text.app.overview}</span>
           <span className="nav-value">{localReport ? formatUsd(localReport.totals.totalCost) : ""}</span>
         </button>
 
-        {subscriptionIds.length > 0 && <div className="nav-group">Abonnements</div>}
+        {subscriptionIds.length > 0 && <div className="nav-group">{text.app.subscriptions}</div>}
         {subscriptionIds.map((id) => {
           const left = weeklyLeft(id);
           const agent = localReport?.agents.find((entry) => entry.agent === id);
@@ -815,7 +812,7 @@ export default function App() {
               </span>
               {left !== undefined && (
                 <span className="nav-line nav-quota">
-                  <span className="nav-label">Quota hebdo</span>
+                  <span className="nav-label">{text.app.weeklyQuota}</span>
                   <span className={pillClass(left)}>{left.toFixed(0)}%</span>
                 </span>
               )}
@@ -823,7 +820,7 @@ export default function App() {
           );
         })}
 
-        {otherAgents.length > 0 && <div className="nav-group">Harness</div>}
+        {otherAgents.length > 0 && <div className="nav-group">{text.app.harness}</div>}
         {otherAgents.map((agent) => (
           <button
             key={agent.agent}
@@ -845,11 +842,11 @@ export default function App() {
             <select
               value={period}
               onChange={(event) => setPeriod(event.target.value as Period)}
-              title="Période affichée"
+              title={text.app.periodShown}
             >
               {PERIODS.map((value) => (
                 <option key={value} value={value}>
-                  {PERIOD_LABELS[value]}
+                  {periodLabel(value)}
                 </option>
               ))}
             </select>
@@ -861,14 +858,14 @@ export default function App() {
               if (quotasOn) refreshQuotas(true);
             }}
             disabled={loading}
-            title="Actualiser"
+            title={text.app.refresh}
           >
             {loading ? "…" : "⟳"}
           </button>
           <button
             className={`icon${showSettings ? " on" : ""}`}
             onClick={() => setShowSettings((value) => !value)}
-            title={showSettings ? "Fermer les réglages" : "Réglages"}
+            title={showSettings ? text.app.closeSettings : text.app.settings}
           >
             ⚙
           </button>
@@ -877,59 +874,66 @@ export default function App() {
         <main>
           {showSettings ? (
             <div className="settings">
-              <SettingsCard title="Général">
-                <SettingRow
-                  title="Lancer au démarrage de Windows"
-                  description="L'application s'ouvre réduite dans la zone de notification."
-                >
+              <SettingsCard title={text.settings.general}>
+                <SettingRow title={text.settings.language} description={text.settings.languageHint}>
+                  <select
+                    value={lang}
+                    onChange={(event) => updateSettings({ ...settings, language: event.target.value as Lang })}
+                  >
+                    {(Object.keys(LANG_NAMES) as Lang[]).map((value) => (
+                      <option key={value} value={value}>
+                        {LANG_NAMES[value]}
+                      </option>
+                    ))}
+                  </select>
+                </SettingRow>
+                <SettingRow title={text.settings.autostart} description={text.settings.autostartHint}>
                   <Switch
                     checked={autostart ?? false}
                     disabled={autostart === null || autostartBusy}
-                    title={autostartBusy ? "Enregistrement dans Windows…" : undefined}
-                    label="Lancer au démarrage de Windows"
+                    title={autostartBusy ? text.settings.autostartBusy : undefined}
+                    label={text.settings.autostart}
                     onChange={toggleAutostart}
                   />
                 </SettingRow>
-                <SettingRow
-                  title="Rester dans la zone de notification"
-                  description="Fermer la fenêtre garde l'application active en arrière-plan ; « Quitter » de l'icône l'arrête."
-                >
+                <SettingRow title={text.settings.tray} description={text.settings.trayHint}>
                   <Switch
                     checked={settings.closeToTray}
-                    label="Rester dans la zone de notification"
+                    label={text.settings.tray}
                     onChange={(next) => updateSettings({ ...settings, closeToTray: next })}
                   />
                 </SettingRow>
               </SettingsCard>
 
-              <SettingsCard title="Données">
-                <SettingRow title="Mode hors ligne" description={offlineHint(settings.offline)}>
+              <SettingsCard title={text.settings.data}>
+                <SettingRow title={text.settings.offline} description={offlineHint(settings.offline)}>
                   <Switch
                     checked={settings.offline}
-                    label="Mode hors ligne"
+                    label={text.settings.offline}
                     onChange={(next) => updateSettings({ ...settings, offline: next })}
                   />
                 </SettingRow>
-                <SettingRow title="Lecture des quotas" description={quotaHint(settings)}>
+                <SettingRow title={text.settings.quotas} description={quotaHint(settings)}>
                   <Switch
                     checked={quotasOn}
                     disabled={settings.offline}
-                    label="Lecture des quotas"
+                    label={text.settings.quotas}
                     onChange={(next) => updateSettings({ ...settings, quotas: next })}
                   />
                 </SettingRow>
-                <SettingRow title="Rafraîchir l'usage automatiquement" description={refreshHint(settings.refreshMinutes)}>
+                <SettingRow title={text.settings.refresh} description={refreshHint(settings.refreshMinutes)}>
                   <select
                     value={settings.refreshMinutes}
                     onChange={(event) => updateSettings({ ...settings, refreshMinutes: Number(event.target.value) })}
                   >
-                    <option value={0}>Jamais</option>
+                    <option value={0}>{text.settings.never}</option>
                     {/* A WSL scan with OpenCode takes about 30 s: every minute would read almost
-                        nonstop. Kept here to bring back if scans get faster. */}
-                    {/* <option value={1}>Chaque minute</option> */}
-                    <option value={5}>Toutes les 5 minutes</option>
-                    <option value={10}>Toutes les 10 minutes</option>
-                    <option value={30}>Toutes les 30 minutes</option>
+                        nonstop. 1 can come back here if scans get faster. */}
+                    {[5, 10, 30].map((minutes) => (
+                      <option key={minutes} value={minutes}>
+                        {text.settings.everyMinutes(minutes)}
+                      </option>
+                    ))}
                   </select>
                 </SettingRow>
               </SettingsCard>
@@ -937,38 +941,37 @@ export default function App() {
               {/* Hidden when there is no WSL to turn off; kept while off so it can be turned back on. */}
               {(settings.wslMode !== "auto" || distros.length > 0) && (
                 <SettingsCard title="WSL">
-                  <SettingRow title="Lecture de WSL" description={WSL_MODE_HINTS[settings.wslMode]}>
+                  <SettingRow title={text.settings.wslRead} description={text.settings.wslModeHints[settings.wslMode]}>
                     <select
                       value={settings.wslMode}
                       onChange={(event) => updateSettings({ ...settings, wslMode: event.target.value as WslMode })}
                     >
-                      <option value="off">Désactivé</option>
-                      <option value="auto">Automatique</option>
-                      <option value="keep">Maintenu allumé</option>
+                      {(["off", "auto", "keep"] as WslMode[]).map((mode) => (
+                        <option key={mode} value={mode}>
+                          {text.settings.wslModes[mode]}
+                        </option>
+                      ))}
                     </select>
                   </SettingRow>
                 </SettingsCard>
               )}
 
-              <SettingsCard title="Mises à jour">
-                <SettingRow
-                  title="Rechercher les mises à jour automatiquement"
-                  description={autoUpdateHint(settings.offline)}
-                >
+              <SettingsCard title={text.settings.updates}>
+                <SettingRow title={text.settings.autoUpdate} description={autoUpdateHint(settings.offline)}>
                   <Switch
                     checked={autoUpdateActive(settings)}
                     disabled={settings.offline}
-                    label="Rechercher les mises à jour automatiquement"
+                    label={text.settings.autoUpdate}
                     onChange={(next) => updateSettings({ ...settings, autoUpdate: next })}
                   />
                 </SettingRow>
                 <SettingRow
-                  title={appVersion ? `Version installée : ${appVersion}` : "Version installée"}
+                  title={text.settings.installedVersion(appVersion)}
                   description={updateHint(updater.state, settings.offline)}
                 >
                   {updater.state.status === "available" ? (
                     <button className="btn primary" onClick={() => setShowUpdate(true)}>
-                      Voir la {updater.state.version}
+                      {text.settings.seeVersion(updater.state.version)}
                     </button>
                   ) : (
                     <button
@@ -976,29 +979,27 @@ export default function App() {
                       disabled={settings.offline || updater.state.status === "checking" || updater.state.status === "installing"}
                       onClick={() => void updater.checkNow()}
                     >
-                      Rechercher maintenant
+                      {text.settings.checkNow}
                     </button>
                   )}
                 </SettingRow>
               </SettingsCard>
 
-              <SettingsCard title="Harness">
+              <SettingsCard title={text.app.harness}>
                 <HarnessSettings groups={harnessGroups} onToggle={toggleHarness} />
-                <p className="muted small set-note">
-                  Un harness désactivé n'est plus lu (le scan est plus rapide) et disparaît des totaux et des quotas.
-                </p>
+                <p className="muted small set-note">{text.settings.harnessNote}</p>
               </SettingsCard>
 
-              <SettingsCard title="À propos">
+              <SettingsCard title={text.settings.about}>
                 <SettingRow
                   title={`Agent Burn Windows${appVersion ? ` ${appVersion}` : ""}`}
-                  description="Portage Windows et WSL non officiel d'Agent Burn, de Melvynx. Licence MIT. Les coûts viennent de son CLI, sans modification."
+                  description={text.settings.aboutHint}
                 >
                   <button className="btn" onClick={() => void openUrl(REPO_URL)}>
-                    Dépôt GitHub ↗
+                    {text.settings.repo}
                   </button>
                 </SettingRow>
-                <SettingRow title="Projet d'origine" description="Agent Burn : le CLI, l'application macOS et le site de Melvynx.">
+                <SettingRow title={text.settings.origin} description={text.settings.originHint}>
                   <button className="btn" onClick={() => void openUrl(MELVYNX_URL)}>
                     Agent Burn ↗
                   </button>
@@ -1007,35 +1008,30 @@ export default function App() {
             </div>
           ) : !report ? (
             stoppedNames.length > 0 && !pendingState ? (
-              <div className="notice">
-                WSL éteint ({stoppedNames.join(", ")}) : l'application ne le démarre pas et n'a pas encore de
-                données de lui. Elles apparaîtront dès qu'il tourne.
-              </div>
+              <div className="notice">{text.app.wslOffNoData(stoppedNames.join(", "))}</div>
             ) : (
-              <Pending state={pendingState} label={tab === "computer" ? "l'ordinateur" : label(activeIds[0] ?? "windows")} />
+              <Pending
+                state={pendingState}
+                label={tab === "computer" ? text.app.theComputer : label(activeIds[0] ?? "windows")}
+              />
             )
           ) : (
             <Page>
-              {stoppedNames.length > 0 && (
-                <div className="notice">
-                  WSL éteint ({stoppedNames.join(", ")}) : l'application ne le démarre pas, ses chiffres
-                  datent de sa dernière lecture.
-                </div>
-              )}
+              {stoppedNames.length > 0 && <div className="notice">{text.app.wslOffStale(stoppedNames.join(", "))}</div>}
               {tab === "computer" && localParts.length < sourceIds.length - stoppedNames.length && (
-                <div className="notice error">Une source n'a pas pu être lue : le total de l'ordinateur est partiel.</div>
+                <div className="notice error">{text.app.partial}</div>
               )}
               {page === OVERVIEW && hasNoData ? (
                 <EmptyState
-                  where={tab === "windows" ? "sur ce Windows" : tab === "wsl" ? "dans WSL" : "sur Windows ni dans WSL"}
+                  where={text.app.emptyWhere[tab]}
                   harnesses={SUPPORTED_HARNESSES.map(agentLabel)}
                   disabledCount={disabled.length}
                 />
               ) : page === OVERVIEW && range && noUsage(report.totals.totalTokens, report.totals.totalCost) ? (
-                <EmptyPeriod period={PERIOD_LABELS[effectivePeriod]} />
+                <EmptyPeriod period={periodLabel(effectivePeriod)} />
               ) : page === OVERVIEW ? (
                 <>
-                  <Stats report={report} label="Tous harness confondus" period={PERIOD_LABELS[effectivePeriod]} />
+                  <Stats report={report} label={text.app.allHarnesses} period={periodLabel(effectivePeriod)} />
                   {tab === "computer" && <EnvironmentSplit parts={localParts} />}
                   <div className="grid">
                     <SpendChart
@@ -1054,7 +1050,7 @@ export default function App() {
                     (quotaOffReason(settings) ? (
                       <section className="card">
                         <header className="card-head">
-                          <h2>Quota {agentLabel(page)}</h2>
+                          <h2>{text.app.quotaTitle(agentLabel(page))}</h2>
                         </header>
                         <p className="muted small">{quotaOffReason(settings)}</p>
                       </section>
@@ -1086,13 +1082,13 @@ export default function App() {
                     />
                   )}
                   {range && (!selected || noUsage(selected.totalTokens, selected.totalCost)) ? (
-                    <EmptyPeriod period={PERIOD_LABELS[effectivePeriod]} harness={agentLabel(page)} />
+                    <EmptyPeriod period={periodLabel(effectivePeriod)} harness={agentLabel(page)} />
                   ) : selected ? (
                     <>
                       <Stats
                         report={asReport(selected, approx)}
                         label={agentLabel(selected.agent)}
-                        period={PERIOD_LABELS[effectivePeriod]}
+                        period={periodLabel(effectivePeriod)}
                       />
                       <SpendChart
                         key={effectivePeriod}
@@ -1107,7 +1103,7 @@ export default function App() {
                       />
                     </>
                   ) : (
-                    <div className="notice">Aucune donnée d'usage pour {agentLabel(page)} dans cet environnement.</div>
+                    <div className="notice">{text.app.noUsageData(agentLabel(page))}</div>
                   )}
                 </>
               )}

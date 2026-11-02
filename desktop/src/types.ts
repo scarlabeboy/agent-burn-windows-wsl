@@ -1,4 +1,5 @@
 import type { HarnessStates } from "./harnesses";
+import type { Lang } from "./i18n";
 
 export interface DailyPoint {
   date: string;
@@ -131,5 +132,7 @@ export interface Settings {
   autoUpdate: boolean;
   /** Harnesses turned off: not scanned and removed from the data. */
   harnessStates: HarnessStates;
+  /** Interface language once chosen; until then Windows' own language decides. */
+  language?: Lang;
 }
 

@@ -162,11 +162,15 @@ fn main() {
             background::set_close_to_tray,
             background::get_autostart,
             background::set_autostart,
-            background::set_tray_tooltip
+            background::set_tray_tooltip,
+            background::set_tray_labels
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|error| {
-            show_error(&format!("Agent Burn Windows ne peut pas démarrer.\n\n{error}"));
+            // The page and its language setting are not there yet: both languages.
+            show_error(&format!(
+                "Agent Burn Windows ne peut pas démarrer.\nAgent Burn Windows cannot start.\n\n{error}"
+            ));
             std::process::exit(1);
         });
 }

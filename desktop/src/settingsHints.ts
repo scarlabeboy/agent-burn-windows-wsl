@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import type { Settings } from "./types";
 
 /**
@@ -10,30 +11,20 @@ export const quotasActive = (settings: Settings) => settings.quotas && !settings
 export const autoUpdateActive = (settings: Settings) => settings.autoUpdate && !settings.offline;
 
 export function offlineHint(offline: boolean): string {
-  const effect =
-    "quotas et mises à jour suspendus, coûts calculés avec les tarifs intégrés (les modèles récents peuvent afficher 0 $).";
-  return offline
-    ? `Activé : ${effect} Les journaux des harness restent lus.`
-    : `Aucun appel réseau : ${effect}`;
+  return offline ? t().hints.offlineOn : t().hints.offlineOff;
 }
 
 export function quotaHint(settings: Settings): string {
-  if (settings.offline) return "Désactivé en mode hors ligne : les quotas viennent des serveurs de Claude et Codex.";
-  return settings.quotas
-    ? "Les jauges de Claude Code et Codex sont relues en ligne chaque minute."
-    : "Les quotas ne sont plus relus ni affichés ; leur historique est gardé pour la reprise.";
+  if (settings.offline) return t().hints.quotaOffline;
+  return settings.quotas ? t().hints.quotaOn : t().hints.quotaOff;
 }
 
 export function refreshHint(minutes: number): string {
-  return minutes > 0
-    ? `Relit les journaux des harness toutes les ${minutes} minutes.`
-    : "Les journaux des harness ne sont relus qu'au démarrage et avec le bouton ⟳.";
+  return minutes > 0 ? t().hints.refreshEvery(minutes) : t().hints.refreshNever;
 }
 
 export function autoUpdateHint(offline: boolean): string {
-  return offline
-    ? "Désactivé en mode hors ligne : aucune recherche sur GitHub."
-    : "Au démarrage puis toutes les 6 heures, sur les versions publiées sur GitHub.";
+  return offline ? t().hints.autoUpdateOffline : t().hints.autoUpdateOn;
 }
 
 /**
@@ -41,24 +32,21 @@ export function autoUpdateHint(offline: boolean): string {
  * that is no longer refreshed is not shown either: offline comes first, since it stops quotas too.
  */
 export function quotaOffReason(settings: Settings): string | undefined {
-  if (settings.offline) return "Quota non lu : mode hors ligne activé (Réglages › Données).";
-  if (!settings.quotas) return "Quota non lu : la lecture des quotas est désactivée (Réglages › Données).";
+  if (settings.offline) return t().hints.quotaOffOffline;
+  if (!settings.quotas) return t().hints.quotaOffSwitch;
   return undefined;
 }
 
 /** Why the subscription value and pace are not shown: they need live prices and the live quota. */
 export function subscriptionOffReason(settings: Settings): string | undefined {
-  if (settings.offline)
-    return "Valeur et rythme indisponibles en mode hors ligne : ils demandent les tarifs et le quota en direct.";
-  if (!settings.quotas)
-    return "Valeur et rythme indisponibles : la lecture des quotas est désactivée (Réglages › Données).";
+  if (settings.offline) return t().hints.subscriptionOffOffline;
+  if (!settings.quotas) return t().hints.subscriptionOffSwitch;
   return undefined;
 }
 
 /** Why the weekly Codex limit per day is not read: it comes from the ChatGPT dashboard. */
 export function limitUsageOffReason(settings: Settings): string | undefined {
-  if (settings.offline) return "Limite hebdomadaire par jour indisponible en mode hors ligne : elle vient du réseau.";
-  if (!settings.quotas)
-    return "Limite hebdomadaire par jour non lue : la lecture des quotas est désactivée (Réglages › Données).";
+  if (settings.offline) return t().hints.limitUsageOffOffline;
+  if (!settings.quotas) return t().hints.limitUsageOffSwitch;
   return undefined;
 }

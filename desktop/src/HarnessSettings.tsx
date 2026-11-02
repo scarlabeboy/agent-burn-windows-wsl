@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { HarnessGroups } from "./harnesses";
+import { t } from "./i18n";
 import { Switch } from "./SettingsUi";
 import { BrandIcon, agentLabel } from "./views";
 
@@ -26,7 +27,7 @@ function Group({
         {title} <span className="muted">({ids.length})</span>
       </summary>
       {ids.length === 0 ? (
-        <div className="muted small hs-empty">Aucun</div>
+        <div className="muted small hs-empty">{t().harnesses.none}</div>
       ) : (
         ids.map((id) => (
           <div key={id} className={`hs-row${control ? "" : " dim"}`}>
@@ -43,36 +44,37 @@ function Group({
 /** Every harness the CLI reads, in three groups. Only active and disabled ones have a switch. */
 export function HarnessSettings({ groups, onToggle }: Props) {
   const lastActive = groups.active.length <= 1;
+  const text = t().harnesses;
   return (
     <div className="hs">
       <Group
-        title="Actifs"
+        title={text.active}
         ids={groups.active}
         open
         control={(id) => (
           <Switch
             checked
-            label={`Lire ${agentLabel(id)}`}
+            label={text.read(agentLabel(id))}
             disabled={lastActive}
-            title={lastActive ? "Au moins un harness doit rester actif" : "Ne plus lire ce harness"}
+            title={lastActive ? text.keepOne : text.stopReading}
             onChange={() => onToggle(id, true)}
           />
         )}
       />
       <Group
-        title="Désactivés"
+        title={text.disabled}
         ids={groups.disabled}
         open={false}
         control={(id) => (
           <Switch
             checked={false}
-            label={`Lire ${agentLabel(id)}`}
-            title="Lire de nouveau ce harness"
+            label={text.read(agentLabel(id))}
+            title={text.readAgain}
             onChange={() => onToggle(id, false)}
           />
         )}
       />
-      <Group title="Non détectés" ids={groups.undetected} open={false} />
+      <Group title={text.undetected} ids={groups.undetected} open={false} />
     </div>
   );
 }

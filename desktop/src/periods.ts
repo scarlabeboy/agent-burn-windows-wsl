@@ -1,3 +1,4 @@
+import { t } from "./i18n";
 import type { AgentReport, DailyPoint, UsageReport } from "./types";
 
 export type Period =
@@ -11,19 +12,9 @@ export type Period =
   | "ytd"
   | "rtd";
 
-export const PERIOD_LABELS: Record<Period, string> = {
-  all: "Toute la période",
-  today: "Aujourd'hui",
-  yesterday: "Hier",
-  wtd: "Cette semaine",
-  week: "7 derniers jours",
-  mtd: "Ce mois-ci",
-  month: "30 derniers jours",
-  ytd: "Cette année",
-  rtd: "Depuis le reset",
-};
+export const PERIODS: Period[] = ["all", "today", "yesterday", "wtd", "week", "mtd", "month", "ytd", "rtd"];
 
-export const PERIODS = Object.keys(PERIOD_LABELS) as Period[];
+export const periodLabel = (period: Period): string => t().periods[period];
 
 export interface DateRange {
   /** Inclusive local dates, `YYYY-MM-DD`. */

@@ -1,5 +1,6 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { getVersion, readSeries, subscribe } from "./archive";
+import { t } from "./i18n";
 import { forecast, formatAxis, formatDay, formatDuration, type GaugeModel } from "./quota";
 
 const W = 560;
@@ -65,7 +66,7 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
       : y(projection?.remainingAtReset ?? 0) - 8;
 
   return (
-    <svg className="qchart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Historique du quota">
+    <svg className="qchart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t().chart.history}>
       <defs>
         <pattern id={hatchId} width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <line x1="0" y1="0" x2="0" y2="7" stroke="var(--danger)" strokeOpacity="0.45" strokeWidth="2" />
@@ -85,7 +86,7 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
             fill={`url(#${hatchId})`}
           />
           <text x={(x(emptyAt) + x(endMs)) / 2} y={PAD.top + 40} textAnchor="middle" className="qlock">
-            Verrouillé
+            {t().chart.locked}
           </text>
           <text x={(x(emptyAt) + x(endMs)) / 2} y={PAD.top + 54} textAnchor="middle" className="qlock">
             {formatDuration((endMs - emptyAt) / 60_000)}
@@ -103,7 +104,7 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
         strokeDasharray="3 4"
       />
       <text x={W * 0.52} y={y(pace(startMs + (endMs - startMs) * 0.62)) + 16} className="qaxis" filter={onPlot}>
-        rythme régulier
+        {t().chart.evenPace}
       </text>
 
       {projection && (
@@ -118,11 +119,11 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
           />
           {emptyAt === null ? (
             <text x={x(endMs) - 4} y={resetY} textAnchor="end" className="qnote" fill={color} filter={onPlot}>
-              ≈ {projection.remainingAtReset.toFixed(0)}% au reset
+              {t().chart.atReset(projection.remainingAtReset.toFixed(0))}
             </text>
           ) : (
             <text x={x(emptyAt) - 6} y={y(0) - 8} textAnchor="end" className="qnote" fill="var(--danger)" filter={onPlot}>
-              Vide {formatDay(emptyAt)}
+              {t().chart.emptyOn(formatDay(emptyAt))}
             </text>
           )}
         </g>
@@ -132,7 +133,7 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
       <line x1={nowX} x2={nowX} y1={PAD.top} y2={H - PAD.bottom} stroke={color} strokeOpacity="0.5" />
       <circle cx={nowX} cy={nowY} r="4" fill={color} />
       <text x={nowX} y={PAD.top - 8} textAnchor={nowAnchor} className="qnote" fill={color}>
-        Maintenant
+        {t().chart.now}
       </text>
 
       <text x={PAD.left} y={H - 8} className="qaxis">

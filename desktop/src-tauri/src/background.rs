@@ -34,13 +34,18 @@ pub fn show_main(app: &AppHandle) {
     }
 }
 
+/// The tray menu in the page's language; it starts in French until the page sends its words.
+fn tray_menu(app: &AppHandle, open: &str, refresh: &str, quit: &str) -> tauri::Result<Menu<tauri::Wry>> {
+    let open = MenuItem::with_id(app, "open", open, true, None::<&str>)?;
+    let refresh = MenuItem::with_id(app, "refresh", refresh, true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", quit, true, None::<&str>)?;
+    let separator = PredefinedMenuItem::separator(app)?;
+    Menu::with_items(app, &[&open, &refresh, &separator, &quit])
+}
+
 /// Notification-area icon: click to open, menu to refresh quotas or quit.
 pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "Ouvrir Agent Burn Windows", true, None::<&str>)?;
-    let refresh = MenuItem::with_id(app, "refresh", "Actualiser les quotas", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Quitter", true, None::<&str>)?;
-    let separator = PredefinedMenuItem::separator(app)?;
-    let menu = Menu::with_items(app, &[&open, &refresh, &separator, &quit])?;
+    let menu = tray_menu(app, "Ouvrir Agent Burn Windows", "Actualiser les quotas", "Quitter")?;
 
     let mut tray = TrayIconBuilder::with_id(TRAY_ID)
         .tooltip("Agent Burn Windows")
@@ -130,4 +135,14 @@ pub fn set_tray_tooltip(app: AppHandle, text: String) {
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         let _ = tray.set_tooltip(Some(text));
     }
+}
+
+/// The words of the tray menu, sent by the page in its language.
+#[tauri::command]
+pub fn set_tray_labels(app: AppHandle, open: String, refresh: String, quit: String) -> Result<(), String> {
+    let menu = tray_menu(&app, &open, &refresh, &quit).map_err(|error| error.to_string())?;
+    if let Some(tray) = app.tray_by_id(TRAY_ID) {
+        tray.set_menu(Some(menu)).map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }

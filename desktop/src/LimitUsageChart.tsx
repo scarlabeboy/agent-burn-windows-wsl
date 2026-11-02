@@ -1,18 +1,17 @@
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { OTHER, buildChart, totalUsed, type Grouping, type LimitUsageDay } from "./limitUsage";
+import { getLang, percent, t } from "./i18n";
+import { buildChart, otherLabel, totalUsed, type Grouping, type LimitUsageDay } from "./limitUsage";
 
 const COLORS = ["#ff8a3d", "#4f7cff", "#c44dff", "#2ec4b6", "#f4d35e"];
 const OTHER_COLOR = "#8d99ae";
-const colorOf = (name: string, index: number) => (name === OTHER ? OTHER_COLOR : COLORS[index % COLORS.length]);
+const colorOf = (name: string, index: number) => (name === otherLabel() ? OTHER_COLOR : COLORS[index % COLORS.length]);
 
-const GROUPINGS: { id: Grouping; label: string }[] = [
-  { id: "surface", label: "Surface" },
-  { id: "model", label: "Modèle" },
-];
+const GROUPINGS: Grouping[] = ["surface", "model"];
 
-/** "2026-10-31" as "31/10". */
-const shortDay = (date: string) => `${date.slice(8, 10)}/${date.slice(5, 7)}`;
+/** "2026-10-31" as "31/10", or "10/31" in English. */
+const shortDay = (date: string) =>
+  getLang() === "en" ? `${date.slice(5, 7)}/${date.slice(8, 10)}` : `${date.slice(8, 10)}/${date.slice(5, 7)}`;
 
 /**
  * The weekly Codex limit each day used, stacked by surface (CLI, desktop app, IDE…) or by model.
@@ -20,22 +19,25 @@ const shortDay = (date: string) => `${date.slice(8, 10)}/${date.slice(5, 7)}`;
  */
 export function LimitUsageChart({ days, where }: { days: LimitUsageDay[]; where: string }) {
   const [grouping, setGrouping] = useState<Grouping>("surface");
-  const chart = useMemo(() => buildChart(days, grouping), [days, grouping]);
+  const lang = getLang();
+  // The language is a key: "Other" is a series name, so it changes with it.
+  const chart = useMemo(() => buildChart(days, grouping), [days, grouping, lang]);
   const total = totalUsed(days);
+  const text = t().limit;
   return (
     <section className="card chart-card">
       <header className="card-head">
-        <h2>Limite hebdomadaire utilisée par jour</h2>
-        <div className="seg" role="group" aria-label="Regrouper par">
-          {GROUPINGS.map((entry) => (
-            <button key={entry.id} className={grouping === entry.id ? "on" : ""} onClick={() => setGrouping(entry.id)}>
-              {entry.label}
+        <h2>{text.title}</h2>
+        <div className="seg" role="group" aria-label={text.groupBy}>
+          {GROUPINGS.map((id) => (
+            <button key={id} className={grouping === id ? "on" : ""} onClick={() => setGrouping(id)}>
+              {text[id]}
             </button>
           ))}
         </div>
       </header>
       {total <= 0 ? (
-        <p className="muted">Aucune consommation de la limite sur les {days.length} derniers jours.</p>
+        <p className="muted">{text.none(days.length)}</p>
       ) : (
         <>
           <div className="chart">
@@ -48,13 +50,13 @@ export function LimitUsageChart({ days, where }: { days: LimitUsageDay[]; where:
                   tickLine={false}
                   axisLine={false}
                   width={48}
-                  tickFormatter={(value: number) => `${Math.round(value)} %`}
+                  tickFormatter={(value: number) => percent(Math.round(value))}
                 />
                 <Tooltip
                   cursor={{ fill: "rgba(255,255,255,0.05)" }}
                   contentStyle={{ background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 8 }}
                   labelFormatter={(date: string) => shortDay(date)}
-                  formatter={(value: number, name: string) => [`${value.toFixed(1)} %`, name]}
+                  formatter={(value: number, name: string) => [percent(value.toFixed(1)), name]}
                 />
                 {chart.series.map((entry, index) => (
                   <Bar
@@ -72,17 +74,13 @@ export function LimitUsageChart({ days, where }: { days: LimitUsageDay[]; where:
             {chart.series.map((entry, index) => (
               <span key={entry.name}>
                 <i style={{ background: colorOf(entry.name, index) }} />
-                {entry.name} · {Math.round((entry.total / total) * 100)} % du total
+                {entry.name} · {text.share(Math.round((entry.total / total) * 100))}
               </span>
             ))}
           </div>
         </>
       )}
-      <p className="muted small hint">
-        Chaque barre est la part d'une limite hebdomadaire consommée ce jour-là, tous les appareils confondus, d'après le
-        tableau de bord ChatGPT · lu {where}. Le dernier jour est souvent incomplet : le tableau de bord compte avec du
-        retard.
-      </p>
+      <p className="muted small hint">{text.hint(where)}</p>
     </section>
   );
 }

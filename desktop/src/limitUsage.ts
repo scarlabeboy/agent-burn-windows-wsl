@@ -3,6 +3,7 @@
  * It comes from the ChatGPT usage dashboard through `agent-burn harness codex`, so it covers the
  * whole account: the CLI, the desktop app, the IDE extension and the rest, on every device.
  */
+import { t } from "./i18n";
 
 export interface LimitUsageSurface {
   surface: string;
@@ -26,30 +27,27 @@ export interface LimitUsageDay {
 export type Grouping = "surface" | "model";
 
 /** Everything beyond the biggest few series, so a chart stays readable. */
-export const OTHER = "Autres";
+export const otherLabel = (): string => t().limit.other;
 const SERIES_LIMIT = 5;
 
+/** Surfaces named the same in every language; the others come from the dictionary. */
 const SURFACES: Record<string, string> = {
   cli: "CLI",
   exec: "Exec",
-  desktop_app: "Application de bureau",
-  work_desktop: "Application de bureau (Work)",
-  vscode: "Extension IDE",
   jetbrains: "JetBrains",
   web: "Cloud",
   work_web: "Cloud (Work)",
   mobile: "Mobile",
   work_mobile: "Mobile (Work)",
   github: "GitHub",
-  github_code_review: "Revue de code",
   slack: "Slack",
   linear: "Linear",
   sdk: "SDK",
-  agent_identity: "Identité d'agent",
 };
 
-/** A surface the app does not know is counted under "Autres" rather than shown by its raw name. */
-export const surfaceLabel = (surface: string): string => SURFACES[surface] ?? OTHER;
+/** A surface the app does not know is counted under "Other" rather than shown by its raw name. */
+export const surfaceLabel = (surface: string): string =>
+  SURFACES[surface] ?? (t().limit.surfaces as Record<string, string>)[surface] ?? otherLabel();
 
 /** The speed is only worth showing when it is not the default one, which nearly every model has. */
 export const modelLabel = (model: LimitUsageModel): string =>
@@ -69,6 +67,7 @@ function entriesOf(day: LimitUsageDay, grouping: Grouping): [string, number][] {
 }
 
 export function buildChart(days: LimitUsageDay[], grouping: Grouping): LimitChart {
+  const OTHER = otherLabel();
   const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
   const totals = new Map<string, number>();
   for (const day of sorted) {

@@ -61,8 +61,8 @@ fn locate_cli() -> Result<PathBuf, String> {
                 "agent-burn.exe not found. Build it with `cargo build -p agent-burn` in rust/, or set ABF_CLI."
                     .to_string()
             } else {
-                "agent-burn.exe est absent du dossier de l'application : réinstallez-la (un antivirus a pu le supprimer)."
-                    .to_string()
+                // A code: the page says it in its own language (`CLI_MISSING` in api.ts).
+                "cli-missing: agent-burn.exe is missing from the app folder.".to_string()
             }
         })
 }

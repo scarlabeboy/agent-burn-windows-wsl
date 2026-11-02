@@ -2,7 +2,6 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { flush } from "./archive";
-import { updateError } from "./releaseNotes";
 
 /** First automatic check after startup, then this often. */
 const FIRST_CHECK_MS = 20_000;
@@ -24,6 +23,7 @@ export type UpdateState =
   | { status: "none"; checkedAt: number }
   | ({ status: "available" } & AvailableUpdate)
   | ({ status: "installing"; percent?: number } & AvailableUpdate)
+  /** The updater's own message, said in the interface language when shown (`updateError`). */
   | { status: "error"; message: string };
 
 /**
@@ -52,7 +52,7 @@ export function useUpdater(auto: boolean, offline: boolean) {
           : { status: "none", checkedAt: Date.now() },
       );
     } catch (error) {
-      setState({ status: "error", message: updateError(error) });
+      setState({ status: "error", message: String(error) });
     }
   }, []);
 
@@ -95,7 +95,7 @@ export function useUpdater(auto: boolean, offline: boolean) {
       });
       await relaunch();
     } catch (error) {
-      setState({ status: "error", message: updateError(error) });
+      setState({ status: "error", message: String(error) });
     }
   }, []);
 

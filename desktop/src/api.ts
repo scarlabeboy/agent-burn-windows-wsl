@@ -1,9 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
+import { isLang } from "./i18n";
 import type { LimitUsageDay } from "./limitUsage";
 import { PERIODS, type Period } from "./periods";
 import type { Detected, QuotaReading, Settings, TabId, UsageReport, WslMode } from "./types";
 
-export const detectSources = () => invoke<Detected>("detect_sources");
+/** Starts the error of a read when agent-burn.exe is missing; the page words it in its language. */
+export const CLI_MISSING = "cli-missing";
+
+export const detectSources =() => invoke<Detected>("detect_sources");
 
 /** Keeps every WSL distribution awake while on; call again to renew, with false to stop. */
 export const setWslKeepalive = (enabled: boolean) => invoke<void>("set_wsl_keepalive", { enabled });
@@ -101,7 +105,9 @@ export function readSettings(): Settings {
     const { wslEnabled: _old, ...rest } = stored;
     // "Every minute" is no longer offered: a scan can take half a minute.
     const refreshMinutes = stored.refreshMinutes === 1 ? 5 : (stored.refreshMinutes ?? defaults.refreshMinutes);
-    return { ...defaults, ...rest, wslMode: mode, refreshMinutes };
+    // An unknown language is dropped, so Windows' own language decides again.
+    const language = isLang(stored.language) ? stored.language : undefined;
+    return { ...defaults, ...rest, wslMode: mode, refreshMinutes, language };
   } catch {
     return defaults;
   }
@@ -157,3 +163,5 @@ export const setCloseToTray = (enabled: boolean) => invoke<void>("set_close_to_t
 export const getAutostart = () => invoke<boolean>("get_autostart");
 export const setAutostart = (enabled: boolean) => invoke<void>("set_autostart", { enabled });
 export const setTrayTooltip = (text: string) => invoke<void>("set_tray_tooltip", { text });
+export const setTrayLabels = (labels: { open: string; refresh: string; quit: string }) =>
+  invoke<void>("set_tray_labels", labels);
