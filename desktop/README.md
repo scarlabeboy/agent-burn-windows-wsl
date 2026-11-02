@@ -22,6 +22,15 @@ The app updates itself from the GitHub releases of this repository: it reads
 `releases/latest/download/latest.json` at startup and every 6 hours (never in offline mode), and
 only installs a file signed with the release key, whose public half is in `tauri.conf.json`.
 
+To release: set the version (`tauri.conf.json`, `Cargo.toml`, `package.json`), write its section
+in `CHANGELOG.md`, push, then run **Actions > Windows release > Run workflow**. The workflow
+(`.github/workflows/windows-release.yaml`) builds on a GitHub Windows runner with the key and its
+password from the repository secrets `TAURI_SIGNING_PRIVATE_KEY` and
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, runs the tests, and drafts the `v<version>` release with
+the installer, its `.sig` and `latest.json`. Publishing the draft makes it the update.
+
+The same release can be built locally:
+
 ```powershell
 $env:TAURI_SIGNING_PRIVATE_KEY = "$env:USERPROFILE\.tauri\agent-burn-windows.key"
 $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<password>"

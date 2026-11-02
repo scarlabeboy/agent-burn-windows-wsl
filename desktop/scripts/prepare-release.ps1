@@ -1,6 +1,7 @@
-# Gathers a built release in release/v<version>: the installer under a name without spaces, its
-# updater signature, and latest.json, the file the installed apps read to find a new version.
-# Build first with the signing key set, for example:
+# Local fallback of .github/workflows/windows-release.yaml, which builds and drafts releases on
+# GitHub. Gathers a built release in release/v<version>: the installer under a name without
+# spaces, its updater signature, and latest.json, the file the installed apps read to find a new
+# version. Build first with the signing key set, for example:
 #   $env:TAURI_SIGNING_PRIVATE_KEY = "$env:USERPROFILE\.tauri\agent-burn-windows.key"
 #   $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "<password>"
 #   npx tauri build
@@ -11,11 +12,7 @@ $root = Split-Path $PSScriptRoot -Parent
 $repo = "scarlabeboy/agent-burn-windows-wsl"
 $version = (Get-Content "$root/src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json).version
 
-# Read as UTF-8 explicitly: Windows PowerShell would otherwise read the accents as ANSI.
-$changelog = [IO.File]::ReadAllText("$root/CHANGELOG.md", [Text.Encoding]::UTF8) -replace "`r", ""
-$section = [regex]::Match($changelog, "(?ms)^## $([regex]::Escape($version))\s*$\n(.*?)(?=^## |\z)")
-if (-not $section.Success) { throw "CHANGELOG.md has no section for $version." }
-$Notes = $section.Groups[1].Value.Trim()
+$Notes = (& "$PSScriptRoot/release-notes.ps1") -join "`n"
 
 $bundle = "$root/src-tauri/target/release/bundle/nsis"
 $built = Get-Item "$bundle/*_${version}_x64-setup.exe"

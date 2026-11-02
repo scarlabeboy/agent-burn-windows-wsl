@@ -1,0 +1,78 @@
+# Builds Agent Burn Windows on a GitHub Windows runner and drafts its release: the signed NSIS
+# installer, its updater signature and latest.json. Run it by hand (Actions > Windows release >
+# Run workflow) once the version and its CHANGELOG.md section are pushed; then review the draft
+# and publish it. A draft is not "latest", so no installed app sees it before it is published.
+# The tag v<version> is created by the action with GITHUB_TOKEN, which starts no other workflow.
+name: Windows release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      # The same toolchain as rust-toolchain.toml at the repository root.
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            rust -> target
+            desktop/src-tauri -> target
+
+      - name: Build the Agent Burn CLI (sidecar)
+        run: ./desktop/scripts/prepare-cli.ps1
+
+      - name: Install the app dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Tests
+        working-directory: desktop
+        run: |
+          npm test
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Release notes from CHANGELOG.md
+        id: notes
+        run: |
+          $notes = (./desktop/scripts/release-notes.ps1) -join "`n"
+          "body<<CHANGELOG_NOTES" >> $env:GITHUB_OUTPUT
+          $notes >> $env:GITHUB_OUTPUT
+          "CHANGELOG_NOTES" >> $env:GITHUB_OUTPUT
+
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: desktop
+          tagName: v__VERSION__
+          releaseName: Agent Burn Windows __VERSION__ (bêta)
+          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseDraft: true
+          prerelease: false
