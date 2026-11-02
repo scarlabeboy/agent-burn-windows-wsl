@@ -27,7 +27,12 @@ for changes under `desktop/`, the Windows desktop app of this fork. Everything o
 - The UI is in French. Code, comments and commit messages are in English.
 - Use npm (not pnpm) in this folder.
 - Tests must not touch the real profile: run them with `LOCALAPPDATA`, `TEMP` and `TMP` pointing
-  at a scratch folder.
+  at a scratch folder. That is not enough for the app itself: WebView2 (and with it the
+  settings in `localStorage`) finds its folder through Windows, not `LOCALAPPDATA`. Build the
+  app to try with `npx tauri build --debug --no-bundle --config src-tauri/tauri.test.json`
+  (its own identifier, so it also runs next to the installed app) and also set
+  `WEBVIEW2_USER_DATA_FOLDER` to the scratch folder. Leave the startup switch alone in that
+  build: the startup entry name is shared with the installed app.
 - The identifier `dev.scarlabeboy.agent-burn-windows` must not change: it locates the archive
   and the Windows startup entry.
 
