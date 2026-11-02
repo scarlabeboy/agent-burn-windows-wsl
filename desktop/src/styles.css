@@ -44,6 +44,11 @@ button { cursor: pointer; }
 .nav.env { color: var(--muted); --env-icon-belly: #19191b; }
 .nav.env:hover { color: var(--text); --env-icon-belly: var(--panel); }
 .nav.env.on { background: var(--accent); color: #fff; --env-icon-belly: var(--accent); }
+/* A subscription: its spend like any harness, then its weekly quota under the name. */
+.nav.sub { flex-direction: column; align-items: stretch; gap: 4px; }
+.nav-line { display: flex; align-items: center; gap: 10px; }
+.nav-quota { padding-left: 32px; color: var(--muted); font-size: 12px; }
+.nav.on .nav-quota { color: #fff; }
 .nav-select { margin: 4px 0 2px 42px; width: calc(100% - 42px); }
 .nav-label { flex: 1; white-space: nowrap; }
 .nav-value { color: var(--muted); font-variant-numeric: tabular-nums; }

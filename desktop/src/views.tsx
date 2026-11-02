@@ -527,20 +527,37 @@ export function SubscriptionCard({
   sub,
   account,
   card,
-  offline,
+  offReason,
 }: {
   harness: string;
   sub?: SubscriptionAgent;
   account?: ClaudeAccount;
   card?: QuotaCard;
-  offline: boolean;
+  /** Set when quotas are not read: the block stays, with this reason instead of figures. */
+  offReason?: string;
 }) {
   const estimate = sub?.estimate ?? null;
   const scoped = harness === "claude" ? (account?.scoped ?? []) : [];
   const extra = harness === "claude" && account?.extraEnabled ? account : undefined;
-  if (!sub && scoped.length === 0 && !extra) return null;
+  if (!offReason && !sub && scoped.length === 0 && !extra) return null;
   const known = sub?.plan && sub.plan !== "";
   const spend = card ? budget(card.weekly) : null;
+  if (offReason) {
+    // Without live data the plan may be missing too: show it only when it is known.
+    return (
+      <section className="card">
+        <header className="card-head">
+          <h2>Abonnement</h2>
+          <span className="chip">
+            {agentLabel(harness)}
+            {known && ` · ${sub?.plan}`}
+            {known && sub?.pricePerMonth != null && ` · ${formatUsd(sub.pricePerMonth)}/mois`}
+          </span>
+        </header>
+        <p className="muted small hint-top">{offReason}</p>
+      </section>
+    );
+  }
   return (
     <section className="card">
       <header className="card-head">
@@ -554,12 +571,6 @@ export function SubscriptionCard({
         <p className="muted small hint-top">
           Le plan n'a pas pu être détecté : il est lu dans la connexion de Claude Code (commande
           claude) de cet environnement.
-        </p>
-      )}
-      {!estimate && offline && harness === "claude" && (
-        <p className="muted small hint-top">
-          Valeur et rythme indisponibles en mode hors ligne : ils demandent la limite hebdomadaire en direct
-          d'Anthropic.
         </p>
       )}
       {estimate && (

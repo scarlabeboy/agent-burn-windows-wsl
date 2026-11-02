@@ -21,7 +21,7 @@ export function quotaHint(settings: Settings): string {
   if (settings.offline) return "Désactivé en mode hors ligne : les quotas viennent des serveurs de Claude et Codex.";
   return settings.quotas
     ? "Les jauges de Claude Code et Codex sont relues en ligne chaque minute."
-    : "Les jauges ne sont plus relues : elles gardent leur dernier relevé.";
+    : "Les quotas ne sont plus relus ni affichés ; leur historique est gardé pour la reprise.";
 }
 
 export function refreshHint(minutes: number): string {
@@ -36,9 +36,29 @@ export function autoUpdateHint(offline: boolean): string {
     : "Au démarrage puis toutes les 6 heures, sur les versions publiées sur GitHub.";
 }
 
-/** Why a Claude or Codex page shows no quota when the reason is a setting, not a sign-in. */
+/**
+ * Why a Claude or Codex page shows no quota when the reason is a setting, not a sign-in. A reading
+ * that is no longer refreshed is not shown either: offline comes first, since it stops quotas too.
+ */
 export function quotaOffReason(settings: Settings): string | undefined {
   if (settings.offline) return "Quota non lu : mode hors ligne activé (Réglages › Données).";
   if (!settings.quotas) return "Quota non lu : la lecture des quotas est désactivée (Réglages › Données).";
+  return undefined;
+}
+
+/** Why the subscription value and pace are not shown: they need live prices and the live quota. */
+export function subscriptionOffReason(settings: Settings): string | undefined {
+  if (settings.offline)
+    return "Valeur et rythme indisponibles en mode hors ligne : ils demandent les tarifs et le quota en direct.";
+  if (!settings.quotas)
+    return "Valeur et rythme indisponibles : la lecture des quotas est désactivée (Réglages › Données).";
+  return undefined;
+}
+
+/** Why the weekly Codex limit per day is not read: it comes from the ChatGPT dashboard. */
+export function limitUsageOffReason(settings: Settings): string | undefined {
+  if (settings.offline) return "Limite hebdomadaire par jour indisponible en mode hors ligne : elle vient du réseau.";
+  if (!settings.quotas)
+    return "Limite hebdomadaire par jour non lue : la lecture des quotas est désactivée (Réglages › Données).";
   return undefined;
 }

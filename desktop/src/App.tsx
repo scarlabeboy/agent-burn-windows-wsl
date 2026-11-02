@@ -59,9 +59,11 @@ import {
   autoUpdateHint,
   offlineHint,
   quotaHint,
+  limitUsageOffReason,
   quotaOffReason,
   quotasActive,
   refreshHint,
+  subscriptionOffReason,
 } from "./settingsHints";
 import { pickClaudeAccount, pickSubscription } from "./subscription";
 import type {
@@ -114,19 +116,17 @@ function reportOf(state: SourceState | undefined): UsageReport | undefined {
 
 /** The weekly Codex limit per day, or the reason there is none to show. */
 function LimitUsageSection({
-  offline,
+  offReason,
   best,
   attempted,
   label,
 }: {
-  offline: boolean;
+  offReason?: string;
   best?: { id: string; days: LimitUsageDay[] };
   attempted: boolean;
   label: (id: string) => string;
 }) {
-  if (offline) {
-    return <div className="notice">Limite hebdomadaire par jour indisponible en mode hors ligne : elle vient du réseau.</div>;
-  }
+  if (offReason) return <div className="notice">{offReason}</div>;
   if (best) return <LimitUsageChart days={best.days} where={label(best.id)} />;
   return (
     <div className="notice">
@@ -528,13 +528,15 @@ export default function App() {
     }
     return quotaCards([...freshest.values()]);
   };
+  // Quotas that are no longer read are not shown anywhere: a stale reading looks live. Their
+  // history stays in the archive and comes back with the next reading.
   const cards: QuotaCard[] = useMemo(
-    () => quotaCardsFor(activeIds),
-    [quotas, activeKey, readableKey, disabledKey],
+    () => (quotasOn ? quotaCardsFor(activeIds) : []),
+    [quotas, activeKey, readableKey, disabledKey, quotasOn],
   );
   const accountCards: QuotaCard[] = useMemo(
-    () => quotaCardsFor(sourceIds),
-    [quotas, sourceIds, readableKey, disabledKey],
+    () => (quotasOn ? quotaCardsFor(sourceIds) : []),
+    [quotas, sourceIds, readableKey, disabledKey, quotasOn],
   );
   const pageCards = cards.filter((card) => card.harness === page);
 
@@ -634,7 +636,7 @@ export default function App() {
   const limitUsageRef = useRef(limitUsage);
   limitUsageRef.current = limitUsage;
   useEffect(() => {
-    if (page !== "codex" || settings.offline || !archiveReady || disabled.includes("codex")) return;
+    if (page !== "codex" || !quotasOn || !archiveReady || disabled.includes("codex")) return;
     for (const id of activeIds) {
       if (!readableIds.includes(id as SourceId)) continue;
       const known = limitUsageRef.current[id];
@@ -643,7 +645,7 @@ export default function App() {
         .catch(() => [] as LimitUsageDay[])
         .then((days) => setLimitUsage((current) => ({ ...current, [id]: { days, at: Date.now() } })));
     }
-  }, [page, activeKey, readableKey, settings.offline, archiveReady, lastScan, disabledKey]);
+  }, [page, activeKey, readableKey, quotasOn, archiveReady, lastScan, disabledKey]);
   const limitEntries = activeIds.flatMap((id) => (limitUsage[id] ? [{ id, ...limitUsage[id] }] : []));
   const limitBest = limitEntries.filter((entry) => entry.days.length > 0).sort((a, b) => b.at - a.at)[0];
   const limitAttempted = limitEntries.length > 0;
@@ -799,14 +801,23 @@ export default function App() {
         {subscriptionIds.map((id) => {
           const left = weeklyLeft(id);
           const agent = localReport?.agents.find((entry) => entry.agent === id);
+          // The spend line matches every harness; the weekly quota goes below it, only while read.
           return (
-            <button key={id} className={`nav${page === id && !showSettings ? " on" : ""}`} onClick={() => openPage(id)}>
-              <BrandIcon agent={id} />
-              <span className="nav-label">{agentLabel(id)}</span>
-              {left !== undefined ? (
-                <span className={pillClass(left)}>{left.toFixed(0)}%</span>
-              ) : (
+            <button
+              key={id}
+              className={`nav sub${page === id && !showSettings ? " on" : ""}`}
+              onClick={() => openPage(id)}
+            >
+              <span className="nav-line">
+                <BrandIcon agent={id} />
+                <span className="nav-label">{agentLabel(id)}</span>
                 <span className="nav-value">{agent ? formatUsd(agent.totalCost) : ""}</span>
+              </span>
+              {left !== undefined && (
+                <span className="nav-line nav-quota">
+                  <span className="nav-label">Quota hebdo</span>
+                  <span className={pillClass(left)}>{left.toFixed(0)}%</span>
+                </span>
               )}
             </button>
           );
@@ -1038,11 +1049,18 @@ export default function App() {
                 </>
               ) : (
                 <>
-                  {(page === "claude" || page === "codex") && pageCards.length === 0 && (
-                    <div className="notice">
-                      {quotaOffReason(settings) ?? quotaMissing(page, tab, activeDistro?.running ?? false)}
-                    </div>
-                  )}
+                  {(page === "claude" || page === "codex") &&
+                    pageCards.length === 0 &&
+                    (quotaOffReason(settings) ? (
+                      <section className="card">
+                        <header className="card-head">
+                          <h2>Quota {agentLabel(page)}</h2>
+                        </header>
+                        <p className="muted small">{quotaOffReason(settings)}</p>
+                      </section>
+                    ) : (
+                      <div className="notice">{quotaMissing(page, tab, activeDistro?.running ?? false)}</div>
+                    ))}
                   {pageCards.map((card) => (
                     <QuotaSection
                       key={`${card.harness}-${card.sources.join()}`}
@@ -1056,12 +1074,12 @@ export default function App() {
                       sub={pickSubscription(sourceReports, page)}
                       account={pickClaudeAccount(sourceReports)}
                       card={pageCards[0]}
-                      offline={settings.offline}
+                      offReason={subscriptionOffReason(settings)}
                     />
                   )}
                   {page === "codex" && (
                     <LimitUsageSection
-                      offline={settings.offline}
+                      offReason={limitUsageOffReason(settings)}
                       best={limitBest}
                       attempted={limitAttempted}
                       label={label}

@@ -4,6 +4,16 @@ Each version's section becomes the notes of its GitHub release and of `latest.js
 app shows before installing an update (`scripts/prepare-release.ps1`). Only `### ` titles and
 `- ` items are shown in the app. Sections: Nouveautés, Améliorations, Corrections, Retiré.
 
+## 0.3.2
+
+### Améliorations
+- Barre latérale : Claude Code et Codex affichent leur dépense totale comme les autres harness, et leur quota hebdomadaire sur une deuxième ligne.
+- Un quota qui n'est plus relu n'est plus affiché : en mode hors ligne ou avec la lecture des quotas coupée, les blocs Quota et Abonnement, le graphique Codex par jour, la barre latérale et l'icône de notification le disent au lieu de montrer un vieux relevé. L'historique est gardé et revient avec le prochain relevé.
+
+### Corrections
+- Le bloc Abonnement ne montre plus « plan inconnu » pour Codex en mode hors ligne.
+- Avec la lecture des quotas coupée, le graphique Codex par jour n'est plus lu sur le réseau.
+
 ## 0.3.1
 
 ### Nouveautés
