@@ -98,7 +98,9 @@ export function readSettings(): Settings {
         ? "off"
         : "auto";
     const { wslEnabled: _old, ...rest } = stored;
-    return { ...defaults, ...rest, wslMode: mode };
+    // "Every minute" is no longer offered: a scan can take half a minute.
+    const refreshMinutes = stored.refreshMinutes === 1 ? 5 : (stored.refreshMinutes ?? defaults.refreshMinutes);
+    return { ...defaults, ...rest, wslMode: mode, refreshMinutes };
   } catch {
     return defaults;
   }

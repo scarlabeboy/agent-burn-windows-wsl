@@ -468,10 +468,12 @@ export default function App() {
     tab === "windows" ? ["windows"] : tab === "wsl" ? (activeDistro ? [`wsl:${activeDistro.name}`] : []) : sourceIds;
   const activeKey = activeIds.join(",");
   // Every source of this tab answered and none has any harness: a first launch, or a machine
-  // where no supported agent was used yet.
+  // where no supported agent was used yet. A stopped distribution never read yet has nothing to
+  // add, so it does not hold the message back (a stopped one with a saved report does count).
+  const answeringIds = activeIds.filter((id) => readableIds.includes(id as SourceId) || states[id]);
   const hasNoData =
-    activeIds.length > 0 &&
-    activeIds.every((id) => {
+    answeringIds.length > 0 &&
+    answeringIds.every((id) => {
       const state = states[id];
       return state?.status === "ready" && state.report.agents.length === 0;
     });
@@ -479,6 +481,11 @@ export default function App() {
     .filter((entry) => !entry.running && activeIds.includes(`wsl:${entry.name}`))
     .map((entry) => entry.name);
   const pendingState = states[activeIds[0] ?? "windows"];
+  // A failed read keeps the previous figures on screen; the status bar says it failed.
+  const failedId = readableIds.find((id) => states[id]?.status === "error");
+  const failedState = failedId ? states[failedId] : undefined;
+  const scanError =
+    failedId && failedState?.status === "error" ? `${label(failedId)} : lecture impossible (${failedState.message})` : undefined;
   const lastScan = Math.max(
     0,
     ...sourceIds.map((id) => {
@@ -868,7 +875,9 @@ export default function App() {
                     onChange={(event) => updateSettings({ ...settings, refreshMinutes: Number(event.target.value) })}
                   >
                     <option value={0}>Jamais</option>
-                    <option value={1}>Chaque minute</option>
+                    {/* A WSL scan with OpenCode takes about 30 s: every minute would read almost
+                        nonstop. Kept here to bring back if scans get faster. */}
+                    {/* <option value={1}>Chaque minute</option> */}
                     <option value={5}>Toutes les 5 minutes</option>
                     <option value={10}>Toutes les 10 minutes</option>
                     <option value={30}>Toutes les 30 minutes</option>
@@ -1059,6 +1068,7 @@ export default function App() {
           loading={loading}
           lastScan={lastScan}
           nextScan={nextScan}
+          error={scanError}
           update={updater.state}
           onOpenUpdate={() => setShowUpdate(true)}
         />

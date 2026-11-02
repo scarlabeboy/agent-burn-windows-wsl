@@ -68,6 +68,8 @@ button { cursor: pointer; }
 .statusbar .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
 .statusbar .dot.ok { background: var(--ok); }
 .statusbar .dot.busy { background: var(--accent); }
+.statusbar .dot.bad { background: var(--danger); }
+.status-error { color: var(--danger); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .update-link { background: none; border: 0; padding: 0; color: var(--accent); font-weight: 600; }
 .update-link:hover { text-decoration: underline; }
 /* Buttons inside the settings rows. */

@@ -21,12 +21,15 @@ export function StatusBar({
   loading,
   lastScan,
   nextScan,
+  error,
   update,
   onOpenUpdate,
 }: {
   loading: boolean;
   lastScan: number;
   nextScan: number;
+  /** The last read of a source failed (for example the CLI removed by an antivirus). */
+  error?: string;
   update: UpdateState;
   onOpenUpdate: () => void;
 }) {
@@ -37,14 +40,20 @@ export function StatusBar({
   const next = nextScan > 0 && nextIn > 0 ? ` (prochaine dans ${nextIn} min)` : "";
   return (
     <footer className="statusbar small muted">
-      <i className={`dot${loading ? " busy" : lastScan > 0 ? " ok" : ""}`} />
-      <span title="Dernière lecture des journaux des harness">
-        {loading
-          ? "Mise à jour…"
-          : lastScan > 0
-            ? `Mis à jour à ${new Date(lastScan).toLocaleTimeString("fr-FR")} · il y a ${formatAge(nowMs - lastScan)}${next}`
-            : "Pas encore lu"}
-      </span>
+      <i className={`dot${loading ? " busy" : error ? " bad" : lastScan > 0 ? " ok" : ""}`} />
+      {!loading && error ? (
+        <span className="status-error" title={error}>
+          {error}
+        </span>
+      ) : (
+        <span title="Dernière lecture des journaux des harness">
+          {loading
+            ? "Mise à jour…"
+            : lastScan > 0
+              ? `Mis à jour à ${new Date(lastScan).toLocaleTimeString("fr-FR")} · il y a ${formatAge(nowMs - lastScan)}${next}`
+              : "Pas encore lu"}
+        </span>
+      )}
       <div className="spacer" />
       {update.status === "available" && (
         <button className="update-link" onClick={onOpenUpdate} title="Voir les nouveautés avant d'installer">

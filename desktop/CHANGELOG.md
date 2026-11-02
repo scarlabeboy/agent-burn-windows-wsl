@@ -4,6 +4,18 @@ Each version's section becomes the notes of its GitHub release and of `latest.js
 app shows before installing an update (`scripts/prepare-release.ps1`). Only `### ` titles and
 `- ` items are shown in the app. Sections: Nouveautés, Améliorations, Corrections, Retiré.
 
+## 0.2.2
+
+### Améliorations
+- Une lecture qui échoue s'affiche en rouge dans la barre de pied, avec sa cause, au lieu de « Pas encore lu ».
+- Premier lancement : le message d'accueil s'affiche aussi sur l'onglet Ordinateur quand WSL est éteint.
+
+### Corrections
+- Une distribution WSL sans Claude Code est de nouveau lue : sa lecture échouait entièrement.
+
+### Retiré
+- Le rafraîchissement « Chaque minute » : une lecture peut durer une demi-minute. Ce réglage passe à 5 minutes.
+
 ## 0.2.1
 
 ### Nouveautés

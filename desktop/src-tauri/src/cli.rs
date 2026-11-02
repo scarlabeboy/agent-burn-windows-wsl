@@ -96,7 +96,8 @@ fn apply_source(
     };
     let user = sources::running_user(distro)?;
     let home = sources::wsl_home_unc(distro, &user);
-    command.envs(wsl_environment(&home));
+    let has_claude = std::path::Path::new(&format!(r"{home}\.claude\projects")).is_dir();
+    command.envs(wsl_environment(&home, has_claude));
     // A Cursor token set on Windows belongs to the Windows source, which already counts it.
     command.env_remove("CURSOR_ACCESS_TOKEN");
     let mut snapshot = Snapshot(None);
@@ -112,13 +113,20 @@ fn apply_source(
 /// distribution's own home directory. Cursor is the one harness the CLI looks up through
 /// `%APPDATA%` on Windows, which would be the Windows sign-in counted a second time: it is
 /// pointed at the Linux location instead.
-fn wsl_environment(home: &str) -> [(&'static str, String); 4] {
-    [
-        ("CLAUDE_CONFIG_DIR", format!(r"{home}\.claude")),
+///
+/// The CLI stops on a `CLAUDE_CONFIG_DIR` without `projects/`, which would fail the whole scan of
+/// a distribution where Claude Code was never used: it is only set when that folder exists.
+/// Without it the CLI looks under `HOME`, the distribution's home, never the Windows one.
+fn wsl_environment(home: &str, has_claude: bool) -> Vec<(&'static str, String)> {
+    let mut environment = vec![
         ("CODEX_HOME", format!(r"{home}\.codex")),
         ("CURSOR_DATA_DIR", format!(r"{home}\.config\Cursor")),
         ("HOME", home.to_string()),
-    ]
+    ];
+    if has_claude {
+        environment.push(("CLAUDE_CONFIG_DIR", format!(r"{home}\.claude")));
+    }
+    environment
 }
 
 const CLAUDE_PLANS: [&str; 3] = ["pro", "max-5x", "max-20x"];
@@ -377,11 +385,22 @@ mod tests {
     #[test]
     fn a_wsl_source_reads_every_harness_from_its_own_home() {
         let home = r"\\wsl.localhost\Ubuntu\home\user";
-        for (name, value) in wsl_environment(home) {
+        for (name, value) in wsl_environment(home, true) {
             assert!(value.starts_with(home), "{name} points outside the distribution: {value}");
         }
-        let names: Vec<_> = wsl_environment(home).iter().map(|(name, _)| *name).collect();
+        let names: Vec<_> = wsl_environment(home, true).iter().map(|(name, _)| *name).collect();
         assert!(names.contains(&"CURSOR_DATA_DIR"), "Cursor would read %APPDATA% on Windows");
+        assert!(names.contains(&"CLAUDE_CONFIG_DIR"));
+    }
+
+    /// A distribution without Claude Code must still be read: the CLI rejects a Claude folder
+    /// that does not exist, so none is given, and HOME keeps the lookup inside the distribution.
+    #[test]
+    fn a_wsl_source_without_claude_gets_no_claude_folder() {
+        let home = r"\\wsl.localhost\Ubuntu\home\user";
+        let environment = wsl_environment(home, false);
+        assert!(environment.iter().all(|(name, _)| *name != "CLAUDE_CONFIG_DIR"));
+        assert!(environment.contains(&("HOME", home.to_string())));
     }
 
     fn plan_for(json: &str) -> Option<String> {
