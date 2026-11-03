@@ -328,7 +328,7 @@ export default function App() {
         ...current,
         [id]: { status: "loading", previous: reportOf(current[id]), previousAt: loadedAtOf(current[id]) },
       }));
-      return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, CLAUDE_PLAN, {}, agentsToScan)
+      return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, quotasActive(settings), CLAUDE_PLAN, {}, agentsToScan)
         .then((report) => {
           const loadedAt = Date.now();
           cacheReport(id, report, loadedAt, !settings.offline);
@@ -353,7 +353,7 @@ export default function App() {
         refreshRef.current();
       }
     });
-  }, [readableIds, settings.offline, agentsToScan]);
+  }, [readableIds, settings.offline, settings.quotas, agentsToScan]);
   refreshRef.current = refresh;
 
   // Windows is scanned as soon as the archive is loaded. A WSL distribution joins the scan
@@ -658,6 +658,7 @@ export default function App() {
           const detail = await loadUsage(
             id === "windows" ? null : id.slice(4),
             settings.offline,
+            false,
             CLAUDE_PLAN,
             { since: compactDate(rangeSince), until: rangeUntil ? compactDate(rangeUntil) : undefined },
             detailScope === "*" ? agentsToScan : [detailScope],

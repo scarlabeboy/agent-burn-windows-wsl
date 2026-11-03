@@ -191,19 +191,26 @@ fn reads_opencode(agents: &[String]) -> bool {
     agents.is_empty() || agents.iter().any(|agent| agent == "opencode")
 }
 
+/// Whether a summary asks for `--value`: the subscription block (plan, price, value) and the
+/// Claude account meters. The CLI reads them online from the Claude and Codex servers, which
+/// also renews the Claude sign-in, so they are left out when quotas are turned off. Period
+/// scans only need usage and skip it too. A harness selection keeps it: the block then covers
+/// the selected harnesses.
+fn wants_value(scope: &Scope, quotas: bool) -> bool {
+    quotas && scope.since.is_none() && scope.until.is_none()
+}
+
 pub fn run_summary(
     distro: Option<&str>,
     offline: bool,
+    quotas: bool,
     claude_plan: &str,
     scope: &Scope,
 ) -> Result<Value, String> {
     let mut command = Command::new(locate_cli()?);
     command.args(["summary", "--json", "--no-color"]);
-    let period_scoped = scope.since.is_some() || scope.until.is_some();
-    if !period_scoped {
-        // `--value` adds the subscription block (plan, price, value) and the Claude account
-        // meters. Period scans only need usage, so they skip it. A harness selection keeps it:
-        // the block then covers the selected harnesses.
+    let value = wants_value(scope, quotas);
+    if value {
         command.arg("--value");
     }
     for (flag, date) in [("--since", &scope.since), ("--until", &scope.until)] {
@@ -224,7 +231,7 @@ pub fn run_summary(
         command.arg("--offline");
     }
     let (home, _snapshot) = apply_source(&mut command, distro, reads_opencode(&scope.agents))?;
-    if !period_scoped {
+    if value {
         if let Some(plan) = resolve_claude_plan(claude_plan, home.as_deref()) {
             command.args(["--claude-plan", &plan]);
         }
@@ -563,5 +570,17 @@ mod tests {
         );
         assert_eq!(resolve_claude_plan("none", None), None);
         assert_eq!(resolve_claude_plan("$$", None), None);
+    }
+
+    #[test]
+    fn asks_for_the_subscription_only_on_a_full_scan_with_quotas() {
+        let scope = |since: Option<&str>| Scope {
+            since: since.map(str::to_string),
+            until: None,
+            agents: vec!["codex".to_string()],
+        };
+        assert!(wants_value(&scope(None), true));
+        assert!(!wants_value(&scope(None), false), "quotas off: no online reading");
+        assert!(!wants_value(&scope(Some("20261101")), true), "a period scan needs usage only");
     }
 }

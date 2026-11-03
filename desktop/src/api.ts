@@ -24,9 +24,11 @@ export interface UsageScope {
   until?: string;
 }
 
+/** `quotas`: a full scan also reads the subscription block online (`--value`). */
 export const loadUsage = (
   distro: string | null,
   offline: boolean,
+  quotas: boolean,
   claudePlan: string,
   scope: UsageScope = {},
   agents?: string[],
@@ -34,6 +36,7 @@ export const loadUsage = (
   invoke<UsageReport>("load_usage", {
     distro,
     offline,
+    quotas,
     claudePlan,
     since: scope.since ?? null,
     until: scope.until ?? null,
