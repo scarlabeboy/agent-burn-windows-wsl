@@ -6,6 +6,24 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.4.3
+
+#### English
+
+### New
+- The overview shows the token breakdown (input, output, cache write, cache read) of all harnesses together, before the models table.
+
+### Fixes
+- With many harnesses, the "By harness" card no longer grows taller than the spend chart beside it: its list scrolls inside the card.
+
+#### Français
+
+### Nouveautés
+- La vue d'ensemble affiche la répartition des tokens (entrée, sortie, écriture cache, lecture cache) de tous les harness réunis, avant le tableau des modèles.
+
+### Corrections
+- Avec beaucoup de harness, la carte « Par harness » ne dépasse plus la hauteur du graphique de dépense à côté : sa liste défile dans la carte.
+
 ## 0.4.2
 
 #### English
