@@ -10,6 +10,8 @@
   --accent: #ff7a2f;
   --danger: #ff5d6c;
   --ok: #2ed573;
+  /* Height of the app name and of the top bar: their bottom rules meet in one line. */
+  --bar-h: 64px;
   font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
 }
 
@@ -23,11 +25,20 @@ button { cursor: pointer; }
 
 /* Sidebar */
 .sidebar {
-  width: 272px; flex: none; padding: 14px 12px; overflow-y: auto;
+  width: 272px; flex: none; display: flex; flex-direction: column;
   background: #19191b; border-right: 1px solid var(--line);
+}
+/* The name stays on top and only the menu below it scrolls; its rule continues the top bar's. */
+.brand-row {
+  flex: none; height: var(--bar-h);
+  display: flex; align-items: center; gap: 8px; padding: 0 22px; font-size: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.sidebar-nav {
+  flex: 1; min-height: 0; overflow-y: auto; padding: 0 12px 14px;
   display: flex; flex-direction: column; gap: 2px;
 }
-.brand-row { display: flex; align-items: center; gap: 8px; padding: 4px 10px 12px; font-size: 16px; }
+.sidebar-nav > .nav-group:first-child { margin-top: 0; border-top: 0; }
 /* Each group opens with a rule and a small title, as in the settings. */
 .nav-group {
   color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
@@ -62,7 +73,7 @@ button { cursor: pointer; }
 
 /* Main area */
 .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.topbar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); min-height: 63px; }
+.topbar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); flex: none; height: var(--bar-h); }
 .page-head { min-width: 0; }
 .topbar .page-title { font-size: 18px; }
 .topbar .page-sub { font-size: 12px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
