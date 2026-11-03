@@ -1119,12 +1119,12 @@ export default function App() {
                         report={asReport(selected, approx)}
                         defaultGranularity={defaultGranularity(effectivePeriod)}
                       />
-                      <Models report={asReport(selected, approx)} detailError={detailError} />
                       <TokenBreakdownCard
                         breakdown={selected.tokenBreakdown}
                         pending={approx}
                         detailError={detailError}
                       />
+                      <Models report={asReport(selected, approx)} detailError={detailError} />
                     </>
                   ) : (
                     <div className="notice">{text.app.noUsageData(agentLabel(page))}</div>
