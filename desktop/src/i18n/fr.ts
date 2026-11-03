@@ -71,9 +71,11 @@ export const fr = {
     never: "Jamais",
     everyMinutes: (minutes: number) => `Toutes les ${minutes} minutes`,
     wslRead: "Lecture de WSL",
-    wslModes: { off: "Désactivé", auto: "Automatique", keep: "Maintenu allumé" },
+    wslReadOn: "Les distributions WSL sont lues et ont leur onglet.",
+    wslReadOff: "Windows uniquement : WSL n'est jamais interrogé, et le choix d'environnement disparaît du menu.",
+    wslModeTitle: "Mode de lecture",
+    wslModes: { auto: "Automatique", keep: "Maintenu allumé" },
     wslModeHints: {
-      off: "Windows uniquement : WSL n'est jamais interrogé et son onglet est caché.",
       auto: "WSL est lu quand il tourne déjà ; l'application ne le réveille jamais.",
       keep: "L'application garde WSL allumé tant qu'elle tourne (« Quitter » de l'icône l'arrête). Fermer la fenêtre ne change rien.",
     },

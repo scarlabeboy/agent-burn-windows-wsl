@@ -46,11 +46,13 @@ app is not 1.0 yet.
 
 ## Notes
 
-- WSL is optional. The settings only offer a WSL choice when a distribution exists. The
-  modes are: **Off** (WSL is never queried, Windows only, no WSL tab), **Automatic**
-  (default: a distribution is read when it is already running and never woken up) and
-  **Kept running** (the app runs `wsl.exe -d <distro> --exec sleep infinity` for each
-  distribution while it runs; it never runs `wsl --shutdown`).
+- WSL is optional. The settings only show a WSL card when a distribution exists. Its
+  **WSL reading** switch turned off means Windows only: WSL is never queried and the side
+  bar has no environment choice.
+  While it is on, the **Reading mode** is **Automatic** (default: a distribution is read when
+  it is already running and never woken up) or **Kept running** (the app runs
+  `wsl.exe -d <distro> --exec sleep infinity` for each distribution while it runs; it never
+  runs `wsl --shutdown`). The mode is kept while reading is off.
 - Every process the app starts (each CLI run, the processes keeping WSL awake) lives in a
   Windows job that ends them with the app, so a CLI run still going never keeps
   `agent-burn.exe` locked when an update replaces it.

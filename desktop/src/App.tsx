@@ -232,8 +232,8 @@ export default function App() {
   };
 
   const distros = useMemo(
-    () => (settings.wslMode !== "off" ? (detected?.distros ?? []) : []),
-    [settings.wslMode, detected],
+    () => (settings.wslRead ? (detected?.distros ?? []) : []),
+    [settings.wslRead, detected],
   );
   const sourceIds = useMemo<SourceId[]>(
     () => ["windows", ...distros.map((entry) => `wsl:${entry.name}` as SourceId)],
@@ -283,7 +283,7 @@ export default function App() {
   // The detection only lists WSL, it never starts it: this check is cheap, so it repeats to
   // notice a distribution starting or stopping. With WSL off, WSL is not queried at all.
   useEffect(() => {
-    if (settings.wslMode === "off") {
+    if (!settings.wslRead) {
       setDetected({ distros: [] });
       return;
     }
@@ -302,17 +302,17 @@ export default function App() {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [settings.wslMode]);
+  }, [settings.wslRead]);
 
   // "Kept running": the app keeps each distribution awake while it runs and renews that every
   // few seconds, so a distribution that was shut down comes back. Any other mode stops it.
   useEffect(() => {
-    const keep = settings.wslMode === "keep";
+    const keep = settings.wslRead && settings.wslMode === "keep";
     void setWslKeepalive(keep).catch(() => undefined);
     if (!keep) return;
     const timer = setInterval(() => void setWslKeepalive(true).catch(() => undefined), 15_000);
     return () => clearInterval(timer);
-  }, [settings.wslMode]);
+  }, [settings.wslRead, settings.wslMode]);
 
   const scanning = useRef(false);
   const rescan = useRef(false);
@@ -1034,14 +1034,26 @@ export default function App() {
               </SettingsCard>
 
               {/* Hidden when there is no WSL to turn off; kept while off so it can be turned back on. */}
-              {(settings.wslMode !== "auto" || distros.length > 0) && (
+              {(!settings.wslRead || settings.wslMode === "keep" || distros.length > 0) && (
                 <SettingsCard title="WSL" icon={<EnvIcon env="wsl" size={16} />}>
-                  <SettingRow title={text.settings.wslRead} description={text.settings.wslModeHints[settings.wslMode]}>
+                  <SettingRow
+                    title={text.settings.wslRead}
+                    description={settings.wslRead ? text.settings.wslReadOn : text.settings.wslReadOff}
+                  >
+                    <Switch
+                      checked={settings.wslRead}
+                      label={text.settings.wslRead}
+                      onChange={(next) => updateSettings({ ...settings, wslRead: next })}
+                    />
+                  </SettingRow>
+                  {/* The mode is kept while reading is off, and greyed out. */}
+                  <SettingRow title={text.settings.wslModeTitle} description={text.settings.wslModeHints[settings.wslMode]}>
                     <select
                       value={settings.wslMode}
+                      disabled={!settings.wslRead}
                       onChange={(event) => updateSettings({ ...settings, wslMode: event.target.value as WslMode })}
                     >
-                      {(["off", "auto", "keep"] as WslMode[]).map((mode) => (
+                      {(["auto", "keep"] as WslMode[]).map((mode) => (
                         <option key={mode} value={mode}>
                           {text.settings.wslModes[mode]}
                         </option>

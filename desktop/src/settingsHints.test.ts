@@ -12,10 +12,12 @@ import {
   quotasActive,
   refreshHint,
   subscriptionOffReason,
+  wslSettings,
 } from "./settingsHints";
 import type { Settings } from "./types";
 
 const base: Settings = {
+  wslRead: true,
   wslMode: "auto",
   offline: false,
   quotas: true,
@@ -72,4 +74,13 @@ test("hints, amounts and ages follow the chosen language", () => {
   }
   assert.equal(formatUsd(1684.3).replace(/\s/g, " "), "1 684,30 $US");
   assert.equal(formatAge(2 * 86_400_000), "2 j");
+});
+
+test("the WSL switch takes over the old Off mode and keeps the chosen mode", () => {
+  assert.deepEqual(wslSettings({}), { wslRead: true, wslMode: "auto" }, "first launch");
+  assert.deepEqual(wslSettings({ wslMode: "off" }), { wslRead: false, wslMode: "auto" });
+  assert.deepEqual(wslSettings({ wslEnabled: false }), { wslRead: false, wslMode: "auto" });
+  assert.deepEqual(wslSettings({ wslMode: "keep" }), { wslRead: true, wslMode: "keep" });
+  assert.deepEqual(wslSettings({ wslRead: false, wslMode: "keep" }), { wslRead: false, wslMode: "keep" }, "off keeps the mode");
+  assert.deepEqual(wslSettings({ wslRead: true, wslMode: "bogus" }), { wslRead: true, wslMode: "auto" });
 });

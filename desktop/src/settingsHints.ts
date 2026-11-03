@@ -1,5 +1,19 @@
 import { t } from "./i18n";
-import type { Settings } from "./types";
+import type { Settings, WslMode } from "./types";
+
+/**
+ * The WSL switch and reading mode of saved settings. "Off" used to be a third mode, and before
+ * that `wslEnabled: false`; either one turns the switch off and leaves the mode on Automatic.
+ */
+export function wslSettings(stored: { wslRead?: unknown; wslMode?: unknown; wslEnabled?: unknown }): {
+  wslRead: boolean;
+  wslMode: WslMode;
+} {
+  const wslRead =
+    typeof stored.wslRead === "boolean" ? stored.wslRead : stored.wslMode !== "off" && stored.wslEnabled !== false;
+  const wslMode: WslMode = stored.wslMode === "keep" ? "keep" : "auto";
+  return { wslRead, wslMode };
+}
 
 /**
  * Offline mode stops every network call: quotas and updates are off whatever their own switch

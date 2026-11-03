@@ -2,7 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { isLang } from "./i18n";
 import type { LimitUsageDay } from "./limitUsage";
 import { PERIODS, type Period } from "./periods";
-import type { Detected, QuotaReading, Settings, TabId, UsageReport, WslMode } from "./types";
+import { wslSettings } from "./settingsHints";
+import type { Detected, QuotaReading, Settings, TabId, UsageReport } from "./types";
 
 /** Starts the error of a read when agent-burn.exe is missing; the page words it in its language. */
 export const CLI_MISSING = "cli-missing";
@@ -69,6 +70,7 @@ export const backfillCodex = (distro: string | null, sinceMs: number) =>
 
 const SETTINGS_KEY = "abf.settings";
 const defaults: Settings = {
+  wslRead: true,
   wslMode: "auto",
   offline: false,
   quotas: true,
@@ -99,25 +101,17 @@ export function writeSeen(seen: string[]) {
   }
 }
 
-const WSL_MODES: WslMode[] = ["off", "auto", "keep"];
-
 export function readSettings(): Settings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return defaults;
     const stored = JSON.parse(raw);
-    // Settings saved before the WSL list had a switch: off meant "Windows only".
-    const mode: WslMode = WSL_MODES.includes(stored.wslMode)
-      ? stored.wslMode
-      : stored.wslEnabled === false
-        ? "off"
-        : "auto";
     const { wslEnabled: _old, ...rest } = stored;
     // "Every minute" is no longer offered: a scan can take half a minute.
     const refreshMinutes = stored.refreshMinutes === 1 ? 5 : (stored.refreshMinutes ?? defaults.refreshMinutes);
     // An unknown language is dropped, so Windows' own language decides again.
     const language = isLang(stored.language) ? stored.language : undefined;
-    return { ...defaults, ...rest, wslMode: mode, refreshMinutes, language };
+    return { ...defaults, ...rest, ...wslSettings(stored), refreshMinutes, language };
   } catch {
     return defaults;
   }

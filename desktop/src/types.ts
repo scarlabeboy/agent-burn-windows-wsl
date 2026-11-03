@@ -117,10 +117,12 @@ export type SourceState =
 
 export type TabId = "windows" | "wsl" | "computer";
 
-export type WslMode = "off" | "auto" | "keep";
+export type WslMode = "auto" | "keep";
 
 export interface Settings {
-  /** off: WSL is never queried; auto: read when it runs, never woken; keep: kept awake. */
+  /** Off: Windows only, WSL is never queried and the side bar has no environment choice. */
+  wslRead: boolean;
+  /** How WSL is read while on: auto, read when it runs and never woken; keep, kept awake. Kept while off. */
   wslMode: WslMode;
   /** No network call at all: quotas and updates are off, usage is priced offline. */
   offline: boolean;

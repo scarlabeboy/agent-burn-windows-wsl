@@ -69,9 +69,11 @@ export const en: Strings = {
     never: "Never",
     everyMinutes: (minutes: number) => `Every ${minutes} minutes`,
     wslRead: "WSL reading",
-    wslModes: { off: "Off", auto: "Automatic", keep: "Kept running" },
+    wslReadOn: "WSL distributions are read and have their own tab.",
+    wslReadOff: "Windows only: WSL is never queried, and the environment choice leaves the side bar.",
+    wslModeTitle: "Reading mode",
+    wslModes: { auto: "Automatic", keep: "Kept running" },
     wslModeHints: {
-      off: "Windows only: WSL is never queried and its tab is hidden.",
       auto: "WSL is read when it is already running; the app never wakes it.",
       keep: "The app keeps WSL running while it runs (“Quit” from the icon stops it). Closing the window changes nothing.",
     },
