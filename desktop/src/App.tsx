@@ -103,6 +103,8 @@ const MELVYNX_URL = "https://github.com/Melvynx/agent-burn";
 const OVERVIEW = "overview";
 /** The weekly Codex limit per day changes slowly: read again after this long. */
 const LIMIT_USAGE_TTL_MS = 5 * 60_000;
+/** How long a quota stays on screen after a failed read, so one missed read does not blank it. */
+const QUOTA_GRACE_MS = 2 * 60_000;
 /** Each source's Claude plan is read from its own sign-in file; there is no manual choice. */
 const CLAUDE_PLAN = "auto";
 /** Period scans are reused for this long before being fetched again. */
@@ -406,9 +408,13 @@ export default function App() {
                 return { ...current, [id]: { ...current[id], [harness]: shown } };
               });
             })
-            // A source without a sign-in for this harness simply has no quota to show.
+            // A source without a sign-in for this harness simply has no quota to show. A reading
+            // from the last two minutes stays through one missed read: in WSL without a sign-in,
+            // the quota comes from Claude Code's own cache, which the CLI takes only while fresh.
             .catch(() =>
               setQuotas((current) => {
+                const previous = current[id]?.[harness];
+                if (previous && Date.now() - previous.observedAt < QUOTA_GRACE_MS) return current;
                 const { [harness]: _removed, ...rest } = current[id] ?? {};
                 return { ...current, [id]: rest };
               }),
