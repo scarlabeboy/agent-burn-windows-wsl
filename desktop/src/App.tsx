@@ -291,7 +291,7 @@ export default function App() {
     };
   }, [settings.wslMode]);
 
-  // "Maintenu allumé": the app keeps each distribution awake while it runs and renews that every
+  // "Kept running": the app keeps each distribution awake while it runs and renews that every
   // few seconds, so a distribution that was shut down comes back. Any other mode stops it.
   useEffect(() => {
     const keep = settings.wslMode === "keep";
@@ -459,7 +459,7 @@ export default function App() {
   }, [detected, refreshQuotas, quotasOn]);
 
   // Tray menu actions, and a last save of the archive before the tray "Quit" ends the process.
-  // "Actualiser" reads the quotas; with quotas off it reads the usage instead.
+  // "Refresh quotas" reads the quotas; with quotas off it reads the usage instead.
   useEffect(() => {
     const unlisten = [
       listen("tray-refresh", () => (quotasOn ? refreshQuotas(true) : refresh())),

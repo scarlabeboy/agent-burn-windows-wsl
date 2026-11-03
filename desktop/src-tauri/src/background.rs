@@ -45,7 +45,7 @@ fn tray_menu(app: &AppHandle, open: &str, refresh: &str, quit: &str) -> tauri::R
 
 /// Notification-area icon: click to open, menu to refresh quotas or quit.
 pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
-    let menu = tray_menu(app, "Ouvrir Agent Burn Windows", "Actualiser les quotas", "Quitter")?;
+    let menu = tray_menu(app, "Open Agent Burn Windows", "Refresh quotas", "Quit")?;
 
     let mut tray = TrayIconBuilder::with_id(TRAY_ID)
         .tooltip("Agent Burn Windows")

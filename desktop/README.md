@@ -1,7 +1,7 @@
 # Agent Burn for Windows
 
 Tauri v2 + React/TypeScript desktop app that reads Agent Burn usage for native Windows,
-for WSL (optional), and for both combined (Ordinateur). It runs the Agent Burn CLI from
+for WSL (optional), and for both combined (Computer). It runs the Agent Burn CLI from
 `../rust` as a sidecar and renders its JSON; it never parses logs itself. The CLI is Melvynx's
 code with a single addition, the Codex 5-hour window (`sessionWindow`) in the quota reading;
 cost calculation is untouched.
@@ -47,9 +47,9 @@ app is not 1.0 yet.
 ## Notes
 
 - WSL is optional. The settings only offer a WSL choice when a distribution exists. The
-  modes are: **Désactivé** (WSL is never queried, Windows only, no WSL tab), **Automatique**
+  modes are: **Off** (WSL is never queried, Windows only, no WSL tab), **Automatic**
   (default: a distribution is read when it is already running and never woken up) and
-  **Maintenu allumé** (the app runs `wsl.exe -d <distro> --exec sleep infinity` for each
+  **Kept running** (the app runs `wsl.exe -d <distro> --exec sleep infinity` for each
   distribution while it runs, inside a Windows job so it ends with the app; it never runs
   `wsl --shutdown`).
 - Distributions are listed with `wsl -l -q` and `wsl --list --running --quiet`, which do not
@@ -61,7 +61,7 @@ app is not 1.0 yet.
   `%LOCALAPPDATA%\dev.scarlabeboy.agent-burn-windows\archive`, apart from the install
   directory.
 - Subscription quotas use the CLI's quota-only mode. Each tab shows the quotas of its own
-  environment (Windows, WSL); the Ordinateur view keeps the freshest reading of each harness.
+  environment (Windows, WSL); the Computer view keeps the freshest reading of each harness.
   The environment is chosen in the sidebar, above the pages.
   Sign-ins (and the Claude plan) are read from the environment's own home directory: a
   Windows without a readable `~/.claude/.credentials.json` shows "quota non lu".

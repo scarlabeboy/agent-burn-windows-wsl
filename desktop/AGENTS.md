@@ -13,7 +13,7 @@ for changes under `desktop/`, the Windows desktop app of this fork. Everything o
   `*.test.ts` next to them.
 - `src-tauri/`: Tauri v2 shell in Rust. `cli.rs` runs the bundled CLI, `sources.rs` lists WSL
   distributions, `archive.rs` stores history, `background.rs` the tray and autostart,
-  `keepalive.rs` the "Maintenu allumé" WSL mode.
+  `keepalive.rs` the "Kept running" WSL mode.
 - The CLI is Melvynx's, built from `../rust` by `scripts/prepare-cli.ps1` and bundled as a
   sidecar. The app renders its JSON and never parses logs itself.
 

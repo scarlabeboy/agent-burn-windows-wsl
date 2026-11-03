@@ -110,14 +110,36 @@ fn show_error(message: &str) {
     eprintln!("{message}");
 }
 
-const WEBVIEW2_HELP: &str = "Agent Burn Windows ne peut pas démarrer : le composant Microsoft Edge \
+const WEBVIEW2_HELP: &str = "Agent Burn Windows cannot start: the Microsoft Edge WebView2 component \
+is missing or damaged.\n\nRepair it in Settings > Apps > Microsoft Edge WebView2 Runtime > Modify, \
+or install it from:\nhttps://developer.microsoft.com/microsoft-edge/webview2/\n\n\
+If an antivirus quarantined files, add an exclusion for this folder before repairing.";
+
+const WEBVIEW2_HELP_FR: &str = "Agent Burn Windows ne peut pas démarrer : le composant Microsoft Edge \
 WebView2 est absent ou endommagé.\n\nRéparez-le dans Paramètres > Applications > Microsoft Edge \
 WebView2 Runtime > Modifier, ou installez-le depuis :\nhttps://developer.microsoft.com/microsoft-edge/webview2/\n\n\
 Si un antivirus a mis des fichiers en quarantaine, ajoutez une exclusion pour ce dossier avant de réparer.";
 
+/// Whether Windows is in French. The page is not running yet, so its language setting is unknown.
+#[cfg(windows)]
+fn windows_in_french() -> bool {
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetUserDefaultUILanguage() -> u16;
+    }
+    const LANG_FRENCH: u16 = 0x0C;
+    // SAFETY: no arguments, returns a language identifier.
+    unsafe { GetUserDefaultUILanguage() & 0x3FF == LANG_FRENCH }
+}
+
+#[cfg(not(windows))]
+fn windows_in_french() -> bool {
+    false
+}
+
 fn main() {
     if tauri::webview_version().is_err() {
-        show_error(WEBVIEW2_HELP);
+        show_error(if windows_in_french() { WEBVIEW2_HELP_FR } else { WEBVIEW2_HELP });
         std::process::exit(1);
     }
     tauri::Builder::default()
