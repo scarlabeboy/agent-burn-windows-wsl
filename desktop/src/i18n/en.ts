@@ -37,12 +37,12 @@ export const en: Strings = {
     quotaWslOff: (agent: string) => `${agent} quota not read: WSL is stopped and the app does not start it.`,
     quotaWhere: { windows: "on Windows", wsl: "in WSL", computer: "on this computer" },
     quotaMissingClaude: (agent: string, where: string) =>
-      `${agent} quota not read ${where}: no readable sign-in (file ~/.claude/.credentials.json), or the service does not answer. ` +
-      "Sign in to Claude Code in this environment (claude command) to read the quota and the plan.",
+      `${agent} quota not read ${where}: no readable sign-in, or the service does not answer. ` +
+      "Sign in with the claude command; an API key has no quota.",
     quotaReadFailed: (agent: string, where: string, cause: string) => `${agent} quota not read ${where}: ${cause}`,
     quotaMissingCodex: (agent: string, where: string) =>
-      `${agent} quota not read ${where}: no readable sign-in (file ~/.codex/auth.json), or the service does not answer. ` +
-      "Sign in to Codex in this environment (codex command) to read the quota.",
+      `${agent} quota not read ${where}: no readable sign-in, or the service does not answer. ` +
+      "Sign in with the codex command; an API key has no quota.",
     limitUsageUnread:
       "Weekly limit per day not read: no Codex sign-in in this environment, or the dashboard cannot be reached.",
     limitUsageLoading: "Reading the weekly limit per day…",

@@ -38,12 +38,12 @@ export const fr = {
     quotaWslOff: (agent: string) => `Quota ${agent} non lu : WSL est éteint et l'application ne le démarre pas.`,
     quotaWhere: { windows: "sous Windows", wsl: "dans WSL", computer: "sur cet ordinateur" },
     quotaMissingClaude: (agent: string, where: string) =>
-      `Quota ${agent} non lu ${where} : aucune connexion lisible (fichier ~/.claude/.credentials.json), ou le service ne répond pas. ` +
-      "Connectez Claude Code dans cet environnement (commande claude) pour lire le quota et le plan.",
+      `Quota ${agent} non lu ${where} : pas de connexion lisible, ou le service ne répond pas. ` +
+      "Connectez-vous avec la commande claude ; une clé API n'a pas de quota.",
     quotaReadFailed: (agent: string, where: string, cause: string) => `Quota ${agent} non lu ${where} : ${cause}`,
     quotaMissingCodex: (agent: string, where: string) =>
-      `Quota ${agent} non lu ${where} : aucune connexion lisible (fichier ~/.codex/auth.json), ou le service ne répond pas. ` +
-      "Connectez Codex dans cet environnement (commande codex) pour lire le quota.",
+      `Quota ${agent} non lu ${where} : pas de connexion lisible, ou le service ne répond pas. ` +
+      "Connectez-vous avec la commande codex ; une clé API n'a pas de quota.",
     limitUsageUnread:
       "Limite hebdomadaire par jour non lue : connexion Codex introuvable dans cet environnement, ou tableau de bord injoignable.",
     limitUsageLoading: "Lecture de la limite hebdomadaire par jour…",
