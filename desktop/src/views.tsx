@@ -262,7 +262,7 @@ export function SpendChart({
 export function HarnessList({ report, onSelect }: { report: UsageReport; onSelect: (agent: string) => void }) {
   const max = Math.max(...report.agents.map((agent) => agent.totalCost), 0.0001);
   return (
-    <section className="card">
+    <section className="card harness-card">
       <header className="card-head">
         <h2>
           <TitleIcon kind="flame" />
