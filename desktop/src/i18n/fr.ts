@@ -16,7 +16,7 @@ export const fr = {
     weeklyQuota: "Quota hebdo",
     wslDistro: "Distribution WSL",
     periodShown: "Période affichée",
-    refresh: "Actualiser",
+    refresh: "Actualiser (Ctrl+R · quotas seuls : Ctrl+Maj+R)",
     subComputer: "Windows + WSL additionnés",
     subWindows: "Windows natif",
     rtdNote: " (« Depuis le reset » s'applique aux pages Claude Code et Codex)",
@@ -49,6 +49,7 @@ export const fr = {
     /** One line of the notification-area tooltip. */
     tooltipLine: (agent: string, session: string | undefined, weekly: string) =>
       `${agent} : ${session ? `5 h ${session}% · ` : ""}sem. ${weekly}%`,
+    tooltipAge: (age: string) => `il y a ${age}`,
   },
   settings: {
     general: "Général",
@@ -59,6 +60,9 @@ export const fr = {
     autostartBusy: "Enregistrement dans Windows…",
     tray: "Rester dans la zone de notification",
     trayHint: "Fermer la fenêtre garde l'application active en arrière-plan ; « Quitter » de l'icône l'arrête.",
+    restartOnCrash: "Relancer après un arrêt imprévu",
+    restartOnCrashHint:
+      "Windows rouvre l'application dans la zone de notification après un plantage, une mise à jour Windows ou un installeur qui l'a fermée. « Quitter » reste un vrai arrêt.",
     data: "Données",
     offline: "Mode hors ligne",
     quotas: "Lecture des quotas",

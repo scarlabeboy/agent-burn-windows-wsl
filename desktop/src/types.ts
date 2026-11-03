@@ -130,6 +130,8 @@ export interface Settings {
   refreshMinutes: number;
   /** Closing the window keeps the app running in the notification area. */
   closeToTray: boolean;
+  /** Windows starts the app again after a crash, or when an installer or Windows Update closed it. */
+  restartOnCrash: boolean;
   /** Look for a new release at startup and every few hours (never in offline mode, whatever this says). */
   autoUpdate: boolean;
   /** Harnesses turned off: not scanned and removed from the data. */

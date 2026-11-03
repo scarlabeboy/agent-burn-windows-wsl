@@ -14,6 +14,7 @@ import {
   readTab,
   setAutostart,
   setCloseToTray,
+  setRestartOnCrash,
   setTrayLabels,
   setTrayTooltip,
   setWslKeepalive,
@@ -58,7 +59,8 @@ import {
   type Period,
 } from "./periods";
 import { updateError } from "./releaseNotes";
-import { quotaCards, type QuotaCard } from "./quota";
+import { formatAge, freshness, quotaCards, type QuotaCard } from "./quota";
+import { useNow } from "./useNow";
 import {
   autoUpdateActive,
   autoUpdateHint,
@@ -435,6 +437,9 @@ export default function App() {
   useEffect(() => {
     void setCloseToTray(settings.closeToTray).catch(() => undefined);
   }, [settings.closeToTray]);
+  useEffect(() => {
+    void setRestartOnCrash(settings.restartOnCrash).catch(() => undefined);
+  }, [settings.restartOnCrash]);
   // The box follows the click at once; writing the startup entry can take seconds on a machine
   // whose security software inspects it. The real state is read back when the write is over.
   const [autostartBusy, setAutostartBusy] = useState(false);
@@ -470,7 +475,7 @@ export default function App() {
     };
   }, [refreshQuotas, refresh, quotasOn]);
 
-  const updater = useUpdater(settings.autoUpdate, settings.offline);
+  const updater =useUpdater(settings.autoUpdate, settings.offline);
   const [showUpdate, setShowUpdate] = useState(false);
   const appVersion = useAppVersion();
   const updateSettings = (next: Settings) => {
@@ -539,15 +544,21 @@ export default function App() {
   );
   const pageCards = cards.filter((card) => card.harness === page);
 
-  // Quota summary on the notification-area icon: the account, whatever tab is open.
+  // Ages of the quota readings shown in the tooltip and the sidebar, kept current.
+  const nowMs = useNow(15_000);
+  // Quota summary on the notification-area icon: the account, whatever tab is open. A reading
+  // that is not live says how old it is, as the quota cards do.
   const tooltip = accountCards
-    .map((card) =>
-      text.app.tooltipLine(
+    .map((card) => {
+      const line = text.app.tooltipLine(
         agentLabel(card.harness),
         card.session?.remaining.toFixed(0),
         card.weekly.remaining.toFixed(0),
-      ),
-    )
+      );
+      return freshness(card.observedAt, nowMs).fresh
+        ? line
+        : `${line} · ${text.app.tooltipAge(formatAge(nowMs - card.observedAt))}`;
+    })
     .join("\n");
   useEffect(() => {
     // Without any quota the summary goes too, rather than keep percentages that no longer hold.
@@ -685,6 +696,26 @@ export default function App() {
     : [];
 
   const loading = sourceIds.some((id) => states[id]?.status === "loading");
+
+  // Ctrl+R or F5 does what ⟳ does, Ctrl+Shift+R reads the quotas only. The page itself is never
+  // reloaded, which would drop what is on screen.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const reload = event.key === "F5" || (event.ctrlKey && event.key.toLowerCase() === "r");
+      if (!reload) return;
+      event.preventDefault();
+      if (event.repeat) return;
+      if (event.ctrlKey && event.shiftKey) {
+        if (quotasOn) refreshQuotas(true);
+      } else if (!loading) {
+        refresh();
+        if (quotasOn) refreshQuotas(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [refreshQuotas, refresh, quotasOn, loading]);
+
   // The sidebar always uses the locally filtered report, which lists every harness.
   // A report scanned before a harness was turned off (or from a stopped WSL) may still list it.
   const visibleAgents = localReport?.agents.filter((agent) => !disabled.includes(agent.agent)) ?? [];
@@ -718,7 +749,7 @@ export default function App() {
     (id) => agentIds.includes(id) || cards.some((card) => card.harness === id),
   );
   const otherAgents = visibleAgents.filter((agent) => !SUBSCRIPTIONS.includes(agent.agent));
-  const weeklyLeft = (id: string) => cards.find((card) => card.harness === id)?.weekly.remaining;
+  const weeklyCard = (id: string) => cards.find((card) => card.harness === id);
   const selected =
     page === OVERVIEW
       ? null
@@ -816,7 +847,8 @@ export default function App() {
 
           {subscriptionIds.length > 0 && <div className="nav-group">{text.app.subscriptions}</div>}
           {subscriptionIds.map((id) => {
-            const left = weeklyLeft(id);
+            const quota = weeklyCard(id);
+            const stale = quota !== undefined && !freshness(quota.observedAt, nowMs).fresh;
             const agent = localReport?.agents.find((entry) => entry.agent === id);
             // The spend line matches every harness; the weekly quota goes below it, only while read.
             return (
@@ -830,10 +862,13 @@ export default function App() {
                   <span className="nav-label">{agentLabel(id)}</span>
                   <span className="nav-value">{agent ? formatUsd(agent.totalCost) : ""}</span>
                 </span>
-                {left !== undefined && (
+                {quota && (
                   <span className="nav-line nav-quota">
                     <span className="nav-label">{text.app.weeklyQuota}</span>
-                    <span className={pillClass(left)}>{left.toFixed(0)}%</span>
+                    {/* Faded when the reading is not live. */}
+                    <span className={`${pillClass(quota.weekly.remaining)}${stale ? " stale" : ""}`}>
+                      {quota.weekly.remaining.toFixed(0)}%
+                    </span>
                   </span>
                 )}
               </button>
@@ -922,6 +957,13 @@ export default function App() {
                     checked={settings.closeToTray}
                     label={text.settings.tray}
                     onChange={(next) => updateSettings({ ...settings, closeToTray: next })}
+                  />
+                </SettingRow>
+                <SettingRow title={text.settings.restartOnCrash} description={text.settings.restartOnCrashHint}>
+                  <Switch
+                    checked={settings.restartOnCrash}
+                    label={text.settings.restartOnCrash}
+                    onChange={(next) => updateSettings({ ...settings, restartOnCrash: next })}
                   />
                 </SettingRow>
               </SettingsCard>

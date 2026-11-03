@@ -15,7 +15,7 @@ export const en: Strings = {
     weeklyQuota: "Weekly quota",
     wslDistro: "WSL distribution",
     periodShown: "Period shown",
-    refresh: "Refresh",
+    refresh: "Refresh (Ctrl+R · quotas only: Ctrl+Shift+R)",
     subComputer: "Windows + WSL combined",
     subWindows: "Native Windows",
     rtdNote: " (“Since reset” applies to the Claude Code and Codex pages)",
@@ -47,6 +47,7 @@ export const en: Strings = {
     limitUsageLoading: "Reading the weekly limit per day…",
     tooltipLine: (agent: string, session: string | undefined, weekly: string) =>
       `${agent}: ${session ? `5h ${session}% · ` : ""}wk ${weekly}%`,
+    tooltipAge: (age: string) => `${age} ago`,
   },
   settings: {
     general: "General",
@@ -57,6 +58,9 @@ export const en: Strings = {
     autostartBusy: "Saving in Windows…",
     tray: "Stay in the notification area",
     trayHint: "Closing the window keeps the app running in the background; “Quit” from the icon stops it.",
+    restartOnCrash: "Restart after an unexpected stop",
+    restartOnCrashHint:
+      "Windows reopens the app in the notification area after a crash, a Windows update or an installer that closed it. “Quit” still stops it for good.",
     data: "Data",
     offline: "Offline mode",
     quotas: "Read quotas",

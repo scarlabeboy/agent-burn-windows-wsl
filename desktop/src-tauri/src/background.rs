@@ -108,6 +108,32 @@ pub fn set_close_to_tray(state: tauri::State<CloseToTray>, enabled: bool) {
     state.0.store(enabled, Ordering::SeqCst);
 }
 
+/// Asks Windows to start the app again, in the notification area, after a crash or a hang, or
+/// when an installer or Windows Update closed it. A "Quit" from the menu is never undone, and
+/// Windows only does it for a run that lasted at least a minute.
+#[tauri::command]
+pub fn set_restart_on_crash(enabled: bool) {
+    #[cfg(windows)]
+    {
+        #[link(name = "kernel32")]
+        extern "system" {
+            fn RegisterApplicationRestart(command_line: *const u16, flags: u32) -> i32;
+            fn UnregisterApplicationRestart() -> i32;
+        }
+        let command_line: Vec<u16> = BACKGROUND_FLAG.encode_utf16().chain(Some(0)).collect();
+        // SAFETY: the command line is NUL-terminated and Windows copies it during the call.
+        unsafe {
+            if enabled {
+                RegisterApplicationRestart(command_line.as_ptr(), 0);
+            } else {
+                UnregisterApplicationRestart();
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    let _ = enabled;
+}
+
 // Async so the registry access never runs on the thread that draws the window: a slow
 // write (an antivirus checking the startup entry) would otherwise freeze the interface.
 #[tauri::command]
