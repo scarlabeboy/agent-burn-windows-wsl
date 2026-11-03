@@ -19,7 +19,7 @@ export const fr = {
     refresh: "Actualiser (Ctrl+R · quotas seuls : Ctrl+Maj+R)",
     subComputer: "Windows + WSL additionnés",
     subWindows: "Windows natif",
-    rtdNote: " (« Depuis le jour du reset » s'applique aux pages Claude Code et Codex)",
+    rtdNote: " (« Depuis le jour du reset » s'applique aux abonnements dont le quota est lu)",
     allHarnesses: "Tous harness confondus",
     theComputer: "l'ordinateur",
     readFailed: (label: string) => `${label} : lecture impossible.`,

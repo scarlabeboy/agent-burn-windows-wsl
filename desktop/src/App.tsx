@@ -56,6 +56,7 @@ import {
   isoDate,
   periodLabel,
   rangeFor,
+  type DateRange,
   type Period,
 } from "./periods";
 import { updateError } from "./releaseNotes";
@@ -611,25 +612,54 @@ export default function App() {
 
   // Totals and daily series of a period are filtered locally and are exact; per-model detail
   // comes from a period scan of the CLI, loaded on demand and reused for a few minutes.
-  const localParts = useMemo(
-    () =>
-      activeKey
-        .split(",")
-        .filter(Boolean)
-        .flatMap((id) => {
-          const base = reportOf(states[id]);
-          if (!base) return [];
-          // Days a harness no longer reports (old logs purged) come back from the daily archive.
-          // A harness turned off since this report was read (a stopped WSL keeps it) stays out.
-          const current = withoutHarnesses(base, disabled);
-          const report = withArchive(range ? filterReport(current, range) : current, archivedDays(id), disabled, range ?? undefined);
-          return [{ id, label: label(id), report }];
-        }),
-    [activeKey, states, rangeSince, rangeUntil, disabledKey],
-  );
+  const localPartsFor = (range: DateRange | null) =>
+    activeKey
+      .split(",")
+      .filter(Boolean)
+      .flatMap((id) => {
+        const base = reportOf(states[id]);
+        if (!base) return [];
+        // Days a harness no longer reports (old logs purged) come back from the daily archive.
+        // A harness turned off since this report was read (a stopped WSL keeps it) stays out.
+        const current = withoutHarnesses(base, disabled);
+        const report = withArchive(range ? filterReport(current, range) : current, archivedDays(id), disabled, range ?? undefined);
+        return [{ id, label: label(id), report }];
+      });
+  const localReportFor = (range: DateRange | null) => {
+    const parts = localPartsFor(range);
+    return parts.length ? mergeReports(parts.map((part) => part.report)) : undefined;
+  };
+  const localParts = useMemo(() => localPartsFor(range), [activeKey, states, rangeSince, rangeUntil, disabledKey]);
   const localReport = useMemo(
     () => (localParts.length ? mergeReports(localParts.map((part) => part.report)) : undefined),
     [localParts],
+  );
+
+  // Under "Since the reset day" the side bar does not follow the open page: each subscription
+  // counts from its own reset day, everything else over the whole period, as on their own pages.
+  const resetRtd = period === "rtd";
+  const resetStarts = resetRtd
+    ? SUBSCRIPTIONS.map((id) => {
+        const start = cards.find((card) => card.harness === id)?.weekly.startMs;
+        return [id, start] as const;
+      })
+    : [];
+  const resetStartsKey = resetStarts
+    .map(([id, start]) => `${id}:${start === undefined ? "" : isoDate(new Date(start))}`)
+    .join(",");
+  const navReport = useMemo(
+    () => (resetRtd ? localReportFor(null) : localReport),
+    [resetRtd, localReport, activeKey, states, disabledKey],
+  );
+  const resetSpend = useMemo(
+    () =>
+      new Map(
+        resetStarts.map(([id, start]) => {
+          const since = start === undefined ? navReport : localReportFor(rangeFor("rtd", new Date(), start));
+          return [id, since?.agents.find((agent) => agent.agent === id)?.totalCost] as const;
+        }),
+      ),
+    [resetStartsKey, navReport],
   );
   const report = useMemo(() => {
     if (!localReport) return undefined;
@@ -750,7 +780,7 @@ export default function App() {
 
   // The sidebar always uses the locally filtered report, which lists every harness.
   // A report scanned before a harness was turned off (or from a stopped WSL) may still list it.
-  const visibleAgents = localReport?.agents.filter((agent) => !disabled.includes(agent.agent)) ?? [];
+  const visibleAgents = navReport?.agents.filter((agent) => !disabled.includes(agent.agent)) ?? [];
   const agentIds = visibleAgents.map((agent) => agent.agent);
 
   // Remember each harness that shows data, and leave the page of one that was just turned off.
@@ -874,14 +904,16 @@ export default function App() {
           <button className={`nav${page === OVERVIEW && !showSettings ? " on" : ""}`} onClick={() => openPage(OVERVIEW)}>
             <OverviewIcon />
             <span className="nav-label">{text.app.overview}</span>
-            <span className="nav-value">{localReport ? formatUsd(localReport.totals.totalCost) : ""}</span>
+            <span className="nav-value">{navReport ? formatUsd(navReport.totals.totalCost) : ""}</span>
           </button>
 
           {subscriptionIds.length > 0 && <div className="nav-group">{text.app.subscriptions}</div>}
           {subscriptionIds.map((id) => {
             const quota = weeklyCard(id);
             const stale = quota !== undefined && !freshness(quota.observedAt, nowMs).fresh;
-            const agent = localReport?.agents.find((entry) => entry.agent === id);
+            const cost = resetRtd
+              ? resetSpend.get(id)
+              : localReport?.agents.find((entry) => entry.agent === id)?.totalCost;
             // The spend line matches every harness; the weekly quota goes below it, only while read.
             return (
               <button
@@ -892,7 +924,7 @@ export default function App() {
                 <span className="nav-line">
                   <BrandIcon agent={id} />
                   <span className="nav-label">{agentLabel(id)}</span>
-                  <span className="nav-value">{agent ? formatUsd(agent.totalCost) : ""}</span>
+                  <span className="nav-value">{cost !== undefined ? formatUsd(cost) : ""}</span>
                 </span>
                 {quota && (
                   <span className="nav-line nav-quota">

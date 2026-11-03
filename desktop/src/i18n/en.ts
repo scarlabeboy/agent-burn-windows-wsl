@@ -18,7 +18,7 @@ export const en: Strings = {
     refresh: "Refresh (Ctrl+R · quotas only: Ctrl+Shift+R)",
     subComputer: "Windows + WSL combined",
     subWindows: "Native Windows",
-    rtdNote: " (“Since the reset day” applies to the Claude Code and Codex pages)",
+    rtdNote: " (“Since the reset day” applies to subscriptions whose quota is read)",
     allHarnesses: "All harnesses",
     theComputer: "the computer",
     readFailed: (label: string) => `${label}: could not be read.`,
