@@ -59,7 +59,7 @@ import {
   type Period,
 } from "./periods";
 import { updateError } from "./releaseNotes";
-import { formatAge, freshness, quotaCards, type QuotaCard } from "./quota";
+import { formatAge, freshness, quotaCards, quotaFailure, type QuotaCard } from "./quota";
 import { useNow } from "./useNow";
 import {
   autoUpdateActive,
@@ -140,12 +140,13 @@ function LimitUsageSection({
   return <div className="notice">{attempted ? t().app.limitUsageUnread : t().app.limitUsageLoading}</div>;
 }
 
-/** Why a harness page has no quota, in the words of the open tab. */
-function quotaMissing(harness: string, tab: TabId, wslRunning: boolean): string {
+/** Why a harness page has no quota, in the words of the open tab; `cause` when the app knows it. */
+function quotaMissing(harness: string, tab: TabId, wslRunning: boolean, cause?: string): string {
   const name = agentLabel(harness);
   const text = t().app;
   if (tab === "wsl" && !wslRunning) return text.quotaWslOff(name);
   const where = text.quotaWhere[tab];
+  if (cause) return text.quotaReadFailed(name, where, sourceError(cause));
   return harness === "claude" ? text.quotaMissingClaude(name, where) : text.quotaMissingCodex(name, where);
 }
 
@@ -404,6 +405,8 @@ export default function App() {
   // One quota read at a time per source and harness: a read can wait minutes on a frozen WSL,
   // and the next ones must not pile up behind it.
   const quotaReads = useRef(new Set<string>());
+  // The last failure of each source and harness, kept until a reading succeeds.
+  const [quotaErrors, setQuotaErrors] = useState<Record<string, string>>({});
   const refreshQuotas = useCallback(
     (force: boolean) => {
       for (const id of readableIds) {
@@ -416,6 +419,7 @@ export default function App() {
             .then((reading) => {
               // Stored as measured; what is shown has an unconfirmed over-count held back.
               const shown = recordReading(reading);
+              setQuotaErrors(({ [key]: _cleared, ...rest }) => rest);
               setQuotas((current) => {
                 // A reading older than the one shown arrived late: it is not the latest state.
                 const previous = current[id]?.[harness];
@@ -426,14 +430,15 @@ export default function App() {
             // A source without a sign-in for this harness simply has no quota to show. A reading
             // from the last two minutes stays through one missed read: in WSL without a sign-in,
             // the quota comes from Claude Code's own cache, which the CLI takes only while fresh.
-            .catch(() =>
+            .catch((error) => {
+              setQuotaErrors((current) => ({ ...current, [key]: String(error) }));
               setQuotas((current) => {
                 const previous = current[id]?.[harness];
                 if (previous && Date.now() - previous.observedAt < QUOTA_GRACE_MS) return current;
                 const { [harness]: _removed, ...rest } = current[id] ?? {};
                 return { ...current, [id]: rest };
-              }),
-            )
+              });
+            })
             .finally(() => quotaReads.current.delete(key));
         }
       }
@@ -1140,7 +1145,18 @@ export default function App() {
                         <p className="muted small">{quotaOffReason(settings)}</p>
                       </section>
                     ) : (
-                      <div className="notice">{quotaMissing(page, tab, activeDistro?.running ?? false)}</div>
+                      <div className="notice">
+                        {quotaMissing(
+                          page,
+                          tab,
+                          activeDistro?.running ?? false,
+                          quotaFailure(
+                            activeIds
+                              .filter((id) => readableIds.includes(id as SourceId))
+                              .map((id) => quotaErrors[`${id}|${page}`]),
+                          ),
+                        )}
+                      </div>
                     ))}
                   {pageCards.map((card) => (
                     <QuotaSection

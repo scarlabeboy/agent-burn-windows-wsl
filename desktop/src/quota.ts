@@ -1,3 +1,4 @@
+import { CLI_FAILED } from "./api";
 import { locale, t } from "./i18n";
 import type { QuotaReading, QuotaWindow } from "./types";
 
@@ -82,6 +83,15 @@ export function quotaCards(readings: { source: string; reading: QuotaReading }[]
     }
   }
   return [...cards.values()].sort((a, b) => a.harness.localeCompare(b.harness));
+}
+
+/**
+ * The cause to give for a quota that could not be read in these sources, when the app knows it
+ * (agent-burn.exe missing, a time limit, WSL that could not be listed). A failure of the CLI
+ * itself has none to give: the page then names the usual ones, a sign-in or the service.
+ */
+export function quotaFailure(errors: (string | undefined)[]): string | undefined {
+  return errors.find((error) => error !== undefined && !error.includes(CLI_FAILED));
 }
 
 /** A reading this recent counts as live: quotas are read every minute, with some margin. */

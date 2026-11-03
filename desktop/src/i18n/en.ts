@@ -37,8 +37,9 @@ export const en: Strings = {
     quotaWslOff: (agent: string) => `${agent} quota not read: WSL is stopped and the app does not start it.`,
     quotaWhere: { windows: "on Windows", wsl: "in WSL", computer: "on this computer" },
     quotaMissingClaude: (agent: string, where: string) =>
-      `${agent} quota not read ${where}: no readable sign-in (file ~/.claude/.credentials.json). ` +
+      `${agent} quota not read ${where}: no readable sign-in (file ~/.claude/.credentials.json), or the service does not answer. ` +
       "Sign in to Claude Code in this environment (claude command) to read the quota and the plan.",
+    quotaReadFailed: (agent: string, where: string, cause: string) => `${agent} quota not read ${where}: ${cause}`,
     quotaMissingCodex: (agent: string, where: string) =>
       `${agent} quota not read ${where}: no readable sign-in (file ~/.codex/auth.json), or the service does not answer. ` +
       "Sign in to Codex in this environment (codex command) to read the quota.",

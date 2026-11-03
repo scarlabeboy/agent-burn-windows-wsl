@@ -368,6 +368,7 @@ fn run_to_file(
         }
     };
     if !status.success() {
+        // The page recognises this start (`CLI_FAILED` in api.ts).
         return Err(format!("agent-burn exited with {status}"));
     }
     let size = fs::metadata(output_path)

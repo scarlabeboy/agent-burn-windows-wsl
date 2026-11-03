@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { budget, formatAxis, FRESH_MS, freshness, gauge, idleSession } from "./quota";
+import { budget, formatAxis, FRESH_MS, freshness, gauge, idleSession, quotaFailure } from "./quota";
 
 test("a weekly axis dates both ends, which share a weekday; a 5-hour axis shows the time only", () => {
   const start = new Date(2026, 10, 1, 20, 0).getTime();
@@ -52,4 +52,12 @@ test("under a day before the reset, the budget is the whole remainder", () => {
   const spend = budget(weekly(48, 90));
   assert.equal(spend.perDay, false);
   assert.equal(spend.percent, 52);
+});
+
+test("a quota read failure names its cause only when the app knows it", () => {
+  // The CLI ran and found no quota: no sign-in, or no answer. The page names both.
+  assert.equal(quotaFailure([undefined, "agent-burn exited with exit code: 1"]), undefined);
+  assert.equal(quotaFailure(["agent-burn exited with exit code: 1", "agent-burn timed out"]), "agent-burn timed out");
+  assert.match(quotaFailure(["cli-missing: agent-burn.exe is missing from the app folder."]) ?? "", /^cli-missing/);
+  assert.equal(quotaFailure([]), undefined);
 });

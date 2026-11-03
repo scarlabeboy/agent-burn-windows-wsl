@@ -7,6 +7,12 @@ import type { Detected, QuotaReading, Settings, TabId, UsageReport, WslMode } fr
 /** Starts the error of a read when agent-burn.exe is missing; the page words it in its language. */
 export const CLI_MISSING = "cli-missing";
 
+/**
+ * Starts the error of a CLI run that ended in failure (`run_to_file` in cli.rs). For a quota it
+ * only means the quota was unavailable: no sign-in, or no answer from the service.
+ */
+export const CLI_FAILED = "agent-burn exited with";
+
 export const detectSources =() => invoke<Detected>("detect_sources");
 
 /** Keeps every WSL distribution awake while on; call again to renew, with false to stop. */
