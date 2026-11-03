@@ -56,7 +56,7 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
   const hatchId = `hatch-${harness}-${model.window.windowMinutes}`;
   const labelId = `label-${harness}-${model.window.windowMinutes}`;
   const onPlot = `url(#${labelId})`;
-  // "Maintenant" stays inside the chart near either edge instead of being cut off.
+  // The "now" label stays inside the chart near either edge instead of being cut off.
   const nowAnchor = nowX > W - PAD.right - 36 ? "end" : nowX < PAD.left + 36 ? "start" : "middle";
   // Near the reset the recorded curve reaches the label: it moves under the forecast line,
   // unless that line is already close to the bottom.

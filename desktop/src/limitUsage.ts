@@ -56,7 +56,7 @@ export const modelLabel = (model: LimitUsageModel): string =>
 export interface LimitChart {
   /** One row per day, oldest first: `date`, then the percent of each series that day. */
   rows: Record<string, number | string>[];
-  /** Series by total consumption, biggest first; "Autres" is always last. */
+  /** Series by total consumption, biggest first; the `otherLabel()` series is always last. */
   series: { name: string; total: number }[];
 }
 
