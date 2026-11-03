@@ -82,3 +82,24 @@ app is not 1.0 yet.
   unexpected stop** (Windows reopens the app in the notification area, with `--background`,
   after a crash, an update or an installer that closed it).
 - Brand icons come from the Agent Burn macOS app (MIT).
+
+## Known limitations
+
+Keep this list up to date when a change adds or removes one.
+
+- Costs are API-equivalent values from the CLI's price table, not a bill.
+- The same harness used with a subscription and with an API key cannot be told apart: the
+  subscription value then also counts the sessions paid through the API.
+- Quotas are read for Claude Code and Codex only. Cursor's usage and other harness
+  subscriptions (OpenCode Go…) are not shown, even though the CLI reads Cursor's.
+- "Since the reset day" counts the whole day of the reset, and applies only to subscriptions
+  whose quota is read.
+- Claude quota history only covers the time the app runs; Codex history is also rebuilt from
+  its session logs.
+- Per-model quotas and extra credits only show when the account's API returns them.
+- The daily archive only keeps days an online scan saw: logs deleted before that are lost.
+- A stopped WSL distribution keeps its last report; one never read has no data. An online WSL
+  scan takes about 30 s.
+- The remembered WSL user name of a distribution is never checked again.
+- The installer is not code-signed, so Windows SmartScreen or an antivirus may warn about it.
+  Updates are still checked against the release key.

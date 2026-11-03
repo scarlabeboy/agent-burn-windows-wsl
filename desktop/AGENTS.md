@@ -29,6 +29,8 @@ for changes under `desktop/`, the Windows desktop app of this fork. Everything o
   (the English one is typed on the French one, so a missing text breaks the build), read with
   `t()`; numbers and dates use `locale()`. Code, comments and commit messages are in English.
 - Use npm (not pnpm) in this folder.
+- A change that adds or removes a limitation updates "Known limitations" in `README.md`.
+- Info messages stay short: one or two sentences, no file paths or long explanations.
 - Tests must not touch the real profile: run them with `LOCALAPPDATA`, `TEMP` and `TMP` pointing
   at a scratch folder. That is not enough for the app itself: WebView2 (and with it the
   settings in `localStorage`) finds its folder through Windows, not `LOCALAPPDATA`. Build the
