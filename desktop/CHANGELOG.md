@@ -6,6 +6,32 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.5.2
+
+#### English
+
+### Improvements
+- The WSL settings have a "WSL reading" switch, and a separate "Reading mode" list (Automatic, Kept running) greyed out while reading is off. The chosen mode is kept when reading is turned off.
+- With the automatic refresh on "Never", the status bar dot turns white and the bar says the automatic refresh is off.
+- The update setting says that nothing is installed without your consent.
+- The About card credits David's Windows fork of Agent Burn, which inspired some ideas.
+
+### Fixes
+- Changing the automatic refresh interval no longer starts a scan, "Never" included.
+- Right after choosing 30 minutes, the status bar no longer says "next in 31 min".
+
+#### Français
+
+### Améliorations
+- Les réglages WSL ont un interrupteur « Lecture de WSL » et une liste « Mode de lecture » séparée (Automatique, Maintenu allumé), grisée quand la lecture est coupée. Le mode choisi est conservé quand on coupe la lecture.
+- Avec l'actualisation automatique sur « Jamais », le voyant de la barre d'état passe en blanc et la barre indique que l'actualisation auto est désactivée.
+- Le réglage des mises à jour précise que rien n'est installé sans votre accord.
+- La carte « À propos » crédite le fork Windows d'Agent Burn de David, qui a inspiré certaines idées.
+
+### Corrections
+- Changer l'intervalle d'actualisation automatique ne lance plus de scan, « Jamais » compris.
+- Juste après avoir choisi 30 minutes, la barre d'état n'affiche plus « prochaine dans 31 min ».
+
 ## 0.5.1
 
 #### English
