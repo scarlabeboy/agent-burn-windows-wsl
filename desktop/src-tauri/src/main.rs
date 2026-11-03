@@ -113,12 +113,14 @@ fn show_error(message: &str) {
 const WEBVIEW2_HELP: &str = "Agent Burn Windows cannot start: the Microsoft Edge WebView2 component \
 is missing or damaged.\n\nRepair it in Settings > Apps > Microsoft Edge WebView2 Runtime > Modify, \
 or install it from:\nhttps://developer.microsoft.com/microsoft-edge/webview2/\n\n\
-If an antivirus quarantined files, add an exclusion for this folder before repairing.";
+If an antivirus quarantined WebView2 files by mistake, restore them from its quarantine, \
+then repair.";
 
 const WEBVIEW2_HELP_FR: &str = "Agent Burn Windows ne peut pas démarrer : le composant Microsoft Edge \
 WebView2 est absent ou endommagé.\n\nRéparez-le dans Paramètres > Applications > Microsoft Edge \
 WebView2 Runtime > Modifier, ou installez-le depuis :\nhttps://developer.microsoft.com/microsoft-edge/webview2/\n\n\
-Si un antivirus a mis des fichiers en quarantaine, ajoutez une exclusion pour ce dossier avant de réparer.";
+Si un antivirus a mis par erreur des fichiers de WebView2 en quarantaine, restaurez-les depuis \
+sa quarantaine, puis réparez.";
 
 /// Whether Windows is in French. The page is not running yet, so its language setting is unknown.
 #[cfg(windows)]
