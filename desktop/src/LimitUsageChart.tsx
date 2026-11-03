@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getLang, percent, t } from "./i18n";
+import { TitleIcon } from "./TitleIcons";
 import { buildChart, otherLabel, totalUsed, type Grouping, type LimitUsageDay } from "./limitUsage";
 
 const COLORS = ["#ff8a3d", "#4f7cff", "#c44dff", "#2ec4b6", "#f4d35e"];
@@ -27,7 +28,10 @@ export function LimitUsageChart({ days, where }: { days: LimitUsageDay[]; where:
   return (
     <section className="card chart-card">
       <header className="card-head">
-        <h2>{text.title}</h2>
+        <h2>
+          <TitleIcon kind="calendar" />
+          {text.title}
+        </h2>
         <div className="seg" role="group" aria-label={text.groupBy}>
           {GROUPINGS.map((id) => (
             <button key={id} className={grouping === id ? "on" : ""} onClick={() => setGrouping(id)}>

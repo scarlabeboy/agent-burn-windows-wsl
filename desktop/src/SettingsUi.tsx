@@ -31,10 +31,13 @@ export function Switch({
   );
 }
 
-export function SettingsCard({ title, children }: { title: string; children: ReactNode }) {
+export function SettingsCard({ title, icon, children }: { title: string; icon?: ReactNode; children: ReactNode }) {
   return (
     <section className="set-card">
-      <h3 className="set-card-title">{title}</h3>
+      <h3 className="set-card-title">
+        {icon && <span className="set-icon">{icon}</span>}
+        {title}
+      </h3>
       {children}
     </section>
   );

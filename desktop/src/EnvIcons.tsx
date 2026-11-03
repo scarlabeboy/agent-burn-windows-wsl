@@ -22,8 +22,8 @@ export function EnvIcon({ env, size = 18 }: { env: EnvId; size?: number }) {
           <ellipse cx="12" cy="15.6" rx="3.6" ry="4.6" fill="var(--env-icon-belly, #19191b)" />
           <circle cx="10.6" cy="6.8" r="0.9" fill="var(--env-icon-belly, #19191b)" />
           <circle cx="13.4" cy="6.8" r="0.9" fill="var(--env-icon-belly, #19191b)" />
-          <path fill="#f4b740" d="M10.4 8.9h3.2L12 10.6z" />
-          <path fill="#f4b740" d="M5.6 19.4l2.8-1.1 1.2 2.6-3.2.4zM18.4 19.4l-2.8-1.1-1.2 2.6 3.2.4z" />
+          <path fill="var(--env-icon-accent, #f4b740)" d="M10.4 8.9h3.2L12 10.6z" />
+          <path fill="var(--env-icon-accent, #f4b740)" d="M5.6 19.4l2.8-1.1 1.2 2.6-3.2.4zM18.4 19.4l-2.8-1.1-1.2 2.6 3.2.4z" />
         </g>
       ) : (
         // A monitor on its stand.

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -12,6 +12,7 @@ import { formatTokens, formatUsd, sortModels, tokensPerDollar, type ModelSort, t
 import { IdleChart, QuotaChart } from "./QuotaChart";
 import { budget, cycleEnded, formatDay, formatDuration, freshness, type GaugeModel, type QuotaCard } from "./quota";
 import { locale, percent, t } from "./i18n";
+import { TitleIcon, type GlyphKind } from "./TitleIcons";
 import { useNow } from "./useNow";
 import type { AgentReport, ClaudeAccount, SubscriptionAgent, TokenBreakdown, UsageReport } from "./types";
 import amp from "./assets/brands/amp.png";
@@ -73,6 +74,15 @@ export function BrandIcon({ agent, size = 22 }: { agent: string; size?: number }
   ) : (
     <span className="brand fallback" style={{ width: size, height: size, background: agentColor(agent) }}>
       {agentLabel(agent).slice(0, 1)}
+    </span>
+  );
+}
+
+/** A quota card's badge: the harness's own logo, on a tint of its colour. */
+export function QuotaIcon({ harness }: { harness: string }) {
+  return (
+    <span className="title-icon" style={{ "--tone": agentColor(harness) } as CSSProperties}>
+      <BrandIcon agent={harness} size={16} />
     </span>
   );
 }
@@ -144,18 +154,26 @@ export function Stats({
   const text = t().views;
   return (
     <section className="card stats">
-      <Stat title={text.totalSpend} value={formatUsd(cost)} hint={text.apiValue} />
-      <Stat title={text.tokens} value={formatTokens(tokens)} hint={text.tokensHint} />
-      <Stat title={text.tokensPerDollar} value={tokensPerDollar(tokens, cost)} hint={period} />
-      <Stat title={text.models} value={report.approxDetail ? "…" : String(report.models.length)} hint={label} />
+      <Stat icon="spend" title={text.totalSpend} value={formatUsd(cost)} hint={text.apiValue} />
+      <Stat icon="tokens" title={text.tokens} value={formatTokens(tokens)} hint={text.tokensHint} />
+      <Stat icon="rate" title={text.tokensPerDollar} value={tokensPerDollar(tokens, cost)} hint={period} />
+      <Stat
+        icon="models"
+        title={text.models}
+        value={report.approxDetail ? "…" : String(report.models.length)}
+        hint={label}
+      />
     </section>
   );
 }
 
-function Stat({ title, value, hint }: { title: string; value: string; hint: string }) {
+function Stat({ title, value, hint, icon }: { title: string; value: string; hint: string; icon?: GlyphKind }) {
   return (
     <div className="stat">
-      <div className="stat-label">{title}</div>
+      <div className="stat-label">
+        {icon && <TitleIcon kind={icon} />}
+        {title}
+      </div>
       <div className="stat-value">{value}</div>
       <div className="stat-hint">{hint}</div>
     </div>
@@ -179,7 +197,10 @@ export function SpendChart({
   return (
     <section className="card chart-card">
       <header className="card-head">
-        <h2>{metric === "cost" ? t().views.spend : t().views.tokens}</h2>
+        <h2>
+          <TitleIcon kind="chart" />
+          {metric === "cost" ? t().views.spend : t().views.tokens}
+        </h2>
         <div className="seg">
           {(Object.keys(labels) as Granularity[]).map((value) => (
             <button key={value} className={granularity === value ? "on" : ""} onClick={() => setGranularity(value)}>
@@ -243,7 +264,10 @@ export function HarnessList({ report, onSelect }: { report: UsageReport; onSelec
   return (
     <section className="card">
       <header className="card-head">
-        <h2>{t().views.byHarness}</h2>
+        <h2>
+          <TitleIcon kind="flame" />
+          {t().views.byHarness}
+        </h2>
         <span className="muted">{t().views.activeCount(report.agents.length)}</span>
       </header>
       <ul className="harness-list">
@@ -271,11 +295,14 @@ export function HarnessList({ report, onSelect }: { report: UsageReport; onSelec
 }
 
 /** Shown in place of per-model detail while a period scan runs, or when it failed. */
-function DetailPending({ title, error }: { title: string; error?: string }) {
+function DetailPending({ title, icon, error }: { title: string; icon: GlyphKind; error?: string }) {
   return (
     <section className="card">
       <header className="card-head">
-        <h2>{title}</h2>
+        <h2>
+          <TitleIcon kind={icon} />
+          {title}
+        </h2>
       </header>
       <p className="muted small">
         {error ? t().views.detailUnavailable(error) : t().views.detailPending}
@@ -295,7 +322,7 @@ export function Models({ report, detailError }: { report: UsageReport; detailErr
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<ModelSort>({ key: "cost", descending: true });
   const text = t().views;
-  if (report.approxDetail) return <DetailPending title={text.models} error={detailError} />;
+  if (report.approxDetail) return <DetailPending title={text.models} icon="models" error={detailError} />;
   const rows = sortModels(
     report.models.filter((row) => row.model.toLowerCase().includes(filter.trim().toLowerCase())),
     sort,
@@ -306,7 +333,10 @@ export function Models({ report, detailError }: { report: UsageReport; detailErr
   return (
     <section className="card">
       <header className="card-head">
-        <h2>{text.models}</h2>
+        <h2>
+          <TitleIcon kind="models" />
+          {text.models}
+        </h2>
         <span className="muted">{report.models.length}</span>
         <input className="filter" placeholder={text.filterModels} value={filter} onChange={(event) => setFilter(event.target.value)} />
       </header>
@@ -365,11 +395,14 @@ export function TokenBreakdownCard({
   detailError?: string;
 }) {
   const text = t().views;
-  if (pending) return <DetailPending title={text.breakdown} error={detailError} />;
+  if (pending) return <DetailPending title={text.breakdown} icon="breakdown" error={detailError} />;
   return (
     <section className="card">
       <header className="card-head">
-        <h2>{text.breakdown}</h2>
+        <h2>
+          <TitleIcon kind="breakdown" />
+          {text.breakdown}
+        </h2>
       </header>
       <div className="stats">
         <Stat title={text.input} value={formatTokens(breakdown.input)} hint={text.inputHint} />
@@ -386,7 +419,10 @@ export function EnvironmentSplit({ parts }: { parts: { label: string; report: Us
   return (
     <section className="card">
       <header className="card-head">
-        <h2>{t().views.byEnvironment}</h2>
+        <h2>
+          <TitleIcon kind="monitor" />
+          {t().views.byEnvironment}
+        </h2>
         <span className="muted">{t().views.byEnvironmentHint}</span>
       </header>
       <div className="env-split">
@@ -482,7 +518,10 @@ export function QuotaSection({ card, resetCredits }: { card: QuotaCard; resetCre
   return (
     <section className="card">
       <header className="card-head">
-        <h2>{t().app.quotaTitle(agentLabel(card.harness))}</h2>
+        <h2>
+          <QuotaIcon harness={card.harness} />
+          {t().app.quotaTitle(agentLabel(card.harness))}
+        </h2>
         {resetCredits ? (
           <span className="chip" title={text.resetsTitle}>
             {text.resetsInStock(resetCredits)}
@@ -549,7 +588,10 @@ export function SubscriptionCard({
     return (
       <section className="card">
         <header className="card-head">
-          <h2>{text.subscription}</h2>
+          <h2>
+            <TitleIcon kind="subscription" />
+            {text.subscription}
+          </h2>
           <span className="chip">
             {agentLabel(harness)} · {text.planNotRead}
           </span>
@@ -561,7 +603,10 @@ export function SubscriptionCard({
   return (
     <section className="card">
       <header className="card-head">
-        <h2>{text.subscription}</h2>
+        <h2>
+          <TitleIcon kind="subscription" />
+          {text.subscription}
+        </h2>
         <span className="chip">
           {agentLabel(harness)} · {known ? sub?.plan : text.planUnknown}
           {sub?.pricePerMonth != null && ` · ${formatUsd(sub.pricePerMonth)}${text.perMonth}`}

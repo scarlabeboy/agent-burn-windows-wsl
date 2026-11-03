@@ -27,6 +27,7 @@ import { SettingRow, SettingsCard, Switch } from "./SettingsUi";
 import { EmptyState } from "./EmptyState";
 import { EnvIcon } from "./EnvIcons";
 import { StatusBar, useAppVersion } from "./StatusBar";
+import { Glyph } from "./TitleIcons";
 import { UpdateDialog } from "./UpdateDialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { REPO_URL, useUpdater, type UpdateState } from "./updater";
@@ -87,6 +88,7 @@ import {
   Models,
   OverviewIcon,
   Page,
+  QuotaIcon,
   QuotaSection,
   SpendChart,
   SubscriptionCard,
@@ -877,7 +879,7 @@ export default function App() {
         <main>
           {showSettings ? (
             <div className="settings">
-              <SettingsCard title={text.settings.general}>
+              <SettingsCard title={text.settings.general} icon={<Glyph kind="general" size={16} />}>
                 <SettingRow title={text.settings.language} description={text.settings.languageHint}>
                   <select
                     value={lang}
@@ -908,7 +910,25 @@ export default function App() {
                 </SettingRow>
               </SettingsCard>
 
-              <SettingsCard title={text.settings.data}>
+              {/* Hidden when there is no WSL to turn off; kept while off so it can be turned back on. */}
+              {(settings.wslMode !== "auto" || distros.length > 0) && (
+                <SettingsCard title="WSL" icon={<EnvIcon env="wsl" size={16} />}>
+                  <SettingRow title={text.settings.wslRead} description={text.settings.wslModeHints[settings.wslMode]}>
+                    <select
+                      value={settings.wslMode}
+                      onChange={(event) => updateSettings({ ...settings, wslMode: event.target.value as WslMode })}
+                    >
+                      {(["off", "auto", "keep"] as WslMode[]).map((mode) => (
+                        <option key={mode} value={mode}>
+                          {text.settings.wslModes[mode]}
+                        </option>
+                      ))}
+                    </select>
+                  </SettingRow>
+                </SettingsCard>
+              )}
+
+              <SettingsCard title={text.settings.data} icon={<Glyph kind="data" size={16} />}>
                 <SettingRow title={text.settings.offline} description={offlineHint(settings.offline)}>
                   <Switch
                     checked={settings.offline}
@@ -941,25 +961,7 @@ export default function App() {
                 </SettingRow>
               </SettingsCard>
 
-              {/* Hidden when there is no WSL to turn off; kept while off so it can be turned back on. */}
-              {(settings.wslMode !== "auto" || distros.length > 0) && (
-                <SettingsCard title="WSL">
-                  <SettingRow title={text.settings.wslRead} description={text.settings.wslModeHints[settings.wslMode]}>
-                    <select
-                      value={settings.wslMode}
-                      onChange={(event) => updateSettings({ ...settings, wslMode: event.target.value as WslMode })}
-                    >
-                      {(["off", "auto", "keep"] as WslMode[]).map((mode) => (
-                        <option key={mode} value={mode}>
-                          {text.settings.wslModes[mode]}
-                        </option>
-                      ))}
-                    </select>
-                  </SettingRow>
-                </SettingsCard>
-              )}
-
-              <SettingsCard title={text.settings.updates}>
+              <SettingsCard title={text.settings.updates} icon={<Glyph kind="updates" size={16} />}>
                 <SettingRow title={text.settings.autoUpdate} description={autoUpdateHint(settings.offline)}>
                   <Switch
                     checked={autoUpdateActive(settings)}
@@ -988,12 +990,12 @@ export default function App() {
                 </SettingRow>
               </SettingsCard>
 
-              <SettingsCard title={text.app.harness}>
+              <SettingsCard title={text.app.harness} icon={<Glyph kind="flame" size={16} />}>
                 <HarnessSettings groups={harnessGroups} onToggle={toggleHarness} />
                 <p className="muted small set-note">{text.settings.harnessNote}</p>
               </SettingsCard>
 
-              <SettingsCard title={text.settings.about}>
+              <SettingsCard title={text.settings.about} icon={<Glyph kind="about" size={16} />}>
                 <SettingRow
                   title={`Agent Burn Windows${appVersion ? ` ${appVersion}` : ""}`}
                   description={text.settings.aboutHint}
@@ -1053,7 +1055,10 @@ export default function App() {
                     (quotaOffReason(settings) ? (
                       <section className="card">
                         <header className="card-head">
-                          <h2>{text.app.quotaTitle(agentLabel(page))}</h2>
+                          <h2>
+                            <QuotaIcon harness={page} />
+                            {text.app.quotaTitle(agentLabel(page))}
+                          </h2>
                         </header>
                         <p className="muted small">{quotaOffReason(settings)}</p>
                       </section>
