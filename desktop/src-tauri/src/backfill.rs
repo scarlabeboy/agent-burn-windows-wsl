@@ -98,6 +98,12 @@ fn record(value: &Value, timestamp: i64, found: &mut BTreeMap<Key, Vec<(i64, f64
     let Some(limits) = value.pointer("/payload/rate_limits") else {
         return;
     };
+    // Only the account's limit, as the CLI reads it (`is_account_limit` in codex/plan.rs): a
+    // model's own meter (`codex_bengalfox`…) has other figures and would break the series.
+    let limit_id = limits.get("limit_id").and_then(Value::as_str).unwrap_or("codex");
+    if limit_id != "codex" {
+        return;
+    }
     for name in ["primary", "secondary"] {
         let Some(window) = limits.get(name) else {
             continue;
@@ -200,5 +206,26 @@ mod tests {
         record(&value, 2, &mut found);
         assert_eq!(found.len(), 2);
         assert_eq!(found[&(300, 29_890_301)].len(), 2);
+    }
+
+    #[test]
+    fn keeps_the_account_limit_only() {
+        let line = |limit_id: &str| {
+            format!(
+                r#"{{"payload":{{"rate_limits":{{{limit_id}"secondary":{{"used_percent":100.0,"window_minutes":10080,"resets_at":1793778274}}}}}}}}"#
+            )
+        };
+        let mut found = BTreeMap::new();
+        for (limit_id, timestamp) in [
+            (r#""limit_id":"codex_bengalfox","#, 1),
+            (r#""limit_id":"codex","#, 2),
+            ("", 3),
+            (r#""limit_id":null,"#, 4),
+        ] {
+            let value: Value = serde_json::from_str(&line(limit_id)).unwrap();
+            record(&value, timestamp, &mut found);
+        }
+        let samples: Vec<i64> = found.values().flatten().map(|(timestamp, _)| *timestamp).collect();
+        assert_eq!(samples, [2, 3, 4], "a model's own meter is left out");
     }
 }
