@@ -41,6 +41,12 @@ let daily: DailyStore = { version: 1, sources: {} };
 let version = 0;
 const listeners = new Set<() => void>();
 const timers: Partial<Record<StoreName, ReturnType<typeof setTimeout>>> = {};
+/**
+ * Archives that may be saved: only once loaded, so a save never replaces a file that has not
+ * been read yet, or one that exists but could not be loaded. That one stays as it is for this
+ * run, and the page works from memory: saving over it would lose its days for good.
+ */
+const writable = new Set<StoreName>();
 const contentOf = (name: StoreName) =>
   name === "quota-history" ? quota : name === "report-cache" ? reports : daily;
 
@@ -57,6 +63,7 @@ const changed = () => {
 };
 
 function save(name: StoreName) {
+  if (!writable.has(name)) return;
   clearTimeout(timers[name]);
   timers[name] = setTimeout(() => {
     void archiveWrite(name, contentOf(name)).catch(() => {
@@ -104,18 +111,37 @@ function migrateLegacy() {
   }
 }
 
-/** Load saved quota history and report cache; missing or unreadable data just means a fresh start. */
+const isObject = (value: unknown) => typeof value === "object" && value !== null;
+
+/**
+ * One saved archive. Nothing saved yet is a fresh start and the archive becomes writable; a
+ * file that cannot be read, or that holds something else than expected, keeps it read-only.
+ */
+async function loadStore<T>(name: StoreName, valid: (value: T) => boolean): Promise<T | null> {
+  try {
+    const value = await archiveRead<T>(name);
+    if (value === null || valid(value)) {
+      writable.add(name);
+      return value;
+    }
+  } catch {
+    // Read-only for this run, see `writable`.
+  }
+  return null;
+}
+
+/** Load saved quota history, report cache and daily metrics, so the app opens with data. */
 export async function loadArchive(): Promise<void> {
   const [savedQuota, savedReports, savedDaily] = await Promise.all([
-    archiveRead<QuotaStore>("quota-history").catch(() => null),
-    archiveRead<ReportStore>("report-cache").catch(() => null),
-    archiveRead<DailyStore>("daily-metrics").catch(() => null),
+    loadStore<QuotaStore>("quota-history", (value) => isObject(value?.series)),
+    loadStore<ReportStore>("report-cache", (value) => isObject(value?.sources)),
+    loadStore<DailyStore>("daily-metrics", (value) => isObject(value?.sources)),
   ]);
-  if (savedQuota?.series) {
+  if (savedQuota) {
     quota = { version: 1, series: savedQuota.series, backfilled: savedQuota.backfilled ?? {} };
   }
-  if (savedReports?.sources) reports = savedReports;
-  if (savedDaily?.sources) daily = savedDaily;
+  if (savedReports) reports = savedReports;
+  if (savedDaily) daily = savedDaily;
   // First run with the daily archive: the last saved reports seed it, so no day already seen
   // is lost even if a harness purges it before the next scan.
   for (const [sourceId, cached] of Object.entries(reports.sources)) {

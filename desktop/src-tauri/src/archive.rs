@@ -1,6 +1,8 @@
 use std::{
     env, fs,
+    io::{self, Write},
     path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde_json::Value;
@@ -67,7 +69,35 @@ fn parse(path: &Path) -> Option<Value> {
 pub fn read(name: &str) -> Result<Option<Value>, String> {
     let path = file_for(name)?;
     migrate_files(&legacy_directory(), &directory(), name);
-    Ok(parse(&path).or_else(|| parse(&backup_of(&path))))
+    read_or_set_aside(&path)
+}
+
+/// `None` only when there is nothing usable to lose: the page then starts this archive afresh
+/// and saves over it, which would destroy days no harness reports any more. So a file that
+/// exists but cannot be opened (another program holds it) is an error, and the page leaves the
+/// archive alone for this run; corrupt files are renamed `.broken-<ms>` for a manual recovery.
+fn read_or_set_aside(path: &Path) -> Result<Option<Value>, String> {
+    let backup = backup_of(path);
+    let mut corrupt = Vec::new();
+    for candidate in [path, backup.as_path()] {
+        match fs::read(candidate) {
+            Ok(bytes) => match serde_json::from_slice(&bytes) {
+                Ok(value) => return Ok(Some(value)),
+                Err(_) => corrupt.push(candidate),
+            },
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(format!("{} cannot be read: {error}", candidate.display())),
+        }
+    }
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_millis());
+    for file in corrupt {
+        let aside = PathBuf::from(format!("{}.broken-{stamp}", file.display()));
+        fs::rename(file, &aside)
+            .map_err(|error| format!("{} cannot be set aside: {error}", file.display()))?;
+    }
+    Ok(None)
 }
 
 /// Atomic write that keeps the previous valid file as `.bak`.
@@ -84,7 +114,13 @@ pub fn write(name: &str, value: &Value) -> Result<(), String> {
         let _ = fs::copy(&path, backup_of(&path));
     }
     let temp = path.with_extension("json.tmp");
-    fs::write(&temp, bytes).map_err(|error| error.to_string())?;
+    // On disk before the rename: after a power cut the file holds either the old or the new
+    // content, never a renamed empty one.
+    let mut file = fs::File::create(&temp).map_err(|error| error.to_string())?;
+    file.write_all(&bytes)
+        .and_then(|()| file.sync_all())
+        .map_err(|error| error.to_string())?;
+    drop(file);
     fs::rename(&temp, &path).map_err(|error| error.to_string())
 }
 
@@ -131,8 +167,52 @@ mod tests {
         let path = dir.join("x.json");
         fs::write(backup_of(&path), br#"{"ok":true}"#).unwrap();
         fs::write(&path, b"{ broken").unwrap();
-        let value = parse(&path).or_else(|| parse(&backup_of(&path)));
+        let value = read_or_set_aside(&path).unwrap();
         assert_eq!(value.unwrap()["ok"], true);
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn nothing_saved_yet_is_a_fresh_start() {
+        let dir = env::temp_dir().join(format!("abf-archive-empty-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        assert_eq!(read_or_set_aside(&dir.join("x.json")), Ok(None));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    /// Starting afresh would save over the files: they are kept aside instead.
+    #[test]
+    fn corrupt_files_are_set_aside_before_a_fresh_start() {
+        let dir = env::temp_dir().join(format!("abf-archive-broken-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("x.json");
+        fs::write(&path, b"").unwrap();
+        fs::write(backup_of(&path), b"{ broken").unwrap();
+
+        assert_eq!(read_or_set_aside(&path), Ok(None));
+        assert!(!path.exists() && !backup_of(&path).exists());
+        let kept: Vec<_> = fs::read_dir(&dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(kept.len(), 2, "both files are kept: {kept:?}");
+        assert!(kept.iter().all(|name| name.contains(".broken-")));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    /// A file another program holds may be perfectly good: it is an error, not an empty archive.
+    #[test]
+    fn a_file_that_cannot_be_opened_is_an_error() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let dir = env::temp_dir().join(format!("abf-archive-locked-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("x.json");
+        fs::write(&path, br#"{"ok":true}"#).unwrap();
+        let held = fs::OpenOptions::new().read(true).share_mode(0).open(&path).unwrap();
+
+        assert!(read_or_set_aside(&path).is_err());
+        drop(held);
+        assert_eq!(read_or_set_aside(&path).unwrap().unwrap()["ok"], true);
         let _ = fs::remove_dir_all(dir);
     }
 }
