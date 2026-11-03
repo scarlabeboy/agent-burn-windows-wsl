@@ -89,6 +89,8 @@ export const fr = {
     repo: "Dépôt GitHub ↗",
     origin: "Projet d'origine",
     originHint: "Agent Burn : le CLI, l'application macOS et le site de Melvynx.",
+    inspiration: "Inspiration",
+    inspirationHint: "Le fork Windows d'Agent Burn de David, qui a inspiré certaines idées.",
   },
   update: {
     foundOffline: (version: string) => `La version ${version} a été trouvée : repassez en ligne pour l'installer.`,
@@ -126,7 +128,7 @@ export const fr = {
     refreshEvery: (minutes: number) => `Relit les journaux des harness toutes les ${minutes} minutes.`,
     refreshNever: "Les journaux des harness ne sont relus qu'au démarrage et avec le bouton ⟳.",
     autoUpdateOffline: "Désactivé en mode hors ligne : aucune recherche sur GitHub.",
-    autoUpdateOn: "Au démarrage puis toutes les 6 heures, sur les versions publiées sur GitHub.",
+    autoUpdateOn: "Au démarrage puis toutes les 6 heures, sur GitHub. Rien n'est installé sans votre accord.",
     quotaOffOffline: "Quota non lu : mode hors ligne activé (Réglages › Données).",
     quotaOffSwitch: "Quota non lu : la lecture des quotas est désactivée (Réglages › Données).",
     subscriptionOffOffline:

@@ -82,6 +82,8 @@ app is not 1.0 yet.
   unexpected stop** (Windows reopens the app in the notification area, with `--background`,
   after a crash, an update or an installer that closed it).
 - Brand icons come from the Agent Burn macOS app (MIT).
+- Some ideas come from [David's Windows fork](https://github.com/DavidSZD/agent-burn) of
+  Agent Burn.
 
 ## Known limitations
 

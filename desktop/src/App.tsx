@@ -103,6 +103,7 @@ import {
 
 const SUBSCRIPTIONS = ["codex", "claude", "cursor"];
 const MELVYNX_URL = "https://github.com/Melvynx/agent-burn";
+const DAVID_URL = "https://github.com/DavidSZD/agent-burn";
 const OVERVIEW = "overview";
 /** The weekly Codex limit per day changes slowly: read again after this long. */
 const LIMIT_USAGE_TTL_MS = 5 * 60_000;
@@ -1129,6 +1130,11 @@ export default function App() {
                 <SettingRow title={text.settings.origin} description={text.settings.originHint}>
                   <button className="btn" onClick={() => void openUrl(MELVYNX_URL)}>
                     Agent Burn ↗
+                  </button>
+                </SettingRow>
+                <SettingRow title={text.settings.inspiration} description={text.settings.inspirationHint}>
+                  <button className="btn" onClick={() => void openUrl(DAVID_URL)}>
+                    DavidSZD ↗
                   </button>
                 </SettingRow>
               </SettingsCard>

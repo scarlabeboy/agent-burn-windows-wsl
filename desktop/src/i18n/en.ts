@@ -87,6 +87,8 @@ export const en: Strings = {
     repo: "GitHub repository ↗",
     origin: "Original project",
     originHint: "Agent Burn: Melvynx's CLI, macOS app and website.",
+    inspiration: "Inspiration",
+    inspirationHint: "David's Windows fork of Agent Burn, which inspired some ideas.",
   },
   update: {
     foundOffline: (version: string) => `Version ${version} was found: go back online to install it.`,
@@ -124,7 +126,7 @@ export const en: Strings = {
     refreshEvery: (minutes: number) => `Reads the harness logs again every ${minutes} minutes.`,
     refreshNever: "Harness logs are only read at startup and with the ⟳ button.",
     autoUpdateOffline: "Off in offline mode: no check on GitHub.",
-    autoUpdateOn: "At startup then every 6 hours, among the releases published on GitHub.",
+    autoUpdateOn: "At startup then every 6 hours, on GitHub. Nothing is installed without your consent.",
     quotaOffOffline: "Quota not read: offline mode is on (Settings › Data).",
     quotaOffSwitch: "Quota not read: quota reading is off (Settings › Data).",
     subscriptionOffOffline: "Value and pace unavailable in offline mode: they need live prices and the live quota.",
