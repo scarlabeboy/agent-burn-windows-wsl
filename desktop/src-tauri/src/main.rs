@@ -143,10 +143,9 @@ fn main() {
         std::process::exit(1);
     }
     tauri::Builder::default()
-        // A second launch (for example the startup entry while the app is open) only
-        // brings the existing window forward.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            background::show_main(app);
+        // A second launch only brings the existing window forward, unless it is a background one.
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            background::on_second_launch(app, args);
         }))
         // The entry name is fixed so the uninstaller can remove it (see windows/hooks.nsh).
         .plugin(

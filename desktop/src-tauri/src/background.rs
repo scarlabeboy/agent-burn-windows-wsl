@@ -100,7 +100,20 @@ pub fn on_window_event(window: &tauri::Window, event: &WindowEvent) {
 }
 
 pub fn started_in_background() -> bool {
-    std::env::args().any(|argument| argument == BACKGROUND_FLAG)
+    in_background(std::env::args())
+}
+
+fn in_background(mut args: impl Iterator<Item = String>) -> bool {
+    args.any(|argument| argument == BACKGROUND_FLAG)
+}
+
+/// A second launch while the app runs. A person opening the app again gets the window; a
+/// launch in the background does not: after a Windows Update restart, Windows reopens the app
+/// and its startup entry starts it too, and the second one must not pop the window up.
+pub fn on_second_launch(app: &AppHandle, args: Vec<String>) {
+    if !in_background(args.into_iter()) {
+        show_main(app);
+    }
 }
 
 #[tauri::command]
@@ -171,4 +184,20 @@ pub fn set_tray_labels(app: AppHandle, open: String, refresh: String, quit: Stri
         tray.set_menu(Some(menu)).map_err(|error| error.to_string())?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args(list: &[&str]) -> impl Iterator<Item = String> {
+        list.iter().map(|argument| argument.to_string()).collect::<Vec<_>>().into_iter()
+    }
+
+    #[test]
+    fn only_a_background_launch_stays_hidden() {
+        assert!(in_background(args(&[r"C:\app\agent-burn-windows.exe", "--background"])));
+        assert!(!in_background(args(&[r"C:\app\agent-burn-windows.exe"])));
+        assert!(!in_background(args(&[r"C:\app\agent-burn-windows.exe", "--backgroundx"])));
+    }
 }
