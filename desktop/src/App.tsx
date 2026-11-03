@@ -587,7 +587,7 @@ export default function App() {
     void setTrayLabels(t().tray).catch(() => undefined);
   }, [lang]);
 
-  // "Since reset" needs a weekly quota cycle, so it only applies on Claude and Codex pages.
+  // "Since the reset day" needs a weekly quota cycle, so it only applies on Claude and Codex pages.
   const effectivePeriod: Period =
     period === "rtd" && (page === OVERVIEW || pageCards.length === 0) ? "all" : period;
   const resetStartMs = pageCards[0]?.weekly.startMs;

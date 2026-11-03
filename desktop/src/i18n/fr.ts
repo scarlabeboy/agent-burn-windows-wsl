@@ -19,7 +19,7 @@ export const fr = {
     refresh: "Actualiser (Ctrl+R · quotas seuls : Ctrl+Maj+R)",
     subComputer: "Windows + WSL additionnés",
     subWindows: "Windows natif",
-    rtdNote: " (« Depuis le reset » s'applique aux pages Claude Code et Codex)",
+    rtdNote: " (« Depuis le jour du reset » s'applique aux pages Claude Code et Codex)",
     allHarnesses: "Tous harness confondus",
     theComputer: "l'ordinateur",
     readFailed: (label: string) => `${label} : lecture impossible.`,
@@ -145,7 +145,7 @@ export const fr = {
     mtd: "Ce mois-ci",
     month: "30 derniers jours",
     ytd: "Cette année",
-    rtd: "Depuis le reset",
+    rtd: "Depuis le jour du reset",
   },
   time: {
     underMinute: "moins d'une minute",

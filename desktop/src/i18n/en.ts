@@ -18,7 +18,7 @@ export const en: Strings = {
     refresh: "Refresh (Ctrl+R · quotas only: Ctrl+Shift+R)",
     subComputer: "Windows + WSL combined",
     subWindows: "Native Windows",
-    rtdNote: " (“Since reset” applies to the Claude Code and Codex pages)",
+    rtdNote: " (“Since the reset day” applies to the Claude Code and Codex pages)",
     allHarnesses: "All harnesses",
     theComputer: "the computer",
     readFailed: (label: string) => `${label}: could not be read.`,
@@ -141,7 +141,7 @@ export const en: Strings = {
     mtd: "This month",
     month: "Last 30 days",
     ytd: "This year",
-    rtd: "Since reset",
+    rtd: "Since the reset day",
   },
   time: {
     underMinute: "less than a minute",
