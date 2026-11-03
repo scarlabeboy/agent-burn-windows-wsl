@@ -6,6 +6,44 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.5.0
+
+#### English
+
+### Improvements
+- When a quota cannot be read, the message gives the cause when the app knows it (CLI missing, read timed out) instead of always blaming the sign-in.
+- The "Since reset" period is now called "Since the reset day": it counts the whole day of the reset.
+- With quotas turned off, scans no longer contact the Claude and Codex servers for the subscription block.
+- The app ignores any personal agent-burn.json, which could silently change its figures.
+
+### Fixes
+- A saved data file that cannot be read is no longer overwritten: the archived days stay safe. A damaged file is kept aside, and each save reaches the disk before replacing the old one.
+- Offline scans no longer write into the daily archive.
+- After a refresh, a period (Today, 7 days…) shows the new figures right away instead of keeping the old ones for up to 10 minutes.
+- A harness turned off no longer counts in the totals of a stopped WSL distribution.
+- The Codex quota history is rebuilt from the account limit only.
+- A second launch in the background (start with Windows, restart after a crash) no longer opens the window.
+- The "No activity found yet" screen no longer appears when the archive still holds days whose logs were deleted.
+- The WebView2 message no longer advises an antivirus exclusion: it says to restore the quarantined files.
+
+#### Français
+
+### Améliorations
+- Quand un quota ne peut pas être lu, le message en donne la cause quand l'application la connaît (CLI absent, délai dépassé), au lieu de toujours accuser la connexion.
+- La période « Depuis le reset » s'appelle maintenant « Depuis le jour du reset » : elle compte toute la journée du reset.
+- Avec les quotas coupés, les scans ne contactent plus les serveurs de Claude et de Codex pour le bloc Abonnement.
+- L'application ignore un éventuel agent-burn.json personnel, qui pouvait changer ses chiffres sans le dire.
+
+### Corrections
+- Un fichier de données qui ne peut pas être lu n'est plus écrasé : les journées archivées sont préservées. Un fichier abîmé est mis de côté, et chaque enregistrement atteint le disque avant de remplacer l'ancien.
+- Les scans hors ligne n'écrivent plus dans l'archive journalière.
+- Après une actualisation, une période (Aujourd'hui, 7 jours…) affiche tout de suite les nouveaux chiffres au lieu de garder les anciens jusqu'à 10 minutes.
+- Un harness désactivé ne compte plus dans les totaux d'une distribution WSL arrêtée.
+- L'historique du quota Codex est reconstruit à partir de la seule limite du compte.
+- Un second lancement en arrière-plan (démarrage avec Windows, relance après un plantage) n'ouvre plus la fenêtre.
+- L'écran « Aucune activité trouvée pour l'instant » n'apparaît plus quand l'archive garde des journées dont les journaux ont été supprimés.
+- Le message WebView2 ne conseille plus d'exclusion d'antivirus : il dit de restaurer les fichiers mis en quarantaine.
+
 ## 0.4.4
 
 #### English
