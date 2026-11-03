@@ -14,6 +14,8 @@ reading.
 - Original project, CLI and macOS app: [Agent Burn README](../apps/agent-burn/README.md),
   [agent-burn.melvynx.dev](https://agent-burn.melvynx.dev)
 
-Status: in development, not signed, no release yet.
+Status: in development, not code-signed. The installer is on the
+[releases page](https://github.com/scarlabeboy/agent-burn-windows-wsl/releases), and the app
+updates itself from it.
 
 Licensed under MIT, like the original project ([LICENSE](../LICENSE)).

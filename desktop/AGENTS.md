@@ -9,11 +9,12 @@ for changes under `desktop/`, the Windows desktop app of this fork. Everything o
 
 - `src/`: React + TypeScript UI. `App.tsx` holds the state, scans and settings; `views.tsx` the
   cards; `QuotaChart.tsx`, `UpdateDialog.tsx`, `StatusBar.tsx` their own parts. Pure logic lives
-  in small modules (`quota.ts`, `aggregate.ts`, `periods.ts`, `releaseNotes.ts`…) with
-  `*.test.ts` next to them.
+  in small modules (`quota.ts`, `aggregate.ts`, `periods.ts`, `dailyArchive.ts`,
+  `releaseNotes.ts`…) with `*.test.ts` next to them. `i18n/` holds the French and English texts.
 - `src-tauri/`: Tauri v2 shell in Rust. `cli.rs` runs the bundled CLI, `sources.rs` lists WSL
-  distributions, `archive.rs` stores history, `background.rs` the tray and autostart,
-  `keepalive.rs` the "Kept running" WSL mode.
+  distributions, `archive.rs` stores history, `backfill.rs` rebuilds Codex quota history from
+  its session logs, `background.rs` the tray and autostart, `keepalive.rs` the "Kept running"
+  WSL mode, `job.rs` the Windows job that ends every process the app starts with it.
 - The CLI is Melvynx's, built from `../rust` by `scripts/prepare-cli.ps1` and bundled as a
   sidecar. The app renders its JSON and never parses logs itself.
 
@@ -51,6 +52,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 Bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `package.json`,
 write its section in `CHANGELOG.md` in both languages: an `#### English` block (`### New`,
 `Improvements`, `Fixes`, `Removed`) then an `#### Français` block (`### Nouveautés`,
-`Améliorations`, `Corrections`, `Retiré`); the app shows only the block of its language. Push, then run the "Windows release" workflow. It drafts the release; a person
-reviews and publishes it. Never mark a release as a pre-release: the updater reads
+`Améliorations`, `Corrections`, `Retiré`); the app shows only the block of its language.
+Push, then run the "Windows release" workflow. It drafts the release; a person reviews and
+publishes it. Never mark a release as a pre-release: the updater reads
 `releases/latest`.

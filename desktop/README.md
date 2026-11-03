@@ -50,23 +50,35 @@ app is not 1.0 yet.
   modes are: **Off** (WSL is never queried, Windows only, no WSL tab), **Automatic**
   (default: a distribution is read when it is already running and never woken up) and
   **Kept running** (the app runs `wsl.exe -d <distro> --exec sleep infinity` for each
-  distribution while it runs, inside a Windows job so it ends with the app; it never runs
-  `wsl --shutdown`).
+  distribution while it runs; it never runs `wsl --shutdown`).
+- Every process the app starts (each CLI run, the processes keeping WSL awake) lives in a
+  Windows job that ends them with the app, so a CLI run still going never keeps
+  `agent-burn.exe` locked when an update replaces it.
 - Distributions are listed with `wsl -l -q` and `wsl --list --running --quiet`, which do not
   start anything; only running ones are read, through `\\wsl.localhost\<distro>`. A stopped
   distribution keeps its last report and is marked as stopped. Every `wsl.exe` call has a
   5 s limit. OpenCode's SQLite database is copied to a temporary folder for each scan that
   reads OpenCode (WAL databases cannot be opened on that share), and removed afterwards.
-- The archive (quota history, report cache, WSL user names) lives in
+- The archive (quota history, report cache, daily totals, WSL user names) lives in
   `%LOCALAPPDATA%\dev.scarlabeboy.agent-burn-windows\archive`, apart from the install
-  directory.
+  directory. The daily totals keep each day an online scan reported, so days whose logs a
+  harness has since deleted still count. A file that cannot be read is left as it is and
+  never written over; one that is not valid JSON is set aside as `<name>.broken-<time>`.
 - Subscription quotas use the CLI's quota-only mode. Each tab shows the quotas of its own
   environment (Windows, WSL); the Computer view keeps the freshest reading of each harness.
   The environment is chosen in the sidebar, above the pages.
   Sign-ins (and the Claude plan) are read from the environment's own home directory: a
-  Windows without a readable `~/.claude/.credentials.json` shows "quota non lu".
+  Windows without a readable `~/.claude/.credentials.json` shows "quota not read".
+- When the Claude sign-in has expired or is refused, the CLI renews it with Claude Code's own
+  protocol (holding `~/.claude/.oauth_refresh.lock` and `~/.claude.lock`) and writes it back
+  to `~/.claude/.credentials.json`; the app itself only reads the plan from that file.
 - Quota history is kept in the archive while the app runs; Codex history is also rebuilt
   from its session logs.
 - Harnesses can be switched off in the settings: they are no longer scanned (`--agents`) and
-  disappear from the totals, quotas and tray tooltip.
+  disappear from the totals, quotas and tray tooltip, cached reports included.
+- Other settings: **Offline mode** (no network call: quotas and updates paused, costs from the
+  CLI's built-in prices), **Quotas** (read online every minute, or not at all), **Language**
+  (French or English; Windows' language until one is chosen) and **Restart after an
+  unexpected stop** (Windows reopens the app in the notification area, with `--background`,
+  after a crash, an update or an installer that closed it).
 - Brand icons come from the Agent Burn macOS app (MIT).
