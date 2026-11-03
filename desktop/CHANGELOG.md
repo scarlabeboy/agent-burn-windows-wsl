@@ -6,6 +6,22 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.4.1
+
+#### English
+
+### Improvements
+- Page titles and figures get a small coloured icon; quota cards show the logo of their harness.
+- Settings cards get sober grey icons, and the WSL card now comes right after General.
+- The app name in the side bar lines up with the top bar and stays in place while the menu scrolls.
+
+#### Français
+
+### Améliorations
+- Les titres des pages et des chiffres ont une petite icône colorée ; les cartes de quota montrent le logo de leur harness.
+- Les cartes des réglages ont des icônes grises sobres, et la carte WSL vient juste après Général.
+- Le nom de l'application dans la barre latérale est aligné avec la barre du haut et reste en place quand le menu défile.
+
 ## 0.4.0
 
 #### English
