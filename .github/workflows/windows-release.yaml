@@ -3,6 +3,8 @@
 # Run workflow) once the version and its CHANGELOG.md section are pushed; then review the draft
 # and publish it. A draft is not "latest", so no installed app sees it before it is published.
 # The tag v<version> is created by the action with GITHUB_TOKEN, which starts no other workflow.
+# Actions are pinned to a commit: this job gets the key that signs every update, so a tag moved
+# in another repository must not be able to change what runs here. Update a pin on purpose.
 name: Windows release
 
 on:
@@ -23,20 +25,23 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No later step pushes with git: the release goes through the API with GITHUB_TOKEN.
+          persist-credentials: false
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: lts/*
           cache: npm
           cache-dependency-path: desktop/package-lock.json
 
       # The same toolchain as rust-toolchain.toml at the repository root.
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: "1.96.0"
 
-      - uses: swatinem/rust-cache@v2
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: |
             rust -> target
@@ -64,7 +69,7 @@ jobs:
           $notes >> $env:GITHUB_OUTPUT
           "CHANGELOG_NOTES" >> $env:GITHUB_OUTPUT
 
-      - uses: tauri-apps/tauri-action@v1
+      - uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
