@@ -6,6 +6,26 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.5.1
+
+#### English
+
+### Improvements
+- The "quota not read" messages of Claude Code and Codex are shorter, and say that an API key has no quota.
+
+### Fixes
+- With "Since the reset day", the side bar amounts no longer change with the open page: Codex and Claude Code count from their own reset day, the other lines over the whole period, as on their pages.
+- The note shown where "Since the reset day" does not apply now says it applies to subscriptions whose quota is read.
+
+#### Français
+
+### Améliorations
+- Les messages « quota non lu » de Claude Code et de Codex sont plus courts, et précisent qu'une clé API n'a pas de quota.
+
+### Corrections
+- Avec « Depuis le jour du reset », les montants de la barre latérale ne changent plus selon la page ouverte : Codex et Claude Code comptent depuis leur propre jour de reset, les autres lignes sur toute la période, comme sur leurs pages.
+- La note affichée là où « Depuis le jour du reset » ne s'applique pas précise maintenant qu'elle concerne les abonnements dont le quota est lu.
+
 ## 0.5.0
 
 #### English
