@@ -92,3 +92,15 @@ export function withArchive(
     archivedDays: (report.archivedDays ?? 0) + added,
   };
 }
+
+/**
+ * Whether a source has anything to show: a harness in its report or a day in its archive, the
+ * harnesses turned off left out. A source whose logs were all purged still has its archived days.
+ */
+export function hasUsage(report: UsageReport, store: DayStore, disabled: string[]): boolean {
+  const on = (name: string) => !disabled.includes(name);
+  return (
+    report.agents.some((agent) => on(agent.agent)) ||
+    Object.entries(store).some(([name, days]) => on(name) && Object.keys(days).length > 0)
+  );
+}

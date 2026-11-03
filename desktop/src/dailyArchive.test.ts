@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { recordDays, withArchive } from "./dailyArchive";
+import { hasUsage, recordDays, withArchive } from "./dailyArchive";
 import type { AgentReport, UsageReport } from "./types";
 
 const agent = (name: string, daily: [string, number, number][]): AgentReport => ({
@@ -67,4 +67,17 @@ test("a turned-off harness and days outside the period stay out", () => {
   assert.equal(merged.totals.totalCost, 0.1);
   const unchanged = report([agent("claude", [["2026-09-01", 100, 1]])]);
   assert.equal(withArchive(unchanged, { claude: { "2026-09-01": { tokens: 100, cost: 1 } } }, []), unchanged);
+});
+
+test("archived days count as usage when the logs have none left", () => {
+  const empty = report([]);
+  assert.equal(hasUsage(empty, {}, []), false, "a first launch has nothing");
+  assert.equal(hasUsage(empty, { codex: { "2026-10-01": { tokens: 10, cost: 1 } } }, []), true);
+  assert.equal(
+    hasUsage(empty, { codex: { "2026-10-01": { tokens: 10, cost: 1 } } }, ["codex"]),
+    false,
+    "the days of a harness turned off do not count",
+  );
+  assert.equal(hasUsage(report([agent("claude", [])]), {}, ["claude"]), false);
+  assert.equal(hasUsage(report([agent("claude", [])]), {}, []), true);
 });

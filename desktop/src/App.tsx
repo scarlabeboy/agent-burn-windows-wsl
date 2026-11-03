@@ -36,7 +36,7 @@ import { LimitUsageChart } from "./LimitUsageChart";
 import type { LimitUsageDay } from "./limitUsage";
 import { SUPPORTED_HARNESSES, disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
 import { formatUsd, mergeReports, totalBreakdown, withoutHarnesses } from "./aggregate";
-import { withArchive } from "./dailyArchive";
+import { hasUsage, withArchive } from "./dailyArchive";
 import {
   archivedDays,
   backfilledAt,
@@ -505,15 +505,15 @@ export default function App() {
   const activeIds: string[] =
     tab === "windows" ? ["windows"] : tab === "wsl" ? (activeDistro ? [`wsl:${activeDistro.name}`] : []) : sourceIds;
   const activeKey = activeIds.join(",");
-  // Every source of this tab answered and none has any harness: a first launch, or a machine
-  // where no supported agent was used yet. A stopped distribution never read yet has nothing to
-  // add, so it does not hold the message back (a stopped one with a saved report does count).
+  // Every source of this tab answered and none has a harness or an archived day: a first launch,
+  // or a machine where no supported agent was used yet. A stopped distribution never read yet has
+  // nothing to add, so it does not hold the message back (a stopped one with a saved report does).
   const answeringIds = activeIds.filter((id) => readableIds.includes(id as SourceId) || states[id]);
   const hasNoData =
     answeringIds.length > 0 &&
     answeringIds.every((id) => {
       const state = states[id];
-      return state?.status === "ready" && state.report.agents.length === 0;
+      return state?.status === "ready" && !hasUsage(state.report, archivedDays(id), disabled);
     });
   const stoppedNames = distros
     .filter((entry) => !entry.running && activeIds.includes(`wsl:${entry.name}`))
