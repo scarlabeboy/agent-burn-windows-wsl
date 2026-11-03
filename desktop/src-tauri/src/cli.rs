@@ -67,6 +67,19 @@ fn locate_cli() -> Result<PathBuf, String> {
         })
 }
 
+/// The CLI also reads an `agent-burn.json` it finds in the current folder, `~/.config/agent-burn/`
+/// or the Claude folder, which can change its figures (`until`, `jq`, prices) without the app
+/// knowing. An explicit `--config` replaces that search; the null device never holds one, and a
+/// configuration that cannot be read is simply none.
+const NO_USER_CONFIG: [&str; 2] = ["--config", "NUL"];
+
+/// A run of `program` with `args` (the command and its first options) and no user configuration.
+fn cli_command(program: PathBuf, args: &[&str]) -> Command {
+    let mut command = Command::new(program);
+    command.args(args).args(NO_USER_CONFIG);
+    command
+}
+
 /// A temporary copy of OpenCode's database, removed as soon as it goes out of use, so no copy
 /// of a user's conversations stays in the temp folder.
 struct Snapshot(Option<PathBuf>);
@@ -207,8 +220,7 @@ pub fn run_summary(
     claude_plan: &str,
     scope: &Scope,
 ) -> Result<Value, String> {
-    let mut command = Command::new(locate_cli()?);
-    command.args(["summary", "--json", "--no-color"]);
+    let mut command = cli_command(locate_cli()?, &["summary", "--json", "--no-color"]);
     let value = wants_value(scope, quotas);
     if value {
         command.arg("--value");
@@ -250,8 +262,7 @@ fn limit_usage_of(report: &Value) -> Value {
 /// How much of the weekly Codex limit each recent day used, by surface and model. It comes from
 /// the ChatGPT dashboard through the Codex sign-in of the source, so it needs the network.
 pub fn run_limit_usage(distro: Option<&str>) -> Result<Value, String> {
-    let mut command = Command::new(locate_cli()?);
-    command.args(["harness", "codex", "--json", "--no-color"]);
+    let mut command = cli_command(locate_cli()?, &["harness", "codex", "--json", "--no-color"]);
     let (_, _snapshot) = apply_source(&mut command, distro, false)?;
     run_json(command, distro, "limits").map(|report| limit_usage_of(&report))
 }
@@ -261,10 +272,11 @@ pub fn run_quota(harness: &str, distro: Option<&str>, force: bool) -> Result<Val
     if !matches!(harness, "claude" | "codex") {
         return Err(format!("unsupported harness '{harness}'"));
     }
-    let mut command = Command::new(locate_cli()?);
-    command
-        .args(["harness", harness, "--json", "--no-color", "--no-offline"])
-        .env("AGENT_BURN_QUOTA_ONLY", "1");
+    let mut command = cli_command(
+        locate_cli()?,
+        &["harness", harness, "--json", "--no-color", "--no-offline"],
+    );
+    command.env("AGENT_BURN_QUOTA_ONLY", "1");
     if force {
         command.env("AGENT_BURN_FORCE_REFRESH", "1");
     }
@@ -582,5 +594,12 @@ mod tests {
         assert!(wants_value(&scope(None), true));
         assert!(!wants_value(&scope(None), false), "quotas off: no online reading");
         assert!(!wants_value(&scope(Some("20261101")), true), "a period scan needs usage only");
+    }
+
+    #[test]
+    fn every_run_leaves_out_the_user_configuration() {
+        let command = cli_command(PathBuf::from("agent-burn.exe"), &["summary", "--json"]);
+        let args: Vec<_> = command.get_args().map(|arg| arg.to_string_lossy().into_owned()).collect();
+        assert_eq!(args, ["summary", "--json", "--config", "NUL"]);
     }
 }
