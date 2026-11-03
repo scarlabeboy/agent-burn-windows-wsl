@@ -21,6 +21,13 @@ function addBreakdown(into: TokenBreakdown, from: TokenBreakdown) {
   into.cacheWrite += from.cacheWrite;
 }
 
+/** Input, output and cache tokens of every harness of a report together. */
+export function totalBreakdown(report: UsageReport): TokenBreakdown {
+  const total = emptyBreakdown();
+  report.agents.forEach((agent) => addBreakdown(total, agent.tokenBreakdown));
+  return total;
+}
+
 function mergeDaily(lists: DailyPoint[][]): DailyPoint[] {
   const byDate = new Map<string, DailyPoint>();
   for (const point of lists.flat()) {

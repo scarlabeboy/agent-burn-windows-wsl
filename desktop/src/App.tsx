@@ -34,7 +34,7 @@ import { REPO_URL, useUpdater, type UpdateState } from "./updater";
 import { LimitUsageChart } from "./LimitUsageChart";
 import type { LimitUsageDay } from "./limitUsage";
 import { SUPPORTED_HARNESSES, disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
-import { formatUsd, mergeReports } from "./aggregate";
+import { formatUsd, mergeReports, totalBreakdown } from "./aggregate";
 import { withArchive } from "./dailyArchive";
 import {
   archivedDays,
@@ -1062,6 +1062,7 @@ export default function App() {
                     />
                     <HarnessList report={report} onSelect={setPage} />
                   </div>
+                  <TokenBreakdownCard breakdown={totalBreakdown(report)} pending={approx} detailError={detailError} />
                   <Models report={report} detailError={detailError} />
                 </>
               ) : (
