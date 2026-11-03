@@ -6,6 +6,26 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.4.2
+
+#### English
+
+### Improvements
+- On harness pages, the token breakdown now comes before the models table, which ends the page.
+
+### Fixes
+- The Subscription block counts the spend of Windows and WSL together: the quota belongs to the account, so the plan value and monthly value were too low when both environments use it.
+- A quota stays on screen for up to two minutes after a failed read, with its age shown, instead of flashing to "not read" (Claude Code in WSL without a sign-in).
+
+#### Français
+
+### Améliorations
+- Sur les pages de harness, la répartition des tokens passe avant le tableau des modèles, qui termine la page.
+
+### Corrections
+- Le bloc Abonnement compte ensemble la dépense de Windows et de WSL : le quota appartient au compte, la valeur du forfait et la valeur mensuelle étaient donc trop basses quand les deux environnements l'utilisent.
+- Un quota reste affiché jusqu'à deux minutes après une lecture ratée, avec son âge, au lieu de clignoter vers « non lu » (Claude Code dans WSL sans connexion).
+
 ## 0.4.1
 
 #### English
