@@ -117,6 +117,24 @@ export function mergeReports(reports: UsageReport[]): UsageReport {
   };
 }
 
+/**
+ * A report without the harnesses turned off. A report read before a harness was turned off (the
+ * cache of a stopped WSL, a period's detail) still counts it; a report without them is kept as
+ * the CLI gave it.
+ */
+export function withoutHarnesses(report: UsageReport, disabled: string[]): UsageReport {
+  if (!report.agents.some((agent) => disabled.includes(agent.agent))) return report;
+  const kept = report.agents
+    .filter((agent) => !disabled.includes(agent.agent))
+    .map((agent) => ({
+      agents: [agent],
+      daily: agent.daily,
+      models: agent.models,
+      totals: { totalCost: agent.totalCost, totalTokens: agent.totalTokens },
+    }));
+  return { ...report, ...mergeReports(kept), approxDetail: report.approxDetail };
+}
+
 export const formatTokens = (value: number): string => {
   const abs = Math.abs(value);
   if (abs >= 1e9) return `${(value / 1e9).toFixed(2)}B`;

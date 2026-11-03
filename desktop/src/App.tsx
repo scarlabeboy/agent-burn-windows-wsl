@@ -35,7 +35,7 @@ import { REPO_URL, useUpdater, type UpdateState } from "./updater";
 import { LimitUsageChart } from "./LimitUsageChart";
 import type { LimitUsageDay } from "./limitUsage";
 import { SUPPORTED_HARNESSES, disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
-import { formatUsd, mergeReports, totalBreakdown } from "./aggregate";
+import { formatUsd, mergeReports, totalBreakdown, withoutHarnesses } from "./aggregate";
 import { withArchive } from "./dailyArchive";
 import {
   archivedDays,
@@ -616,7 +616,9 @@ export default function App() {
           const base = reportOf(states[id]);
           if (!base) return [];
           // Days a harness no longer reports (old logs purged) come back from the daily archive.
-          const report = withArchive(range ? filterReport(base, range) : base, archivedDays(id), disabled, range ?? undefined);
+          // A harness turned off since this report was read (a stopped WSL keeps it) stays out.
+          const current = withoutHarnesses(base, disabled);
+          const report = withArchive(range ? filterReport(current, range) : current, archivedDays(id), disabled, range ?? undefined);
           return [{ id, label: label(id), report }];
         }),
     [activeKey, states, rangeSince, rangeUntil, disabledKey],
@@ -631,7 +633,9 @@ export default function App() {
     return mergeReports(
       localParts.map((part) => {
         const detail = currentDetail(part.id, detailKey(part.id));
-        return detail ? withArchive(detail, archivedDays(part.id), disabled, range) : part.report;
+        return detail
+          ? withArchive(withoutHarnesses(detail, disabled), archivedDays(part.id), disabled, range)
+          : part.report;
       }),
     );
   }, [localReport, localParts, details, states, rangeSince, rangeUntil, detailScope, disabledKey]);
