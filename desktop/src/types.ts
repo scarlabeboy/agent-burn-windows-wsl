@@ -111,9 +111,9 @@ export type SourceId = "windows" | `wsl:${string}`;
 
 export type SourceState =
   | { status: "idle" }
-  | { status: "loading"; previous?: UsageReport }
+  | { status: "loading"; previous?: UsageReport; previousAt?: number }
   | { status: "ready"; report: UsageReport; loadedAt: number }
-  | { status: "error"; message: string; previous?: UsageReport };
+  | { status: "error"; message: string; previous?: UsageReport; previousAt?: number };
 
 export type TabId = "windows" | "wsl" | "computer";
 

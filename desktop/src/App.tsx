@@ -109,14 +109,18 @@ const LIMIT_USAGE_TTL_MS = 5 * 60_000;
 const QUOTA_GRACE_MS = 2 * 60_000;
 /** Each source's Claude plan is read from its own sign-in file; there is no manual choice. */
 const CLAUDE_PLAN = "auto";
-/** Period scans are reused for this long before being fetched again. */
-const DETAIL_TTL_MS = 10 * 60_000;
-
 function reportOf(state: SourceState | undefined): UsageReport | undefined {
   if (!state) return undefined;
   if (state.status === "ready") return state.report;
   if (state.status === "loading" || state.status === "error") return state.previous;
   return undefined;
+}
+
+/** When the report on screen for a source was read (0 when there is none). */
+function loadedAtOf(state: SourceState | undefined): number {
+  if (state?.status === "ready") return state.loadedAt;
+  if (state?.status === "loading" || state?.status === "error") return state.previousAt ?? 0;
+  return 0;
 }
 
 /** The weekly Codex limit per day, or the reason there is none to show. */
@@ -210,11 +214,15 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [archiveReady, setArchiveReady] = useState(false);
   const [period, setPeriodState] = useState<Period>(readPeriod);
-  const [details, setDetails] = useState<Record<string, { report: UsageReport; loadedAt: number }>>({});
+  // Per-model detail of a period, with when it was asked for: it is only used while no scan of
+  // its source finished after that, or its figures would trail the totals beside them.
+  const [details, setDetails] = useState<Record<string, { report: UsageReport; requestedAt: number }>>({});
   const [detailErrors, setDetailErrors] = useState<Record<string, string>>({});
   const [autostart, setAutostartState] = useState<boolean | null>(null);
   const detailsRef = useRef(details);
   detailsRef.current = details;
+  const statesRef = useRef(states);
+  statesRef.current = states;
   const setPeriod = (next: Period) => {
     setPeriodState(next);
     writePeriod(next);
@@ -317,7 +325,7 @@ export default function App() {
     const scans = readableIds.map((id) => {
       setStates((current) => ({
         ...current,
-        [id]: { status: "loading", previous: reportOf(current[id]) },
+        [id]: { status: "loading", previous: reportOf(current[id]), previousAt: loadedAtOf(current[id]) },
       }));
       return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, CLAUDE_PLAN, {}, agentsToScan)
         .then((report) => {
@@ -328,7 +336,12 @@ export default function App() {
         .catch((error) =>
           setStates((current) => ({
             ...current,
-            [id]: { status: "error", message: String(error), previous: reportOf(current[id]) },
+            [id]: {
+              status: "error",
+              message: String(error),
+              previous: reportOf(current[id]),
+              previousAt: loadedAtOf(current[id]),
+            },
           })),
         );
     });
@@ -582,6 +595,10 @@ export default function App() {
   const rangeUntil = range?.until;
   const detailScope = page === OVERVIEW ? "*" : page;
   const detailKey = (id: string) => `${id}|${rangeSince}|${rangeUntil ?? ""}|${detailScope}`;
+  const currentDetail = (id: string, key: string) => {
+    const detail = detailsRef.current[key];
+    return detail && detail.requestedAt >= loadedAtOf(statesRef.current[id]) ? detail.report : undefined;
+  };
 
   // Totals and daily series of a period are filtered locally and are exact; per-model detail
   // comes from a period scan of the CLI, loaded on demand and reused for a few minutes.
@@ -608,11 +625,11 @@ export default function App() {
     if (!range) return localReport;
     return mergeReports(
       localParts.map((part) => {
-        const detail = details[detailKey(part.id)]?.report;
+        const detail = currentDetail(part.id, detailKey(part.id));
         return detail ? withArchive(detail, archivedDays(part.id), disabled, range) : part.report;
       }),
     );
-  }, [localReport, localParts, details, rangeSince, rangeUntil, detailScope, disabledKey]);
+  }, [localReport, localParts, details, states, rangeSince, rangeUntil, detailScope, disabledKey]);
   const detailError = activeKey
     .split(",")
     .map((id) => detailErrors[detailKey(id)])
@@ -624,9 +641,10 @@ export default function App() {
     void (async () => {
       for (const id of activeKey.split(",").filter((entry) => entry && readableKey.split(",").includes(entry))) {
         if (cancelled) return;
-        const key =`${id}|${rangeSince}|${rangeUntil ?? ""}|${detailScope}`;
-        const cached = detailsRef.current[key];
-        if (cached && Date.now() - cached.loadedAt < DETAIL_TTL_MS) continue;
+        const key = `${id}|${rangeSince}|${rangeUntil ?? ""}|${detailScope}`;
+        // Asked again after each scan of the source, so per-model figures follow the totals.
+        if (currentDetail(id, key)) continue;
+        const requestedAt = Date.now();
         try {
           const detail = await loadUsage(
             id === "windows" ? null : id.slice(4),
@@ -635,7 +653,7 @@ export default function App() {
             { since: compactDate(rangeSince), until: rangeUntil ? compactDate(rangeUntil) : undefined },
             detailScope === "*" ? agentsToScan : [detailScope],
           );
-          setDetails((current) => ({ ...current, [key]: { report: detail, loadedAt: Date.now() } }));
+          setDetails((current) => ({ ...current, [key]: { report: detail, requestedAt } }));
           setDetailErrors(({ [key]: _cleared, ...rest }) => rest);
         } catch (error) {
           setDetailErrors((current) => ({ ...current, [key]: String(error) }));
