@@ -586,6 +586,10 @@ export default function App() {
   useEffect(() => {
     void setTrayLabels(t().tray).catch(() => undefined);
   }, [lang]);
+  // Screen readers and the WebView's own texts take the page language from `<html lang>`.
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   // "Since the reset day" needs a weekly quota cycle, so it only applies on Claude and Codex pages.
   const effectivePeriod: Period =
