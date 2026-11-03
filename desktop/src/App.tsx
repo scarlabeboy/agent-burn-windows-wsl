@@ -70,7 +70,7 @@ import {
   refreshHint,
   subscriptionOffReason,
 } from "./settingsHints";
-import { pickClaudeAccount, pickSubscription } from "./subscription";
+import { pickClaudeAccount, pickSubscription, withAccountSpend } from "./subscription";
 import type {
   Detected,
   QuotaReading,
@@ -659,6 +659,16 @@ export default function App() {
     [activeKey, states],
   );
 
+  // The quota belongs to the account, so its value counts the spend of every source read now,
+  // whichever tab is open.
+  const liveReports = useMemo(
+    () =>
+      readableIds
+        .map((id) => reportOf(states[id]))
+        .filter((entry): entry is UsageReport => entry !== undefined),
+    [readableIds, states],
+  );
+
   // Only offered with WSL: with Windows alone there is nothing to choose.
   const tabs: { id: TabId; label: string }[] = hasWsl
     ? [
@@ -1075,7 +1085,7 @@ export default function App() {
                   {(page === "claude" || page === "codex") && (
                     <SubscriptionCard
                       harness={page}
-                      sub={pickSubscription(sourceReports, page)}
+                      sub={withAccountSpend(pickSubscription(sourceReports, page), liveReports)}
                       account={pickClaudeAccount(sourceReports)}
                       card={pageCards[0]}
                       offReason={subscriptionOffReason(settings)}

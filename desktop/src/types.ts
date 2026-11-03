@@ -46,6 +46,8 @@ export interface SubscriptionAgent {
   pricePerMonth: number | null;
   liveLimits: boolean;
   periodUsage: number;
+  /** The quota window the estimate is built on, with this source's own spend in it. */
+  window?: { label: string; usedPercent: number; elapsedMinutes: number; apiEquivalentSpent: number } | null;
   resetCreditsAvailable: number | null;
   estimate: SubscriptionEstimate | null;
 }
