@@ -6,6 +6,32 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.4.4
+
+#### English
+
+### New
+- New setting "Restart after an unexpected stop", on by default: Windows reopens the app in the notification area after a crash, or after a Windows update or an installer closed it. "Quit" still stops it for good.
+- Keyboard shortcuts: Ctrl+R or F5 refreshes like the ⟳ button, Ctrl+Shift+R reads the quotas only. They no longer reload the page.
+
+### Improvements
+- The weekly quota in the sidebar fades when its reading is no longer live, and the notification-area tooltip says how old such a reading is.
+
+### Fixes
+- The message shown when Microsoft Edge WebView2 is missing is now in English, unless Windows is in French.
+
+#### Français
+
+### Nouveautés
+- Nouveau réglage « Relancer après un arrêt imprévu », activé par défaut : Windows rouvre l'application dans la zone de notification après un plantage, ou après une mise à jour Windows ou un installeur qui l'a fermée. « Quitter » reste un vrai arrêt.
+- Raccourcis clavier : Ctrl+R ou F5 actualise comme le bouton ⟳, Ctrl+Maj+R relit seulement les quotas. Ils ne rechargent plus la page.
+
+### Améliorations
+- Le quota hebdomadaire de la barre latérale pâlit quand sa lecture n'est plus à jour, et l'infobulle de l'icône de notification indique l'âge de cette lecture.
+
+### Corrections
+- Le message affiché quand Microsoft Edge WebView2 manque est maintenant en anglais, sauf si Windows est en français.
+
 ## 0.4.3
 
 #### English
