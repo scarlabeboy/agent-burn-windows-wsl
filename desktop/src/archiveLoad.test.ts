@@ -37,7 +37,7 @@ const report: UsageReport = {
 
 test("an archive that could not be read is never saved over", async () => {
   await loadArchive();
-  cacheReport("windows", report, 1);
+  cacheReport("windows", report, 1, true);
   flush();
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.deepEqual(written, ["report-cache"], "the report cache is saved, the daily archive left alone");

@@ -322,7 +322,7 @@ export default function App() {
       return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, CLAUDE_PLAN, {}, agentsToScan)
         .then((report) => {
           const loadedAt = Date.now();
-          cacheReport(id, report, loadedAt);
+          cacheReport(id, report, loadedAt, !settings.offline);
           setStates((current) => ({ ...current, [id]: { status: "ready", report, loadedAt } }));
         })
         .catch((error) =>

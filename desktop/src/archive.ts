@@ -153,10 +153,15 @@ export async function loadArchive(): Promise<void> {
 
 export const cachedReports = (): Record<string, CachedReport> => reports.sources;
 
-export function cacheReport(sourceId: string, report: UsageReport, loadedAt: number) {
+/**
+ * Keep the last report of a source. Its days go to the daily archive only when it was read
+ * online: offline, models without a built-in price cost $0, and those days would replace the
+ * real figures of days that may be purged before the next online scan.
+ */
+export function cacheReport(sourceId: string, report: UsageReport, loadedAt: number, online: boolean) {
   reports.sources[sourceId] = { report, loadedAt };
   save("report-cache");
-  recordDaily(sourceId, report);
+  if (online) recordDaily(sourceId, report);
 }
 
 /** Store the days of a full scan of one source (a period scan must never be recorded here). */

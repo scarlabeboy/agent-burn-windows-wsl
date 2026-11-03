@@ -1,8 +1,8 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readSeries, recordReading } from "./archive";
-import type { QuotaReading } from "./types";
+import { archivedDays, cacheReport, readSeries, recordReading } from "./archive";
+import type { QuotaReading, UsageReport } from "./types";
 
 const WEEK = 10_080;
 const WEEK_MS = WEEK * 60_000;
@@ -33,4 +33,31 @@ test("a reading older than the last one recorded is ignored", () => {
 
   recordReading(weekly(620, 52));
   assert.deepEqual(used(), [50, 52]);
+});
+
+/** One day of Claude Code at `cost`, as a scan reports it. */
+const dayReport = (cost: number): UsageReport => {
+  const daily = [{ date: "2026-11-03", tokens: 10, cost }];
+  return {
+    agents: [
+      {
+        agent: "claude",
+        daily,
+        models: [],
+        tokenBreakdown: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        totalCost: cost,
+        totalTokens: 10,
+      },
+    ],
+    daily,
+    models: [],
+    totals: { totalCost: cost, totalTokens: 10 },
+  };
+};
+
+test("an offline scan leaves the daily archive as the last online one left it", () => {
+  cacheReport("windows", dayReport(4.2), 1, true);
+  // Offline, a model without a built-in price costs $0.
+  cacheReport("windows", dayReport(0), 2, false);
+  assert.equal(archivedDays("windows").claude["2026-11-03"].cost, 4.2);
 });
