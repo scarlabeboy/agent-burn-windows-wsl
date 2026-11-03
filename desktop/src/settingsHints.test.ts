@@ -59,7 +59,7 @@ test("every quota-based block gives the offline reason first, then the quota swi
 
 test("the usage refresh hint names the interval, or the manual button when it is off", () => {
   assert.equal(refreshHint(5), "Relit les journaux des harness toutes les 5 minutes.");
-  assert.match(refreshHint(0), /démarrage et avec le bouton/);
+  assert.match(refreshHint(0), /seulement au démarrage, avec ⟳ ou quand WSL change/);
 });
 
 test("hints, amounts and ages follow the chosen language", () => {

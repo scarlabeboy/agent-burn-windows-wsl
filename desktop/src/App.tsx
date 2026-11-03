@@ -360,11 +360,15 @@ export default function App() {
 
   // Windows is scanned as soon as the archive is loaded. A WSL distribution joins the scan
   // once its detection answers: the sources change, which scans again (queued if one runs).
-  // The time of the next automatic scan is kept for the status bar (0: none planned).
+  useEffect(() => {
+    if (archiveReady) refresh(true);
+  }, [detected, archiveReady, refresh]);
+
+  // Automatic scans. Changing their interval only resets the timer: it does not scan.
+  // The time of the next one is kept for the status bar (0: none planned).
   const [nextScan, setNextScan] = useState(0);
   useEffect(() => {
     if (!archiveReady) return;
-    refresh(true);
     if (settings.refreshMinutes <= 0) {
       setNextScan(0);
       return;
@@ -372,11 +376,11 @@ export default function App() {
     const every = settings.refreshMinutes * 60_000;
     setNextScan(Date.now() + every);
     const timer = setInterval(() => {
-      refresh();
+      refreshRef.current();
       setNextScan(Date.now() + every);
     }, every);
     return () => clearInterval(timer);
-  }, [detected, archiveReady, refresh, settings.refreshMinutes]);
+  }, [archiveReady, settings.refreshMinutes]);
 
   // Rebuild Codex limit history from each source's logs: 30 days the first time, then only
   // what changed since the last scan. It starts after the first usage scan has had a head start.
@@ -1274,6 +1278,7 @@ export default function App() {
           loading={loading}
           lastScan={lastScan}
           nextScan={nextScan}
+          autoRefresh={settings.refreshMinutes > 0}
           error={scanError}
           offline={settings.offline}
           update={updater.state}

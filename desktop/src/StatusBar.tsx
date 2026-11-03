@@ -22,6 +22,7 @@ export function StatusBar({
   loading,
   lastScan,
   nextScan,
+  autoRefresh,
   error,
   offline,
   update,
@@ -30,6 +31,8 @@ export function StatusBar({
   loading: boolean;
   lastScan: number;
   nextScan: number;
+  /** Off ("Never"): the dot turns neutral and the bar says so, though the last read worked. */
+  autoRefresh: boolean;
   /** The last read of a source failed (for example the CLI removed by an antivirus). */
   error?: string;
   offline: boolean;
@@ -38,13 +41,16 @@ export function StatusBar({
 }) {
   const version = useAppVersion();
   const nowMs = useNow(15_000);
-  // Rounded up: "in 1 min" until the scan starts, never "in 0 min".
-  const nextIn = Math.ceil((nextScan - nowMs) / 60_000);
+  // Rounded up: "in 1 min" until the scan starts, never "in 0 min". The clock is read now, not
+  // at the last tick of `nowMs`, which would say "31 min" right after choosing 30.
+  const nextIn = Math.ceil((nextScan - Date.now()) / 60_000);
   const text = t().status;
-  const next = nextScan > 0 && nextIn > 0 ? text.nextIn(nextIn) : "";
+  const next = !autoRefresh ? text.autoOff : nextScan > 0 && nextIn > 0 ? text.nextIn(nextIn) : "";
   return (
     <footer className="statusbar small muted">
-      <i className={`dot${loading ? " busy" : error ? " bad" : lastScan > 0 ? " ok" : ""}`} />
+      <i
+        className={`dot${loading ? " busy" : error ? " bad" : lastScan > 0 ? (autoRefresh ? " ok" : " idle") : ""}`}
+      />
       {!loading && error ? (
         <span className="status-error" title={error}>
           {error}

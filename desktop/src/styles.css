@@ -85,6 +85,7 @@ button { cursor: pointer; }
 }
 .statusbar .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
 .statusbar .dot.ok { background: var(--ok); }
+.statusbar .dot.idle { background: var(--text); }
 .statusbar .dot.busy { background: var(--accent); }
 .statusbar .dot.bad { background: var(--danger); }
 .status-error { color: var(--danger); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
