@@ -97,7 +97,7 @@ pub(super) fn run(args: SummaryArgs) -> Result<()> {
     };
 
     if wants_json(&shared) {
-        let mut output = detail::to_json(&summary, &result.rows);
+        let mut output = summary_json(&summary, &result.rows, &result.pricing, shared.no_cost);
         if value
             && (shared.agents.is_empty() || shared.agents.iter().any(|agent| agent == "cursor"))
             && let Some(account) = cursor::load_account(shared.offline)
@@ -137,6 +137,64 @@ pub(super) fn run(args: SummaryArgs) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn summary_json(summary: &Summary, rows: &[AllRow], pricing: &PricingMap, no_cost: bool) -> Value {
+    let mut output = detail::to_json(summary, rows);
+    if !no_cost {
+        // Expose the all-agent loader's map as reference pricing: Claude and OpenCode
+        // build separate maps with the same settings and sources, but fetch failures
+        // or harness-provided costs can make the displayed cost differ.
+        output["pricing"] = model_pricing_json(&output, pricing);
+    }
+    output
+}
+
+fn model_pricing_json(output: &Value, pricing: &PricingMap) -> Value {
+    let models = output["models"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .chain(
+            output["agents"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .flat_map(|agent| agent["models"].as_array().into_iter().flatten()),
+        )
+        .filter_map(|model| model["model"].as_str())
+        .collect::<BTreeSet<_>>();
+    let mut table = serde_json::Map::new();
+    for model in models {
+        let Some(rate) = pricing.find(model) else {
+            continue;
+        };
+        let mut value = json!({
+            "input": rounded_pricing_value(rate.input * 1_000_000.0),
+            "output": rounded_pricing_value(rate.output * 1_000_000.0),
+            "cacheWrite": rounded_pricing_value(rate.cache_create * 1_000_000.0),
+            "cacheRead": rounded_pricing_value(rate.cache_read * 1_000_000.0),
+        });
+        for (key, above) in [
+            ("inputAbove200k", rate.input_above_200k),
+            ("outputAbove200k", rate.output_above_200k),
+            ("cacheWriteAbove200k", rate.cache_create_above_200k),
+            ("cacheReadAbove200k", rate.cache_read_above_200k),
+        ] {
+            if let Some(above) = above {
+                value[key] = rounded_pricing_value(above * 1_000_000.0);
+            }
+        }
+        if rate.fast_multiplier != 1.0 {
+            value["fastMultiplier"] = rounded_pricing_value(rate.fast_multiplier);
+        }
+        table.insert(model.to_string(), value);
+    }
+    Value::Object(table)
+}
+
+fn rounded_pricing_value(value: f64) -> Value {
+    json_float((value * 1_000_000.0).round() / 1_000_000.0)
 }
 
 /// Build the embedded JSON payload for the interactive HTML report: the full
@@ -1266,6 +1324,179 @@ mod tests {
             agent_breakdowns: Some(agents),
             model_breakdowns: models,
         }
+    }
+
+    #[test]
+    fn summary_json_exports_rounded_rates_per_million_and_optional_fields() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "test-model": {
+                    "input_cost_per_token": 0.0000030000000000000004,
+                    "output_cost_per_token": 0.000015123456789,
+                    "cache_creation_input_token_cost": 0.00000375,
+                    "cache_read_input_token_cost": 0.0000003,
+                    "input_cost_per_token_above_200k_tokens": 0.000006,
+                    "output_cost_per_token_above_200k_tokens": 0.000030,
+                    "cache_creation_input_token_cost_above_200k_tokens": 0.0000075,
+                    "cache_read_input_token_cost_above_200k_tokens": 0.0,
+                    "provider_specific_entry": { "fast": 2.123456789 }
+                }
+            }"#,
+        );
+        let rows = vec![day_row(
+            7.0,
+            100,
+            Vec::new(),
+            vec![model_breakdown("test-model", 7.0, 100)],
+        )];
+
+        let output = summary_json(&Summary::from_rows(&rows), &rows, &pricing, false);
+
+        assert_eq!(
+            output["pricing"]["test-model"],
+            json!({
+                "input": 3,
+                "output": 15.123457,
+                "cacheWrite": 3.75,
+                "cacheRead": 0.3,
+                "inputAbove200k": 6,
+                "outputAbove200k": 30,
+                "cacheWriteAbove200k": 7.5,
+                "cacheReadAbove200k": 0,
+                "fastMultiplier": 2.123457,
+            })
+        );
+    }
+
+    #[test]
+    fn summary_json_prices_each_reported_model_once_across_agents_and_days() {
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "shared-model": { "input_cost_per_token": 0.000001, "output_cost_per_token": 0.000002 },
+                "agent-only": { "input_cost_per_token": 0.000002, "output_cost_per_token": 0.000004 },
+                "unused-model": { "input_cost_per_token": 0.000003, "output_cost_per_token": 0.000006 }
+            }"#,
+        );
+        let mut claude = breakdown_row("claude", 3.0, 30);
+        claude.model_breakdowns = vec![model_breakdown("shared-model", 3.0, 30)];
+        let mut codex = breakdown_row("codex", 2.0, 20);
+        codex.model_breakdowns = vec![model_breakdown("agent-only", 2.0, 20)];
+        let rows = vec![
+            day_row(
+                5.0,
+                50,
+                vec![claude, codex],
+                vec![model_breakdown("shared-model", 5.0, 50)],
+            ),
+            AllRow {
+                period: "2026-01-02".to_string(),
+                ..day_row(
+                    1.0,
+                    10,
+                    Vec::new(),
+                    vec![model_breakdown("shared-model", 1.0, 10)],
+                )
+            },
+        ];
+
+        let output = summary_json(&Summary::from_rows(&rows), &rows, &pricing, false);
+
+        assert_eq!(output["pricing"].as_object().unwrap().len(), 2);
+        assert_eq!(
+            output["pricing"]["shared-model"],
+            json!({ "input": 1, "output": 2, "cacheWrite": 1.25, "cacheRead": 0.1 })
+        );
+        assert_eq!(output["pricing"]["agent-only"]["input"], 2);
+        assert!(output["pricing"].get("unused-model").is_none());
+    }
+
+    #[test]
+    fn summary_json_omits_unknown_models_from_pricing() {
+        let rows = vec![day_row(
+            7.0,
+            100,
+            Vec::new(),
+            vec![model_breakdown("unknown-model", 7.0, 100)],
+        )];
+
+        let output = summary_json(&Summary::from_rows(&rows), &rows, &PricingMap::default(), false);
+
+        assert_eq!(output["pricing"], json!({}));
+        assert_eq!(output["models"][0]["model"], "unknown-model");
+    }
+
+    #[test]
+    fn summary_json_omits_pricing_with_no_cost() {
+        let rows = vec![day_row(
+            7.0,
+            100,
+            Vec::new(),
+            vec![model_breakdown("test-model", 7.0, 100)],
+        )];
+        let summary = Summary::from_rows(&rows);
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "test-model": { "input_cost_per_token": 0.000003, "output_cost_per_token": 0.000015 }
+            }"#,
+        );
+
+        let output = summary_json(&summary, &rows, &pricing, true);
+
+        assert!(output.get("pricing").is_none());
+        assert_eq!(output, detail::to_json(&summary, &rows));
+    }
+
+    #[test]
+    fn summary_json_uses_overrides_from_the_supplied_map() {
+        let mut pricing = PricingMap::default();
+        let overrides = BTreeMap::from([(
+            "custom-model".to_string(),
+            agent_burn_cli::PricingOverride {
+                input_cost_per_token: Some(0.000009),
+                output_cost_per_token: Some(0.000017),
+                ..Default::default()
+            },
+        )]);
+        pricing.apply_overrides(overrides.iter());
+        let rows = vec![day_row(
+            7.0,
+            100,
+            Vec::new(),
+            vec![model_breakdown("custom-model", 7.0, 100)],
+        )];
+
+        let output = summary_json(&Summary::from_rows(&rows), &rows, &pricing, false);
+
+        assert_eq!(output["pricing"]["custom-model"]["input"], 9);
+        assert_eq!(output["pricing"]["custom-model"]["output"], 17);
+    }
+
+    #[test]
+    fn summary_json_preserves_every_existing_field_when_adding_pricing() {
+        let mut agent = breakdown_row("claude", 7.0, 100);
+        agent.model_breakdowns = vec![model_breakdown("test-model", 7.0, 100)];
+        let rows = vec![day_row(
+            7.0,
+            100,
+            vec![agent],
+            vec![model_breakdown("test-model", 7.0, 100)],
+        )];
+        let summary = Summary::from_rows(&rows);
+        let mut pricing = PricingMap::default();
+        pricing.load_json(
+            r#"{
+                "test-model": { "input_cost_per_token": 0.000003, "output_cost_per_token": 0.000015 }
+            }"#,
+        );
+
+        let mut output = summary_json(&summary, &rows, &pricing, false);
+
+        assert!(output.as_object_mut().unwrap().remove("pricing").is_some());
+        assert_eq!(output, detail::to_json(&summary, &rows));
+        assert_eq!(output["totals"], json!({ "totalCost": 7, "totalTokens": 100 }));
     }
 
     #[test]

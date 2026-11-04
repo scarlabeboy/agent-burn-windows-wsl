@@ -275,6 +275,7 @@ pub(super) fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Al
         return Ok(AllLoadResult {
             rows,
             detected_agents,
+            pricing,
         });
     }
 
@@ -283,6 +284,7 @@ pub(super) fn load_rows(kind: AgentReportKind, shared: &SharedArgs) -> Result<Al
     Ok(AllLoadResult {
         rows: aggregated,
         detected_agents,
+        pricing,
     })
 }
 

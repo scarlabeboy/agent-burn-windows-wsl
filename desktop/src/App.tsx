@@ -77,6 +77,7 @@ import {
 import { pickClaudeAccount, pickSubscription, withAccountSpend } from "./subscription";
 import type {
   Detected,
+  ModelPricing,
   QuotaReading,
   Settings,
   SourceId,
@@ -211,6 +212,7 @@ export default function App() {
   const text = t();
   const [detected, setDetected] = useState<Detected | null>(null);
   const [states, setStates] = useState<Record<string, SourceState>>({});
+  const [pricing, setPricing] = useState<Record<string, ModelPricing>>({});
   const [quotas, setQuotas] = useState<Record<string, Record<string, QuotaReading>>>({});
   const [storedTab, setStoredTab] = useState<TabId | null>(readTab);
   const [distro, setDistro] = useState<string | null>(null);
@@ -332,7 +334,9 @@ export default function App() {
         [id]: { status: "loading", previous: reportOf(current[id]), previousAt: loadedAtOf(current[id]) },
       }));
       return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, quotasActive(settings), CLAUDE_PLAN, {}, agentsToScan)
-        .then((report) => {
+        .then(({ pricing: nextPricing, ...report }) => {
+          // Keep reference rates only in memory; the last Windows or WSL read wins.
+          if (nextPricing) setPricing((current) => ({ ...current, ...nextPricing }));
           const loadedAt = Date.now();
           cacheReport(id, report, loadedAt, !settings.offline);
           setStates((current) => ({ ...current, [id]: { status: "ready", report, loadedAt } }));
@@ -695,7 +699,7 @@ export default function App() {
         if (currentDetail(id, key)) continue;
         const requestedAt = Date.now();
         try {
-          const detail = await loadUsage(
+          const { pricing: nextPricing, ...detail } = await loadUsage(
             id === "windows" ? null : id.slice(4),
             settings.offline,
             false,
@@ -703,6 +707,7 @@ export default function App() {
             { since: compactDate(rangeSince), until: rangeUntil ? compactDate(rangeUntil) : undefined },
             detailScope === "*" ? agentsToScan : [detailScope],
           );
+          if (nextPricing) setPricing((current) => ({ ...current, ...nextPricing }));
           setDetails((current) => ({ ...current, [key]: { report: detail, requestedAt } }));
           setDetailErrors(({ [key]: _cleared, ...rest }) => rest);
         } catch (error) {
@@ -1196,7 +1201,7 @@ export default function App() {
                     <HarnessList report={report} onSelect={setPage} />
                   </div>
                   <TokenBreakdownCard breakdown={totalBreakdown(report)} pending={approx} detailError={detailError} />
-                  <Models report={report} detailError={detailError} />
+                  <Models report={report} pricing={pricing} detailError={detailError} />
                 </>
               ) : (
                 <>
@@ -1269,7 +1274,7 @@ export default function App() {
                         pending={approx}
                         detailError={detailError}
                       />
-                      <Models report={asReport(selected, approx)} detailError={detailError} />
+                      <Models report={asReport(selected, approx)} pricing={pricing} detailError={detailError} />
                     </>
                   ) : (
                     <div className="notice">{text.app.noUsageData(agentLabel(page))}</div>

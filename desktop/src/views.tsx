@@ -12,10 +12,11 @@ import { formatTokens, formatUsd, sortModels, tokensPerDollar, type ModelSort, t
 import { IdleChart, QuotaChart } from "./QuotaChart";
 import { budget, cycleEnded, formatDay, formatDuration, freshness, type GaugeModel, type QuotaCard } from "./quota";
 import { locale, percent, t } from "./i18n";
-import { TitleIcon, type GlyphKind } from "./TitleIcons";
+import { pricingTip } from "./pricingFormat";
+import { Glyph, TitleIcon, type GlyphKind } from "./TitleIcons";
 import { Tooltip as InfoTooltip } from "./Tooltip";
 import { useNow } from "./useNow";
-import type { AgentReport, ClaudeAccount, SubscriptionAgent, TokenBreakdown, UsageReport } from "./types";
+import type { AgentReport, ClaudeAccount, ModelPricing, SubscriptionAgent, TokenBreakdown, UsageReport } from "./types";
 import amp from "./assets/brands/amp.png";
 import claude from "./assets/brands/claude.png";
 import codex from "./assets/brands/codex.png";
@@ -319,7 +320,23 @@ const MODEL_COLUMNS: { key: ModelSortKey; numeric: boolean }[] = [
   { key: "share", numeric: true },
 ];
 
-export function Models({ report, detailError }: { report: UsageReport; detailError?: string }) {
+/** Rate badge in front of a model name: orange with its rates, grey when unknown or all zero. */
+function PricingBadge({ pricing }: { pricing: ModelPricing | undefined }) {
+  const tip = pricingTip(pricing);
+  return (
+    <InfoTooltip text={tip.text}>
+      <button type="button" className={`model-pricing-icon${tip.muted ? " muted" : ""}`} aria-label={t().views.pricingLabel}>
+        <Glyph kind="spend" size={12} />
+      </button>
+    </InfoTooltip>
+  );
+}
+
+export function Models({ report, pricing, detailError }: {
+  report: UsageReport;
+  pricing: Record<string, ModelPricing>;
+  detailError?: string;
+}) {
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<ModelSort>({ key: "cost", descending: true });
   const text = t().views;
@@ -364,7 +381,12 @@ export function Models({ report, detailError }: { report: UsageReport; detailErr
         <tbody>
           {rows.map((row) => (
             <tr key={row.model}>
-              <td>{row.model}</td>
+              <td>
+                <span className="model-name">
+                  <PricingBadge pricing={Object.hasOwn(pricing, row.model) ? pricing[row.model] : undefined} />
+                  {row.model}
+                </span>
+              </td>
               <td className="num">{formatTokens(row.totalTokens)}</td>
               <td className="num">{formatUsd(row.totalCost)}</td>
               <td className="num">

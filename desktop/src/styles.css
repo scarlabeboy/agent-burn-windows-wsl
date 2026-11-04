@@ -28,7 +28,7 @@ button { cursor: pointer; }
 .tooltip-bubble {
   position: fixed; z-index: 20; pointer-events: none;
   width: max-content; max-width: min(280px, calc(100vw - 16px)); max-height: calc(100vh - 16px);
-  overflow: hidden; overflow-wrap: anywhere; white-space: normal;
+  overflow: hidden; overflow-wrap: anywhere; white-space: pre-line;
   background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
   border-radius: 6px; padding: 6px 9px; font-size: 12px; line-height: 1.4;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
@@ -227,6 +227,15 @@ table { width: 100%; border-collapse: collapse; }
 th { text-align: left; color: var(--muted); font-weight: 500; padding: 8px 6px; }
 td { padding: 8px 6px; border-top: 1px solid var(--line); }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
+/* Rate badge in front of each model name, tinted like the spend icon; grey when the rate is unknown or zero. */
+.model-name { display: inline-flex; align-items: center; gap: 8px; }
+.model-pricing-icon {
+  flex: none; width: 20px; height: 20px; border: 0; border-radius: 6px; padding: 0; display: inline-grid; place-items: center;
+  color: #ff8a3d; background: color-mix(in srgb, #ff8a3d 16%, transparent); cursor: help;
+}
+.model-pricing-icon:hover, .model-pricing-icon:focus-visible { background: color-mix(in srgb, #ff8a3d 30%, transparent); }
+.model-pricing-icon.muted { color: var(--muted); background: color-mix(in srgb, var(--muted) 16%, transparent); }
+.model-pricing-icon.muted:hover, .model-pricing-icon.muted:focus-visible { background: color-mix(in srgb, var(--muted) 30%, transparent); }
 /* Sortable headers: the whole title is the button; the arrow keeps its room so titles do not move. */
 th .sort { background: none; border: 0; padding: 0; color: inherit; font-weight: inherit; display: inline-flex; align-items: center; gap: 4px; }
 th .sort:hover, th .sort.on { color: var(--text); }

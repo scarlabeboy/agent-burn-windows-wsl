@@ -14,6 +14,18 @@ export interface ModelRow {
   totalTokens: number;
 }
 
+export interface ModelPricing {
+  input: number;
+  output: number;
+  cacheWrite: number;
+  cacheRead: number;
+  inputAbove200k?: number;
+  outputAbove200k?: number;
+  cacheWriteAbove200k?: number;
+  cacheReadAbove200k?: number;
+  fastMultiplier?: number;
+}
+
 export interface TokenBreakdown {
   input: number;
   output: number;
@@ -74,6 +86,7 @@ export interface UsageReport {
   daily: DailyPoint[];
   models: ModelRow[];
   totals: { totalCost: number; totalTokens: number };
+  pricing?: Record<string, ModelPricing>;
   subscription?: { agents: SubscriptionAgent[] };
   claudeAccount?: ClaudeAccount;
   /** Frontend-only: totals are exact but per-model and token-type detail is not yet known. */
