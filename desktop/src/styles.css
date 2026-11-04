@@ -248,6 +248,8 @@ main { flex: 1; overflow-y: auto; padding: 20px; container-type: inline-size; }
 .switch.on { background: var(--switch-on); }
 .switch.on .knob { transform: translateX(16px); background: var(--knob-on); }
 .switch:disabled { opacity: 0.45; cursor: default; }
+/* Keyboard focus in the text colour, set off from the element: the default black ring vanished on the dark theme and on the orange and blue of selected items. */
+:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
