@@ -16,7 +16,8 @@ for changes under `desktop/`, the Windows desktop app of this fork. Everything o
   its session logs, `background.rs` the tray and autostart, `keepalive.rs` the "Kept running"
   WSL mode, `job.rs` the Windows job that ends every process the app starts with it.
 - The CLI is Melvynx's, built from `../rust` by `scripts/prepare-cli.ps1` and bundled as a
-  sidecar. The app renders its JSON and never parses logs itself.
+  sidecar. The app renders its JSON; usage and costs always come from it. The only logs the
+  app parses itself are Codex's session logs, in `backfill.rs`, for the quota history.
 
 ## Rules
 
@@ -25,8 +26,9 @@ for changes under `desktop/`, the Windows desktop app of this fork. Everything o
   `AGENT_BURN_NO_RENEW` (no Claude sign-in renewal), plus security updates in `rust/Cargo.lock`;
   keep upstream files untouched otherwise, so upstream merges stay clean (disable upstream
   workflows through GitHub, never by editing them).
-- WSL is never woken up: list distributions with `wsl -l -q` / `--list --running`, read only
-  running ones, and call `%SystemRoot%\System32\wsl.exe`. Never run `wsl --shutdown`.
+- WSL is never woken up, except by the "Kept running" mode the user chooses (`keepalive.rs`):
+  list distributions with `wsl -l -q` / `--list --running`, read only running ones, and call
+  `%SystemRoot%\System32\wsl.exe`. Never run `wsl --shutdown`.
 - The UI is in French and English. Every text goes in `src/i18n/fr.ts` and `src/i18n/en.ts`
   (the English one is typed on the French one, so a missing text breaks the build), read with
   `t()`; numbers and dates use `locale()`. Code, comments and commit messages are in English.

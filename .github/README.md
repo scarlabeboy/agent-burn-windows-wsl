@@ -24,7 +24,7 @@ updates itself from it.
 
 - Windows 10 or 11, 64-bit (x64).
 - Microsoft Edge WebView2, which Windows 11 includes and Windows 10 gets with Microsoft Edge.
-  The installer adds it if it is missing.
+  If it is missing, the installer downloads it, which needs an Internet connection.
 - At least one supported harness used on this computer, so there is something to show.
 - **WSL is optional.** On Windows alone, the app reads your Windows harnesses. If you have WSL
   distributions, it can read them too; that can be turned off in the settings.
@@ -52,18 +52,26 @@ quotas, the sign-in each harness already stored (for example `~/.claude/.credent
 | --- | --- | --- |
 | `api.anthropic.com` | Claude Code quota | Your Claude Code access token |
 | `chatgpt.com` | Codex quota | Your Codex access token |
-| `api2.cursor.sh` | Cursor usage | Your Cursor access token, if Cursor is installed |
+| `api2.cursor.sh` | Cursor usage | Your Cursor access token and the dates of the period read, when a Cursor sign-in is found |
 | `raw.githubusercontent.com`, `models.dev` | Current model prices | Nothing but the download request |
 | `github.com` | Update check and download | Nothing but the download request |
 
-Each token goes only to the service that issued it. Quotas can be turned off on their own in
-the settings. **Offline mode** turns all of the above off, the automatic update check
-included; prices then come from a copy embedded in each release.
+Each token goes only to the service that issued it, along with the usual request headers
+(including the CLI's version). Quotas can be turned off on their own in the settings.
+**Offline mode** stops all of the above from starting, the automatic update check included
+(a request already under way finishes); prices then come from a copy embedded in each
+release.
 
-**What it writes**: its settings and history in `%LOCALAPPDATA%\dev.scarlabeboy.agent-burn-windows`,
-short-lived scan files in `%TEMP%\agent-burn-windows`, and, only if you turn on
-"Start with Windows", an entry in your user's startup programs. In WSL it runs nothing that
-changes your distributions; "Kept running" only keeps WSL awake while the app is open.
+**What it writes**:
+
+- its settings and history in `%LOCALAPPDATA%\dev.scarlabeboy.agent-burn-windows`;
+- short-lived scan files in `%TEMP%\agent-burn-windows`;
+- the CLI's cache of the last Claude quota reading, `~/.cache/agent-burn/claude-usage.json`,
+  in your Windows user folder and in the home folder of each WSL distribution it reads;
+- only if you turn on "Start with Windows", an entry in your user's startup programs.
+
+Nothing else is changed in your WSL distributions; "Kept running" only keeps WSL awake while
+the app is open. The uninstaller does not remove the CLI's cache files.
 
 ## Uninstalling
 

@@ -2,7 +2,9 @@
 
 Tauri v2 + React/TypeScript desktop app that reads Agent Burn usage for native Windows,
 for WSL (optional), and for both combined (Computer). It runs the Agent Burn CLI from
-`../rust` as a sidecar and renders its JSON; it never parses logs itself. The CLI is Melvynx's
+`../rust` as a sidecar and renders its JSON; usage and costs always come from it. The only
+logs the app reads itself are Codex's session logs, for the quota history (`backfill.rs`).
+The CLI is Melvynx's
 code with three small additions: the Codex 5-hour window (`sessionWindow`) in the quota
 reading, each model's reference rates (`pricing`) in `summary --json`, and
 `AGENT_BURN_NO_RENEW`, which stops it from renewing the Claude sign-in. Cost calculation is
