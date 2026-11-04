@@ -108,8 +108,8 @@ const DAVID_URL = "https://github.com/DavidSZD/agent-burn";
 const OVERVIEW = "overview";
 /** The weekly Codex limit per day changes slowly: read again after this long. */
 const LIMIT_USAGE_TTL_MS = 5 * 60_000;
-/** How long a quota stays on screen after a failed read, so one missed read does not blank it. */
-const QUOTA_GRACE_MS = 2 * 60_000;
+/** How long a quota stays on screen after a failed read, so missed reads do not blank it. */
+const QUOTA_GRACE_MS = 5 * 60_000;
 /** Each source's Claude plan is read from its own sign-in file; there is no manual choice. */
 const CLAUDE_PLAN = "auto";
 function reportOf(state: SourceState | undefined): UsageReport | undefined {
@@ -441,7 +441,7 @@ export default function App({ initialSettings, onThemeChange }: {
               });
             })
             // A source without a sign-in for this harness simply has no quota to show. A reading
-            // from the last two minutes stays through one missed read: in WSL without a sign-in,
+            // from the last five minutes stays through missed reads: in WSL without a sign-in,
             // the quota comes from Claude Code's own cache, which the CLI takes only while fresh.
             .catch((error) => {
               setQuotaErrors((current) => ({ ...current, [key]: String(error) }));

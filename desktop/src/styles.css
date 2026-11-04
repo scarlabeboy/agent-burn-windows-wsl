@@ -20,6 +20,7 @@
   --pill-mid-text: #f4b740;
   --pill-mid-bg: rgba(244, 183, 64, 0.15);
   --pill-bad-bg: rgba(255, 93, 108, 0.15);
+  --pill-stale-bg: rgba(154, 154, 162, 0.18);
   --pricing-tone: #ff8a3d;
   --error-border: rgba(255, 93, 108, 0.4);
   --banner-bg: rgba(255, 93, 108, 0.1);
@@ -61,6 +62,7 @@
   --pill-mid-text: #b7791f;
   --pill-mid-bg: rgba(183, 121, 31, 0.15);
   --pill-bad-bg: rgba(214, 52, 71, 0.15);
+  --pill-stale-bg: rgba(107, 107, 118, 0.15);
   --pricing-tone: #e8641c;
   --error-border: rgba(214, 52, 71, 0.4);
   --banner-bg: rgba(214, 52, 71, 0.1);
@@ -144,7 +146,8 @@ button { cursor: pointer; }
 .nav.on .pill.mid { background: #b7791f; }
 .nav.on .pill.bad { background: #d63447; }
 /* A reading that is no longer live. */
-.pill.stale { opacity: 0.45; }
+.pill.stale { color: var(--muted); background: var(--pill-stale-bg); }
+.nav.on .pill.stale { color: #fff; background: #6b6b76; }
 .brand { border-radius: 6px; object-fit: cover; flex: none; }
 .brand.fallback { display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
 
