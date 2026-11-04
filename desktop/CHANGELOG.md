@@ -6,6 +6,26 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.5.4
+
+#### English
+
+### New
+- A light theme: General settings have a "Theme" list under the language (System by default, Dark, Light). System follows Windows, even when it changes while the app is open.
+- Hovering a stacked bar in a chart shows its total under the date: in USD or tokens in the Spend chart, in percent in the daily weekly limit chart.
+
+### Improvements
+- On the open page in the side bar, the weekly quota pill is solid (green, amber or red) so it stays readable on the blue.
+
+#### Français
+
+### Nouveautés
+- Un thème clair : les réglages généraux ont une liste « Thème » sous la langue (Système par défaut, Sombre, Clair). Système suit Windows, même s'il change pendant que l'app est ouverte.
+- Le survol d'une barre empilée d'un graphique affiche son total sous la date : en $US ou en tokens dans le graphique Dépense, en pourcentage dans la limite hebdomadaire par jour.
+
+### Améliorations
+- Sur la page ouverte de la barre latérale, la pastille du quota hebdo est pleine (verte, orange ou rouge) pour rester lisible sur le bleu.
+
 ## 0.5.3
 
 #### English
