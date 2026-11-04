@@ -6,6 +6,28 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.5.3
+
+#### English
+
+### New
+- Each model in the models list has a badge with its reference rates per million tokens (input, output, cache write, cache read), shown on hover. The badge is grey when the rate is unknown or 0.
+
+### Improvements
+- The app's tooltips are its own: they open on hover after a short delay, never under the pointer, and stay inside the window, even in a corner.
+- Tooltips that only repeated visible text are removed.
+- Offline mode prices recent models: each release now embeds the prices of its build day.
+
+#### Français
+
+### Nouveautés
+- Chaque modèle de la liste des modèles a une pastille avec ses tarifs de référence par million de tokens (entrée, sortie, écriture cache, lecture cache), affichés au survol. La pastille est grise quand le tarif est inconnu ou à 0.
+
+### Améliorations
+- Les infobulles sont propres à l'application : elles s'ouvrent au survol après un court délai, jamais sous le pointeur, et restent dans la fenêtre, même dans un coin.
+- Les infobulles qui répétaient seulement le texte visible sont retirées.
+- Le mode hors ligne connaît le prix des modèles récents : chaque version embarque les tarifs du jour de sa construction.
+
 ## 0.5.2
 
 #### English
