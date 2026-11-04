@@ -127,11 +127,14 @@ pub fn write(name: &str, value: &Value) -> Result<(), String> {
         .create_new(true)
         .open(&temp)
         .map_err(|error| error.to_string())?;
-    file.write_all(&bytes)
-        .and_then(|()| file.sync_all())
-        .map_err(|error| error.to_string())?;
+    let written = file.write_all(&bytes).and_then(|()| file.sync_all());
     drop(file);
-    fs::rename(&temp, &path).map_err(|error| error.to_string())
+    // The temporary file is ours from here: a failed write or rename never leaves it behind.
+    let saved = written.and_then(|()| fs::rename(&temp, &path));
+    if saved.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    saved.map_err(|error| error.to_string())
 }
 
 #[cfg(test)]
@@ -167,8 +170,19 @@ mod tests {
         assert!(write("report-cache", &value).is_err());
         assert_eq!(fs::read(&collision).unwrap(), b"existing file");
         write("report-cache", &value).unwrap();
-        assert_eq!(parse(&path), Some(value));
+        assert_eq!(parse(&path), Some(value.clone()));
         assert_eq!(fs::read(&collision).unwrap(), b"existing file");
+        fs::remove_dir_all(&root).unwrap();
+
+        // A rename that fails (a folder sits where the archive goes) leaves no temporary file.
+        fs::create_dir_all(&path).unwrap();
+        assert!(write("report-cache", &value).is_err());
+        let leftovers = fs::read_dir(directory())
+            .unwrap()
+            .flatten()
+            .filter(|entry| entry.file_name().to_string_lossy().ends_with(".tmp"))
+            .count();
+        assert_eq!(leftovers, 0, "a failed save removes its temporary file");
         fs::remove_dir_all(root).unwrap();
     }
 
