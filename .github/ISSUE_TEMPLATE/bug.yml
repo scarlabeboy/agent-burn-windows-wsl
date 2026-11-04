@@ -1,22 +1,20 @@
 name: Bug Report
-description: Report something that is broken
+description: Report something that is broken in Agent Burn for Windows
 labels:
   - bug
 body:
   - type: markdown
     attributes:
       value: |
-        **Before you start:** Read [CONTRIBUTING.md](https://github.com/Melvynx/agent-burn/blob/main/CONTRIBUTING.md).
+        Thanks for testing Agent Burn for Windows. Every report is read.
 
-        Issues from new contributors are auto-closed by default. Maintainers review auto-closed issues and reopen worthwhile ones.
-
-        Keep this short, concrete, and written in your own voice.
+        **Never paste tokens or credential files** (`.credentials.json`, `auth.json`): the app never needs them to debug a report.
 
   - type: textarea
     id: description
     attributes:
       label: What happened?
-      description: Be specific. Include error messages if any.
+      description: Be specific. Include error messages and a screenshot if you can.
     validations:
       required: true
 
@@ -38,7 +36,34 @@ body:
   - type: input
     id: version
     attributes:
-      label: Version
-      description: e.g. 18.0.11
+      label: App version
+      description: Shown at the bottom right of the window, e.g. 0.5.4
+    validations:
+      required: true
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: e.g. Windows 11 24H2
+    validations:
+      required: false
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Windows only
+        - WSL
+        - Both
+    validations:
+      required: true
+
+  - type: input
+    id: harnesses
+    attributes:
+      label: Harnesses involved
+      description: e.g. Claude Code, Codex, OpenCode (and the WSL distro, if any)
     validations:
       required: false

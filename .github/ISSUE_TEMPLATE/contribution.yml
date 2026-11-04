@@ -1,20 +1,17 @@
-name: Contribution Proposal
-description: Propose a change or feature before opening a PR
+name: Idea or Feature Request
+description: Suggest a change or a new feature for Agent Burn for Windows
 labels: []
 body:
   - type: markdown
     attributes:
       value: |
-        **Before you start:** Read [CONTRIBUTING.md](https://github.com/Melvynx/agent-burn/blob/main/CONTRIBUTING.md).
-
-        PRs from new contributors are auto-closed unless the contributor has already been approved with `lgtm`.
-
-        Keep this short, concrete, and written in your own voice.
+        Keep this short and concrete. For a change to the CLI itself, the upstream project is
+        [Melvynx/agent-burn](https://github.com/Melvynx/agent-burn).
 
   - type: textarea
     id: what
     attributes:
-      label: What do you want to change?
+      label: What would you like?
       description: Be specific and concise.
     validations:
       required: true
@@ -23,14 +20,6 @@ body:
     id: why
     attributes:
       label: Why?
-      description: What problem does this solve?
+      description: What problem does this solve for you?
     validations:
       required: true
-
-  - type: textarea
-    id: how
-    attributes:
-      label: How? (optional)
-      description: Brief technical approach if you have one in mind.
-    validations:
-      required: false
