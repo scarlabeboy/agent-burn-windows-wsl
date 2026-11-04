@@ -29,6 +29,7 @@ import { EmptyState } from "./EmptyState";
 import { EnvIcon } from "./EnvIcons";
 import { StatusBar, useAppVersion } from "./StatusBar";
 import { Glyph } from "./TitleIcons";
+import { Tooltip } from "./Tooltip";
 import { UpdateDialog } from "./UpdateDialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { REPO_URL, useUpdater, type UpdateState } from "./updater";
@@ -895,7 +896,7 @@ export default function App() {
                   className="nav-select"
                   value={activeDistro?.name}
                   onChange={(event) => setDistro(event.target.value)}
-                  title={text.app.wslDistro}
+                  aria-label={text.app.wslDistro}
                 >
                   {distros.map((entry) => (
                     <option key={entry.name}>{entry.name}</option>
@@ -967,7 +968,7 @@ export default function App() {
             <select
               value={period}
               onChange={(event) => setPeriod(event.target.value as Period)}
-              title={text.app.periodShown}
+              aria-label={text.app.periodShown}
             >
               {PERIODS.map((value) => (
                 <option key={value} value={value}>
@@ -976,24 +977,28 @@ export default function App() {
               ))}
             </select>
           )}
-          <button
-            className="icon"
-            onClick={() => {
-              refresh();
-              if (quotasOn) refreshQuotas(true);
-            }}
-            disabled={loading}
-            title={text.app.refresh}
-          >
-            {loading ? "…" : "⟳"}
-          </button>
-          <button
-            className={`icon${showSettings ? " on" : ""}`}
-            onClick={() => setShowSettings((value) => !value)}
-            title={showSettings ? text.app.closeSettings : text.app.settings}
-          >
-            ⚙
-          </button>
+          <Tooltip text={text.app.refresh}>
+            <button
+              className="icon"
+              onClick={() => {
+                refresh();
+                if (quotasOn) refreshQuotas(true);
+              }}
+              disabled={loading}
+              aria-label={text.app.refresh}
+            >
+              {loading ? "…" : "⟳"}
+            </button>
+          </Tooltip>
+          <Tooltip text={showSettings ? text.app.closeSettings : text.app.settings}>
+            <button
+              className={`icon${showSettings ? " on" : ""}`}
+              onClick={() => setShowSettings((value) => !value)}
+              aria-label={showSettings ? text.app.closeSettings : text.app.settings}
+            >
+              ⚙
+            </button>
+          </Tooltip>
         </header>
 
         <main>
@@ -1016,7 +1021,7 @@ export default function App() {
                   <Switch
                     checked={autostart ?? false}
                     disabled={autostart === null || autostartBusy}
-                    title={autostartBusy ? text.settings.autostartBusy : undefined}
+                    tip={autostartBusy ? text.settings.autostartBusy : undefined}
                     label={text.settings.autostart}
                     onChange={toggleAutostart}
                   />

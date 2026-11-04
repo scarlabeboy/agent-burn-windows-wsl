@@ -13,6 +13,7 @@ import { IdleChart, QuotaChart } from "./QuotaChart";
 import { budget, cycleEnded, formatDay, formatDuration, freshness, type GaugeModel, type QuotaCard } from "./quota";
 import { locale, percent, t } from "./i18n";
 import { TitleIcon, type GlyphKind } from "./TitleIcons";
+import { Tooltip as InfoTooltip } from "./Tooltip";
 import { useNow } from "./useNow";
 import type { AgentReport, ClaudeAccount, SubscriptionAgent, TokenBreakdown, UsageReport } from "./types";
 import amp from "./assets/brands/amp.png";
@@ -523,17 +524,16 @@ export function QuotaSection({ card, resetCredits }: { card: QuotaCard; resetCre
           {t().app.quotaTitle(agentLabel(card.harness))}
         </h2>
         {resetCredits ? (
-          <span className="chip" title={text.resetsTitle}>
-            {text.resetsInStock(resetCredits)}
-          </span>
+          <InfoTooltip text={text.resetsTitle}>
+            <span className="chip">{text.resetsInStock(resetCredits)}</span>
+          </InfoTooltip>
         ) : null}
-        <span
-          className={`fresh small ${state.fresh ? "ok" : "late"}`}
-          title={text.measured(state.fresh, new Date(card.observedAt).toLocaleString(locale()))}
-        >
-          <i className="dot" />
-          {card.sources.join(" · ")} · {state.label}
-        </span>
+        <InfoTooltip text={text.measured(state.fresh, new Date(card.observedAt).toLocaleString(locale()))}>
+          <span className={`fresh small ${state.fresh ? "ok" : "late"}`}>
+            <i className="dot" />
+            {card.sources.join(" · ")} · {state.label}
+          </span>
+        </InfoTooltip>
       </header>
       {emptyAt !== null && (
         <div className="banner">

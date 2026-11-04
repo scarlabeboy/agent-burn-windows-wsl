@@ -21,6 +21,19 @@ body { background: var(--bg); color: var(--text); font-size: 14px; }
 button, select, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 
+/* Native disabled buttons do not reliably dispatch mouse events to their parent. */
+.tooltip-trigger { display: inline-flex; align-items: center; min-width: 0; }
+.tooltip-trigger > :disabled { pointer-events: none; }
+.tooltip-trigger.status-error-tip { flex: 0 1 auto; }
+.tooltip-bubble {
+  position: fixed; z-index: 20; pointer-events: none;
+  width: max-content; max-width: min(280px, calc(100vw - 16px)); max-height: calc(100vh - 16px);
+  overflow: hidden; overflow-wrap: anywhere; white-space: normal;
+  background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+  border-radius: 6px; padding: 6px 9px; font-size: 12px; line-height: 1.4;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
 .app { display: flex; height: 100%; }
 
 /* Sidebar */

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Tooltip } from "./Tooltip";
 
 /** An on/off switch. The state shows in the colour and the knob, never in red or green. */
 export function Switch({
@@ -6,28 +7,29 @@ export function Switch({
   onChange,
   label,
   disabled,
-  title,
+  tip,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
   /** Read by screen readers, since the visible name sits in the row next to the switch. */
   label: string;
   disabled?: boolean;
-  title?: string;
+  tip?: string;
 }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      title={title}
-      disabled={disabled}
-      className={`switch${checked ? " on" : ""}`}
-      onClick={() => onChange(!checked)}
-    >
-      <span className="knob" />
-    </button>
+    <Tooltip text={tip}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        disabled={disabled}
+        className={`switch${checked ? " on" : ""}`}
+        onClick={() => onChange(!checked)}
+      >
+        <span className="knob" />
+      </button>
+    </Tooltip>
   );
 }
 

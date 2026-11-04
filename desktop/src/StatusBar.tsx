@@ -4,6 +4,7 @@ import { locale, t } from "./i18n";
 import { formatAge } from "./quota";
 import type { UpdateState } from "./updater";
 import { useNow } from "./useNow";
+import { Tooltip } from "./Tooltip";
 
 /** The installed version, read once from the app. */
 export function useAppVersion(): string {
@@ -52,11 +53,11 @@ export function StatusBar({
         className={`dot${loading ? " busy" : error ? " bad" : lastScan > 0 ? (autoRefresh ? " ok" : " idle") : ""}`}
       />
       {!loading && error ? (
-        <span className="status-error" title={error}>
-          {error}
-        </span>
+        <Tooltip text={error} className="status-error-tip">
+          <span className="status-error">{error}</span>
+        </Tooltip>
       ) : (
-        <span title={text.lastRead}>
+        <span>
           {loading
             ? text.updating
             : lastScan > 0
@@ -66,14 +67,16 @@ export function StatusBar({
       )}
       <div className="spacer" />
       {offline && (
-        <span className="offline-tag" title={text.offlineTitle}>
-          {text.offline}
-        </span>
+        <Tooltip text={text.offlineTitle}>
+          <span className="offline-tag">{text.offline}</span>
+        </Tooltip>
       )}
       {update.status === "available" && !offline && (
-        <button className="update-link" onClick={onOpenUpdate} title={text.updateTitle}>
-          {text.updateAvailable(update.version)}
-        </button>
+        <Tooltip text={text.updateTitle}>
+          <button className="update-link" onClick={onOpenUpdate}>
+            {text.updateAvailable(update.version)}
+          </button>
+        </Tooltip>
       )}
       {update.status === "installing" && <span className="update-link">{text.installing(update.percent)}</span>}
       {version && <span>v{version}</span>}

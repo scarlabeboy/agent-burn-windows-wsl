@@ -160,7 +160,6 @@ export const fr = {
     durationDays: (days: number, hours: number) => `${days}j ${hours}h`,
   },
   status: {
-    lastRead: "Dernière lecture des journaux des harness",
     updating: "Mise à jour…",
     updatedAt: (time: string, age: string) => `Mis à jour à ${time} · il y a ${age}`,
     nextIn: (minutes: number) => ` (prochaine dans ${minutes} min)`,
@@ -284,8 +283,6 @@ export const fr = {
     none: "Aucun",
     read: (name: string) => `Lire ${name}`,
     keepOne: "Au moins un harness doit rester actif",
-    stopReading: "Ne plus lire ce harness",
-    readAgain: "Lire de nouveau ce harness",
   },
   tray: {
     open: "Ouvrir Agent Burn Windows",

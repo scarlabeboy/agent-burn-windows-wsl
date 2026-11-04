@@ -56,7 +56,7 @@ export function HarnessSettings({ groups, onToggle }: Props) {
             checked
             label={text.read(agentLabel(id))}
             disabled={lastActive}
-            title={lastActive ? text.keepOne : text.stopReading}
+            tip={lastActive ? text.keepOne : undefined}
             onChange={() => onToggle(id, true)}
           />
         )}
@@ -69,7 +69,6 @@ export function HarnessSettings({ groups, onToggle }: Props) {
           <Switch
             checked={false}
             label={text.read(agentLabel(id))}
-            title={text.readAgain}
             onChange={() => onToggle(id, false)}
           />
         )}

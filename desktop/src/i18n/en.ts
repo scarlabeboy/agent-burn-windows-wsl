@@ -156,7 +156,6 @@ export const en: Strings = {
     durationDays: (days: number, hours: number) => `${days}d ${hours}h`,
   },
   status: {
-    lastRead: "Last reading of the harness logs",
     updating: "Updating…",
     updatedAt: (time: string, age: string) => `Updated at ${time} · ${age} ago`,
     nextIn: (minutes: number) => ` (next in ${minutes} min)`,
@@ -278,8 +277,6 @@ export const en: Strings = {
     none: "None",
     read: (name: string) => `Read ${name}`,
     keepOne: "At least one harness must stay active",
-    stopReading: "Stop reading this harness",
-    readAgain: "Read this harness again",
   },
   tray: {
     open: "Open Agent Burn Windows",
