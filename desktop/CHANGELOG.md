@@ -6,6 +6,32 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.5.6
+
+#### English
+
+### New
+- A "Renew the Claude Code sign-in" switch in Data settings, off by default. Turn it on if you only use the Claude apps (desktop, VS Code) and not the claude command: those apps never renew the sign-in the app reads, so the Claude quota disappeared a few hours later. It can sign out a claude command open at the same time.
+
+### Improvements
+- A quota that fails to read again stays on screen for five minutes instead of two, with its age shown, so it no longer flashes away and back.
+- In the side bar, the quota pill of a reading that is no longer live turns grey instead of fading.
+
+### Fixes
+- A history save that fails no longer leaves a temporary file behind.
+
+#### Français
+
+### Nouveautés
+- Un interrupteur « Renouveler la connexion Claude Code » dans les réglages Données, désactivé par défaut. Activez-le si vous n'utilisez que les apps Claude (bureau, VS Code) et pas la commande claude : ces apps ne renouvellent jamais la connexion que lit l'application, si bien que le quota Claude disparaissait quelques heures plus tard. Il peut déconnecter une commande claude ouverte en même temps.
+
+### Améliorations
+- Un quota dont la relecture échoue reste affiché cinq minutes au lieu de deux, avec son âge, et ne clignote plus.
+- Dans le menu latéral, la pastille de quota d'un relevé qui n'est plus à jour devient grise au lieu de s'estomper.
+
+### Corrections
+- Un enregistrement de l'historique qui échoue ne laisse plus de fichier temporaire derrière lui.
+
 ## 0.5.5
 
 #### English
