@@ -6,6 +6,34 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.5.7
+
+#### English
+
+### Improvements
+- In the side bar, Windows and WSL sit side by side under Computer, which is centered.
+- In French, numbers, percentages and chart dates are written the French way: "4,70 Md", "12,9 %", "14/09", "sept. 2026".
+- Cache write and cache read each have their own caption.
+- When quotas are off, the tray menu says "Refresh usage", which is what it does.
+
+### Fixes
+- The keyboard focus ring is visible on every button, including the selected ones.
+- The update window keeps the keyboard focus while it is open, and gives it back when it closes.
+- The subscription block no longer shows figures while the quota is not read, in every environment alike: they could stay on one side for up to half an hour.
+
+#### Français
+
+### Améliorations
+- Dans le menu latéral, Windows et WSL sont côte à côte sous Ordinateur, qui est centré.
+- En français, les nombres, pourcentages et dates des graphiques s'écrivent à la française : « 4,70 Md », « 12,9 % », « 14/09 », « sept. 2026 ».
+- Écriture cache et lecture cache ont chacune leur propre sous-titre.
+- Quand les quotas sont coupés, le menu de la zone de notification dit « Actualiser l'usage », ce qu'il fait réellement.
+
+### Corrections
+- Le contour de sélection au clavier est visible sur tous les boutons, y compris ceux sélectionnés.
+- La fenêtre de mise à jour garde le focus clavier tant qu'elle est ouverte, et le rend à sa fermeture.
+- Le bloc Abonnement n'affiche plus de chiffres tant que le quota n'est pas lu, de la même façon dans chaque environnement : ils pouvaient rester jusqu'à une demi-heure d'un seul côté.
+
 ## 0.5.6
 
 #### English
