@@ -195,6 +195,7 @@ button { cursor: pointer; }
   background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px;
   box-shadow: 0 18px 48px var(--modal-shadow);
 }
+.modal:focus { outline: none; }
 .modal h2 { margin: 0; font-size: 17px; }
 .modal p { margin: 0; }
 .notes { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 4px 14px 10px; }

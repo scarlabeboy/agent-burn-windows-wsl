@@ -1,6 +1,6 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { getVersion, readSeries, subscribe } from "./archive";
-import { t } from "./i18n";
+import { percent, t } from "./i18n";
 import { forecast, formatAxis, formatDay, formatDuration, type GaugeModel } from "./quota";
 
 const W = 560;
@@ -171,7 +171,7 @@ function ChartGrid() {
         <g key={value}>
           <line x1={PAD.left} x2={W - PAD.right} y1={y(value)} y2={y(value)} stroke="var(--grid)" />
           <text x={PAD.left - 6} y={y(value) + 4} textAnchor="end" className="qaxis">
-            {value}%
+            {percent(value)}
           </text>
         </g>
       ))}

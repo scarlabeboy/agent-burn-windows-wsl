@@ -49,7 +49,7 @@ export const fr = {
     limitUsageLoading: "Lecture de la limite hebdomadaire par jour…",
     /** One line of the notification-area tooltip. */
     tooltipLine: (agent: string, session: string | undefined, weekly: string) =>
-      `${agent} : ${session ? `5 h ${session}% · ` : ""}sem. ${weekly}%`,
+      `${agent} : ${session ? `5 h ${session} % · ` : ""}sem. ${weekly} %`,
     tooltipAge: (age: string) => `il y a ${age}`,
   },
   settings: {
@@ -217,7 +217,9 @@ export const fr = {
     output: "Sortie",
     outputHint: "Générés",
     cacheWrite: "Écriture cache",
+    cacheWriteHint: "Mis en cache",
     cacheRead: "Lecture cache",
+    cacheReadHint: "Relus du cache",
     byEnvironment: "Par environnement",
     byEnvironmentHint: "Sources distinctes, additionnées",
     cycleEnded: "Cycle terminé · nouveau relevé attendu",
@@ -253,7 +255,7 @@ export const fr = {
     untilReset: (duration: string) => `D'ici le reset (dans ${duration})`,
     toLast: "Pour tenir jusqu'au reset",
     scopedWeekly: (name: string) => `${name} · hebdomadaire`,
-    percentLeft: (percent: string) => `${percent}% restants`,
+    percentLeft: (percent: string) => `${percent} % restants`,
     extraCredits: (used: string, limit?: string) =>
       `Crédits d'usage supplémentaire : ${used}${limit ? ` sur ${limit}` : ""}`,
     apiNote: "La dépense affichée est un équivalent API, pas votre facture d'abonnement.",
@@ -262,7 +264,7 @@ export const fr = {
     history: "Historique du quota",
     locked: "Verrouillé",
     evenPace: "rythme régulier",
-    atReset: (percent: string) => `≈ ${percent}% au reset`,
+    atReset: (percent: string) => `≈ ${percent} % au reset`,
     emptyOn: (day: string) => `Vide ${day}`,
     now: "Maintenant",
   },
@@ -307,6 +309,7 @@ export const fr = {
   tray: {
     open: "Ouvrir Agent Burn Windows",
     refresh: "Actualiser les quotas",
+    refreshUsage: "Actualiser l'usage",
     quit: "Quitter",
   },
 };

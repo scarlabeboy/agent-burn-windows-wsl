@@ -11,7 +11,10 @@ import {
 import { formatTokens, formatUsd, sortModels, tokensPerDollar, type ModelSort, type ModelSortKey } from "./aggregate";
 import { IdleChart, QuotaChart } from "./QuotaChart";
 import { budget, cycleEnded, formatDay, formatDuration, freshness, type GaugeModel, type QuotaCard } from "./quota";
-import { locale, percent, t } from "./i18n";
+import { formatNumber, getLang, locale, percent, t } from "./i18n";
+
+/** "$12.50" in English, "12,50 $" in French. */
+const usd = (amount: string): string => (getLang() === "fr" ? `${amount}\u00a0$` : `$${amount}`);
 import { pricingTip } from "./pricingFormat";
 import { Glyph, TitleIcon, type GlyphKind } from "./TitleIcons";
 import { ChartLabel } from "./ChartLabel";
@@ -233,7 +236,7 @@ export function SpendChart({
                 metric === "tokens"
                   ? formatTokens(value)
                   : // Small totals need cents, or every tick of the axis reads "$0".
-                    `$${Math.abs(value) < 10 && value % 1 !== 0 ? value.toFixed(2) : Math.round(value)}`
+                    usd(formatNumber(value, Math.abs(value) < 10 && value % 1 !== 0 ? 2 : 0))
               }
             />
             <Tooltip
@@ -402,7 +405,7 @@ export function Models({ report, pricing, detailError }: {
                   <span className="bar share-bar">
                     <div style={{ width: `${Math.min(100, row.percentage)}%` }} />
                   </span>
-                  <span className="share-value">{row.percentage.toFixed(1)}%</span>
+                  <span className="share-value">{percent(formatNumber(row.percentage, 1))}</span>
                 </span>
               </td>
             </tr>
@@ -438,8 +441,8 @@ export function TokenBreakdownCard({
       <div className="stats">
         <Stat title={text.input} value={formatTokens(breakdown.input)} hint={text.inputHint} />
         <Stat title={text.output} value={formatTokens(breakdown.output)} hint={text.outputHint} />
-        <Stat title={text.cacheWrite} value={formatTokens(breakdown.cacheWrite)} hint="Cache write" />
-        <Stat title={text.cacheRead} value={formatTokens(breakdown.cacheRead)} hint="Cache read" />
+        <Stat title={text.cacheWrite} value={formatTokens(breakdown.cacheWrite)} hint={text.cacheWriteHint} />
+        <Stat title={text.cacheRead} value={formatTokens(breakdown.cacheRead)} hint={text.cacheReadHint} />
       </div>
     </section>
   );
@@ -504,11 +507,11 @@ function GaugeCard({
         )}
       </div>
       <div className="gauge-main">
-        <span className="gauge-value">{model.remaining.toFixed(0)}%</span>
+        <span className="gauge-value">{percent(model.remaining.toFixed(0))}</span>
         <span className="muted">{text.remaining}</span>
         <span className={ahead ? "pace ok" : "pace bad"}>
           {ahead ? "+" : "−"}
-          {text.pace(Math.abs(model.pace).toFixed(1), ahead)}
+          {text.pace(formatNumber(Math.abs(model.pace), 1), ahead)}
         </span>
       </div>
       <QuotaChart harness={card.harness} model={model} observedAt={card.observedAt} color={color} weekly={weekly} />

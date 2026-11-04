@@ -1,5 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { getLang, t } from "./i18n";
 import { parseNotes, releaseDay, updateError } from "./releaseNotes";
 import { releaseUrl, type UpdateState } from "./updater";
@@ -21,15 +21,26 @@ export function UpdateDialog({
   onClose: () => void;
 }) {
   const installing = state.status === "installing";
+  const open = state.status === "available" || state.status === "installing" || state.status === "error";
+  const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (!open) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !installing) onClose();
+      if (event.key === "Tab") keepFocusInside(event, dialog.current);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [installing, onClose]);
+  }, [open, installing, onClose]);
+  // Keyboard focus moves into the dialog when it opens, and back to where it was when it closes.
+  useEffect(() => {
+    if (!open) return;
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialog.current?.focus();
+    return () => before?.focus();
+  }, [open]);
 
-  if (state.status !== "available" && state.status !== "installing" && state.status !== "error") return null;
+  if (!open) return null;
   const release = state.status === "error" ? undefined : state;
   const day = releaseDay(release?.date);
   const sections = parseNotes(release?.notes, getLang());
@@ -37,7 +48,15 @@ export function UpdateDialog({
 
   return (
     <div className="modal-backdrop" onClick={installing ? undefined : onClose}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby="update-title" onClick={(event) => event.stopPropagation()}>
+      <div
+        ref={dialog}
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="update-title"
+        tabIndex={-1}
+        onClick={(event) => event.stopPropagation()}
+      >
         <h2 id="update-title">{text.dialogTitle}</h2>
         {release ? (
           <>
@@ -85,4 +104,25 @@ export function UpdateDialog({
       </div>
     </div>
   );
+}
+
+/** Tab and Shift+Tab cycle through the dialog's own controls and never reach the page behind it. */
+function keepFocusInside(event: KeyboardEvent, dialog: HTMLElement | null) {
+  if (!dialog) return;
+  const controls = [...dialog.querySelectorAll<HTMLElement>("button:not(:disabled), [href]")];
+  if (controls.length === 0) {
+    event.preventDefault();
+    dialog.focus();
+    return;
+  }
+  const first = controls[0];
+  const last = controls[controls.length - 1];
+  const inside = dialog.contains(document.activeElement);
+  if (event.shiftKey && (!inside || document.activeElement === first || document.activeElement === dialog)) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (!inside || document.activeElement === last)) {
+    event.preventDefault();
+    first.focus();
+  }
 }

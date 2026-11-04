@@ -21,6 +21,10 @@ export const t = (): Strings => (current === "en" ? en : fr);
 /** Locale of numbers, amounts and dates. */
 export const locale = (): string => (current === "en" ? "en-US" : "fr-FR");
 
+/** A number with a fixed count of decimals, written the language's way: "4,5" or "4.5". */
+export const formatNumber = (value: number, decimals: number): string =>
+  value.toLocaleString(locale(), { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+
 /** A percentage written the language's way: "40 %" in French, "40%" in English. */
 export const percent = (value: string | number): string => (current === "en" ? `${value}%` : `${value} %`);
 

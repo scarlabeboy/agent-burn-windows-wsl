@@ -1,4 +1,4 @@
-import { locale } from "./i18n";
+import { formatNumber, getLang, locale } from "./i18n";
 import type {
   AgentReport,
   DailyPoint,
@@ -135,12 +135,16 @@ export function withoutHarnesses(report: UsageReport, disabled: string[]): Usage
   return { ...report, ...mergeReports(kept), approxDetail: report.approxDetail };
 }
 
+/** Token counts in short form, the language's way: "1.49B" / "1,49 Md", "6.5K" / "6,5 k". */
 export const formatTokens = (value: number): string => {
   const abs = Math.abs(value);
-  if (abs >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
-  if (abs >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
-  return String(Math.round(value));
+  const french = getLang() === "fr";
+  const short = (scaled: number, decimals: number, en: string, fr: string) =>
+    french ? `${formatNumber(scaled, decimals)} ${fr}` : `${formatNumber(scaled, decimals)}${en}`;
+  if (abs >= 1e9) return short(value / 1e9, 2, "B", "Md");
+  if (abs >= 1e6) return short(value / 1e6, 2, "M", "M");
+  if (abs >= 1e3) return short(value / 1e3, 1, "K", "k");
+  return formatNumber(Math.round(value), 0);
 };
 
 export const formatUsd = (value: number): string =>

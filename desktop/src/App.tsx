@@ -48,7 +48,7 @@ import {
   mergeBackfill,
   recordReading,
 } from "./archive";
-import { LANG_NAMES, locale, setLang, systemLang, t, type Lang } from "./i18n";
+import { LANG_NAMES, locale, percent, setLang, systemLang, t, type Lang } from "./i18n";
 import {
   PERIODS,
   compactDate,
@@ -600,10 +600,12 @@ export default function App({ initialSettings, onThemeChange }: {
     // Without any quota the summary goes too, rather than keep percentages that no longer hold.
     void setTrayTooltip(tooltip ? `Agent Burn Windows\n${tooltip}` : "Agent Burn Windows").catch(() => undefined);
   }, [tooltip]);
-  // The notification-area menu is built by the Rust side: it gets its words from here.
+  // The notification-area menu is built by the Rust side: it gets its words from here. Its
+  // refresh entry reads the usage instead when quotas are not read, and says so.
   useEffect(() => {
-    void setTrayLabels(t().tray).catch(() => undefined);
-  }, [lang]);
+    const { open, refresh, refreshUsage, quit } = t().tray;
+    void setTrayLabels({ open, refresh: quotasOn ? refresh : refreshUsage, quit }).catch(() => undefined);
+  }, [lang, quotasOn]);
   // Screen readers and the WebView's own texts take the page language from `<html lang>`.
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -954,7 +956,7 @@ export default function App({ initialSettings, onThemeChange }: {
                     <span className="nav-label">{text.app.weeklyQuota}</span>
                     {/* Faded when the reading is not live. */}
                     <span className={`${pillClass(quota.weekly.remaining)}${stale ? " stale" : ""}`}>
-                      {quota.weekly.remaining.toFixed(0)}%
+                      {percent(quota.weekly.remaining.toFixed(0))}
                     </span>
                   </span>
                 )}

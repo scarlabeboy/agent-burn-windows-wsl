@@ -212,7 +212,9 @@ export const en: Strings = {
     output: "Output",
     outputHint: "Generated",
     cacheWrite: "Cache write",
+    cacheWriteHint: "Stored in the cache",
     cacheRead: "Cache read",
+    cacheReadHint: "Reused from the cache",
     byEnvironment: "By environment",
     byEnvironmentHint: "Separate sources, added up",
     cycleEnded: "Cycle ended · waiting for a new reading",
@@ -301,6 +303,7 @@ export const en: Strings = {
   tray: {
     open: "Open Agent Burn Windows",
     refresh: "Refresh quotas",
+    refreshUsage: "Refresh usage",
     quit: "Quit",
   },
 };
