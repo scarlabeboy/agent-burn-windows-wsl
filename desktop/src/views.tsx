@@ -632,7 +632,10 @@ export function SubscriptionCard({
   const known = sub?.plan && sub.plan !== "";
   const spend = card ? budget(card.weekly) : null;
   const text = t().views;
-  if (offReason) {
+  // The figures come from the last scan, which can outlive the quota by half an hour: without a
+  // quota on screen they are hidden too, so every environment shows the same block.
+  const reason = offReason ?? (card ? undefined : text.quotaWaiting);
+  if (reason) {
     // Without quotas the plan is not shown either, even when a local file still names one.
     return (
       <section className="card">
@@ -645,7 +648,7 @@ export function SubscriptionCard({
             {agentLabel(harness)} · {text.planNotRead}
           </span>
         </header>
-        <p className="muted small hint-top">{offReason}</p>
+        <p className="muted small hint-top">{reason}</p>
       </section>
     );
   }

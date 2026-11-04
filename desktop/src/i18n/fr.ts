@@ -240,6 +240,7 @@ export const fr = {
     claudeHistory: "Les relevés sont enregistrés tant que l'application est ouverte ; la courbe commence au premier relevé.",
     subscription: "Abonnement",
     planNotRead: "plan non lu",
+    quotaWaiting: "Chiffres masqués tant que le quota n'est pas lu : ils reviennent avec la prochaine lecture.",
     planUnknown: "plan inconnu",
     perMonth: "/mois",
     claudePlanUnknown:
