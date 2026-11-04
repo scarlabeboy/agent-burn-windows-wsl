@@ -2,6 +2,7 @@ use std::{
     env, fs,
     io::{self, Write},
     path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -10,6 +11,7 @@ use serde_json::Value;
 /// Files the app may keep in its data directory; nothing else is ever read or written.
 const NAMES: [&str; 4] = ["quota-history", "report-cache", "daily-metrics", "wsl-users"];
 const MAX_BYTES: usize = 64 * 1024 * 1024;
+static NEXT_WRITE: AtomicU64 = AtomicU64::new(0);
 
 fn local_data() -> PathBuf {
     env::var_os("LOCALAPPDATA")
@@ -113,10 +115,18 @@ pub fn write(name: &str, value: &Value) -> Result<(), String> {
     if parse(&path).is_some() {
         let _ = fs::copy(&path, backup_of(&path));
     }
-    let temp = path.with_extension("json.tmp");
+    let temp = path.with_extension(format!(
+        "json.{}-{}.tmp",
+        std::process::id(),
+        NEXT_WRITE.fetch_add(1, Ordering::SeqCst)
+    ));
     // On disk before the rename: after a power cut the file holds either the old or the new
     // content, never a renamed empty one.
-    let mut file = fs::File::create(&temp).map_err(|error| error.to_string())?;
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temp)
+        .map_err(|error| error.to_string())?;
     file.write_all(&bytes)
         .and_then(|()| file.sync_all())
         .map_err(|error| error.to_string())?;
@@ -127,6 +137,40 @@ pub fn write(name: &str, value: &Value) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_temporary_name_collision_never_overwrites_an_existing_file() {
+        let _turn = crate::sources::TEST_ENVIRONMENT.lock().unwrap_or_else(|error| error.into_inner());
+        struct RestoreLocalData(Option<std::ffi::OsString>);
+        impl Drop for RestoreLocalData {
+            fn drop(&mut self) {
+                match &self.0 {
+                    Some(value) => env::set_var("LOCALAPPDATA", value),
+                    None => env::remove_var("LOCALAPPDATA"),
+                }
+            }
+        }
+        let _restore = RestoreLocalData(env::var_os("LOCALAPPDATA"));
+        let root = env::temp_dir().join(format!("abf-archive-exclusive-test-{}", std::process::id()));
+        fs::create_dir(&root).unwrap();
+        env::set_var("LOCALAPPDATA", &root);
+        fs::create_dir_all(directory()).unwrap();
+        let path = file_for("report-cache").unwrap();
+        let collision = path.with_extension(format!(
+            "json.{}-{}.tmp",
+            std::process::id(),
+            NEXT_WRITE.load(Ordering::SeqCst)
+        ));
+        fs::write(&collision, b"existing file").unwrap();
+        let value = serde_json::json!({ "saved": true });
+
+        assert!(write("report-cache", &value).is_err());
+        assert_eq!(fs::read(&collision).unwrap(), b"existing file");
+        write("report-cache", &value).unwrap();
+        assert_eq!(parse(&path), Some(value));
+        assert_eq!(fs::read(&collision).unwrap(), b"existing file");
+        fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn rejects_names_outside_the_allowlist() {

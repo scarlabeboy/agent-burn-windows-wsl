@@ -41,6 +41,7 @@ let daily: DailyStore = { version: 1, sources: {} };
 let version = 0;
 const listeners = new Set<() => void>();
 const timers: Partial<Record<StoreName, ReturnType<typeof setTimeout>>> = {};
+const writes: Partial<Record<StoreName, Promise<void>>> = {};
 /**
  * Archives that may be saved: only once loaded, so a save never replaces a file that has not
  * been read yet, or one that exists but could not be loaded. That one stays as it is for this
@@ -62,24 +63,34 @@ const changed = () => {
   listeners.forEach((listener) => listener());
 };
 
+function queueWrite(name: StoreName): Promise<void> {
+  const write = (writes[name] ?? Promise.resolve())
+    .then(() => archiveWrite(name, contentOf(name)))
+    .catch(() => {
+      // The in-memory copy stays valid; the next change retries the write.
+    });
+  writes[name] = write;
+  return write;
+}
+
 function save(name: StoreName) {
   if (!writable.has(name)) return;
   clearTimeout(timers[name]);
   timers[name] = setTimeout(() => {
-    void archiveWrite(name, contentOf(name)).catch(() => {
-      // The in-memory copy stays valid; the next change retries the write.
-    });
+    timers[name] = undefined;
+    void queueWrite(name);
   }, SAVE_DELAY_MS);
 }
 
-/** Write pending changes now, for when the window is closing. */
-export function flush() {
+/** Write pending changes now and wait for queued and ongoing saves. */
+export async function flush(): Promise<void> {
   for (const name of ["quota-history", "report-cache", "daily-metrics"] as const) {
     if (timers[name] === undefined) continue;
     clearTimeout(timers[name]);
     timers[name] = undefined;
-    void archiveWrite(name, contentOf(name)).catch(() => undefined);
+    void queueWrite(name);
   }
+  await Promise.all(Object.values(writes));
 }
 
 function mergeSamples(existing: Sample[], added: Sample[]): Sample[] {

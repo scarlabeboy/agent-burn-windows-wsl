@@ -2,7 +2,7 @@ use std::{
     collections::BTreeMap,
     env,
     fs::{self, File},
-    io::{BufRead, BufReader},
+    io::{self, BufRead, BufReader, Read},
     path::{Path, PathBuf},
     time::UNIX_EPOCH,
 };
@@ -77,11 +77,18 @@ fn parse_timestamp(text: &str) -> Option<i64> {
     let month: i64 = date.next()?.parse().ok()?;
     let day: i64 = date.next()?.parse().ok()?;
     let (clock, fraction) = time.split_once('.').unwrap_or((time, "0"));
+    if fraction.is_empty() || !fraction.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
     let mut clock = clock.split(':');
     let hour: i64 = clock.next()?.parse().ok()?;
     let minute: i64 = clock.next()?.parse().ok()?;
     let second: i64 = clock.next()?.parse().ok()?;
-    let millis: i64 = format!("{fraction:0<3}")[..3].parse().ok()?;
+    let millis = fraction
+        .bytes()
+        .chain(std::iter::repeat(b'0'))
+        .take(3)
+        .fold(0_i64, |value, digit| value * 10 + i64::from(digit - b'0'));
     // Days from civil date (Howard Hinnant's algorithm).
     let y = if month <= 2 { year - 1 } else { year };
     let era = y.div_euclid(400);
@@ -90,6 +97,19 @@ fn parse_timestamp(text: &str) -> Option<i64> {
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     let days = era * 146_097 + doe - 719_468;
     Some(((days * 24 + hour) * 60 + minute) * 60_000 + second * 1000 + millis)
+}
+
+/// Keep at most one byte beyond the limit, then discard the rest without allocating it.
+fn read_line_bounded(reader: &mut impl BufRead, line: &mut Vec<u8>) -> io::Result<usize> {
+    line.clear();
+    let read = reader
+        .by_ref()
+        .take((MAX_LINE_BYTES + 1) as u64)
+        .read_until(b'\n', line)?;
+    if line.len() > MAX_LINE_BYTES && !line.ends_with(b"\n") {
+        reader.skip_until(b'\n')?;
+    }
+    Ok(read)
 }
 
 type Key = (u64, i64);
@@ -142,8 +162,7 @@ pub fn codex_rate_limits(
         };
         let mut reader = BufReader::new(file);
         loop {
-            line.clear();
-            match reader.read_until(b'\n', &mut line) {
+            match read_line_bounded(&mut reader, &mut line) {
                 Ok(0) | Err(_) => break,
                 Ok(_) => {}
             }
@@ -195,6 +214,49 @@ mod tests {
             Some(1_793_423_720_000)
         );
         assert_eq!(parse_timestamp("nonsense"), None);
+    }
+
+    #[test]
+    fn rejects_non_ascii_timestamp_fractions() {
+        assert_eq!(parse_timestamp("2026-10-31T05:15:20.ééZ"), None);
+        assert_eq!(parse_timestamp("2026-10-31T05:15:20.510éZ"), None);
+        assert_eq!(parse_timestamp("2026-10-31T05:15:20.Z"), None);
+    }
+
+    #[test]
+    fn pads_and_truncates_ascii_timestamp_fractions() {
+        assert_eq!(parse_timestamp("2026-10-31T05:15:20.5Z"), Some(1_793_423_720_500));
+        assert_eq!(parse_timestamp("2026-10-31T05:15:20.5109Z"), Some(1_793_423_720_510));
+    }
+
+    #[test]
+    fn skips_an_oversized_line_without_losing_the_next_record() {
+        let valid = br#"{"timestamp":"2026-10-31T05:15:20.510Z","payload":{"rate_limits":{}}}"#;
+        let mut input = vec![b'x'; MAX_LINE_BYTES * 3];
+        input.push(b'\n');
+        input.extend_from_slice(valid);
+        input.push(b'\n');
+        let mut reader = BufReader::with_capacity(32, input.as_slice());
+        let mut line = Vec::new();
+
+        assert_eq!(read_line_bounded(&mut reader, &mut line).unwrap(), MAX_LINE_BYTES + 1);
+        assert_eq!(line.len(), MAX_LINE_BYTES + 1);
+        assert_eq!(read_line_bounded(&mut reader, &mut line).unwrap(), valid.len() + 1);
+        assert_eq!(line.strip_suffix(b"\n").unwrap(), valid);
+        assert!(serde_json::from_slice::<Value>(&line).is_ok());
+        assert_eq!(read_line_bounded(&mut reader, &mut line).unwrap(), 0);
+    }
+
+    #[test]
+    fn an_oversized_line_ending_at_the_read_limit_keeps_the_next_line() {
+        let mut input = vec![b'x'; MAX_LINE_BYTES];
+        input.extend_from_slice(b"\n{}\n");
+        let mut reader = BufReader::new(input.as_slice());
+        let mut line = Vec::new();
+
+        assert_eq!(read_line_bounded(&mut reader, &mut line).unwrap(), MAX_LINE_BYTES + 1);
+        assert_eq!(read_line_bounded(&mut reader, &mut line).unwrap(), 3);
+        assert_eq!(line, b"{}\n");
     }
 
     #[test]

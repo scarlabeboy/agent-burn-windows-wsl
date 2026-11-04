@@ -1,5 +1,5 @@
 use std::{
-    env, fs,
+    env, fs, io,
     path::{Path, PathBuf},
     process::{Command, Stdio},
     time::{Duration, Instant},
@@ -77,6 +77,7 @@ const NO_USER_CONFIG: [&str; 2] = ["--config", "NUL"];
 fn cli_command(program: PathBuf, args: &[&str]) -> Command {
     let mut command = Command::new(program);
     command.args(args).args(NO_USER_CONFIG);
+    command.env("AGENT_BURN_NO_RENEW", "1");
     command
 }
 
@@ -205,8 +206,8 @@ fn reads_opencode(agents: &[String]) -> bool {
 }
 
 /// Whether a summary asks for `--value`: the subscription block (plan, price, value) and the
-/// Claude account meters. The CLI reads them online from the Claude and Codex servers, which
-/// also renews the Claude sign-in, so they are left out when quotas are turned off. Period
+/// Claude account meters. The CLI reads them online from the Claude and Codex servers, with
+/// sign-in renewal disabled, so they are left out when quotas are turned off. Period
 /// scans only need usage and skip it too. A harness selection keeps it: the block then covers
 /// the selected harnesses.
 fn wants_value(scope: &Scope, quotas: bool) -> bool {
@@ -284,17 +285,31 @@ pub fn run_quota(harness: &str, distro: Option<&str>, force: bool) -> Result<Val
     run_json(command, distro, harness)
 }
 
+fn temp_directory() -> io::Result<PathBuf> {
+    let dir = env::temp_dir().join("agent-burn-windows");
+    match fs::create_dir(&dir) {
+        Ok(()) => {}
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists && dir.is_dir() => {}
+        Err(error) => return Err(error),
+    }
+    Ok(dir)
+}
+
 fn run_json(mut command: Command, distro: Option<&str>, label: &str) -> Result<Value, String> {
     hide_window(&mut command);
     // Unique per run: two overlapping runs of the same source must not share a file.
-    let output_path = env::temp_dir().join(format!(
+    let output_path = temp_directory().map_err(|error| error.to_string())?.join(format!(
         "abf-{}-{}-{}-{}.json",
         std::process::id(),
         label,
         distro.unwrap_or("windows"),
         NEXT_RUN.fetch_add(1, Ordering::SeqCst)
     ));
-    let output_file = fs::File::create(&output_path).map_err(|error| error.to_string())?;
+    let output_file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&output_path)
+        .map_err(|error| error.to_string())?;
     let result = run_to_file(&mut command, output_file, &output_path);
     let _ = fs::remove_file(&output_path);
     result
@@ -309,31 +324,72 @@ fn snapshot_opencode(distro: &str, source: &str) -> (String, Snapshot) {
     if !source_dir.join("opencode.db").is_file() {
         return (source.to_string(), Snapshot(None));
     }
-    let target = env::temp_dir().join(format!(
+    let Ok(temp) = temp_directory() else {
+        return (source.to_string(), Snapshot(None));
+    };
+    let target = temp.join(format!(
         "abf-opencode-{}-{}-{}",
         std::process::id(),
         NEXT_RUN.fetch_add(1, Ordering::SeqCst),
         distro.replace(['/', '\\'], "_")
     ));
-    if fs::create_dir_all(&target).is_err() {
+    if fs::create_dir(&target).is_err() {
         return (source.to_string(), Snapshot(None));
     }
     // From here the guard removes whatever was copied, including after a failed copy.
     let guard = Snapshot(Some(target.clone()));
     for name in ["opencode.db", "opencode.db-wal", "opencode.db-shm"] {
         let from = source_dir.join(name);
-        if from.is_file() && fs::copy(&from, target.join(name)).is_err() {
+        if from.is_file() && copy_new(&from, &target.join(name)).is_err() {
             return (source.to_string(), guard);
         }
     }
     (target.to_string_lossy().into_owned(), guard)
 }
 
-/// Removes temporary files an earlier run of the app left behind (it was stopped in the
-/// middle of a scan), including the old fixed-name OpenCode copy. Recent files are kept: a
-/// scan may be running.
+fn copy_new(source: &Path, target: &Path) -> io::Result<u64> {
+    let mut source = fs::File::open(source)?;
+    let mut target = fs::OpenOptions::new().write(true).create_new(true).open(target)?;
+    io::copy(&mut source, &mut target)
+}
+
+/// Removes old scan files in the app's own folder. Once per launch, also removes legacy
+/// files at the temp root, but only when their complete name matches a generated scan name.
 pub fn clean_stale_temp() {
-    clean_stale_in(&env::temp_dir(), Duration::from_secs(3600));
+    let root = env::temp_dir();
+    let min_age = Duration::from_secs(3600);
+    clean_stale_in(&root.join("agent-burn-windows"), min_age);
+    static LEGACY_CLEANUP: std::sync::Once = std::sync::Once::new();
+    LEGACY_CLEANUP.call_once(|| clean_stale_in(&root, min_age));
+}
+
+fn is_temp_name(name: &str, directory: bool) -> bool {
+    let numeric = |value: &str| !value.is_empty() && value.bytes().all(|byte| byte.is_ascii_digit());
+    if directory {
+        let Some(rest) = name.strip_prefix("abf-opencode-") else {
+            return false;
+        };
+        let mut parts = rest.splitn(3, '-');
+        return numeric(parts.next().unwrap_or(""))
+            && numeric(parts.next().unwrap_or(""))
+            && parts.next().is_some_and(|distro| !distro.is_empty());
+    }
+    let Some(rest) = name.strip_prefix("abf-").and_then(|rest| rest.strip_suffix(".json")) else {
+        return false;
+    };
+    let Some((pid, rest)) = rest.split_once('-') else {
+        return false;
+    };
+    let Some((label, rest)) = rest.split_once('-') else {
+        return false;
+    };
+    let Some((distro, run)) = rest.rsplit_once('-') else {
+        return false;
+    };
+    numeric(pid)
+        && matches!(label, "summary" | "limits" | "claude" | "codex")
+        && !distro.is_empty()
+        && numeric(run)
 }
 
 fn clean_stale_in(dir: &Path, min_age: Duration) {
@@ -341,9 +397,14 @@ fn clean_stale_in(dir: &Path, min_age: Duration) {
         return;
     };
     for entry in entries.flatten() {
+        let Ok(kind) = entry.file_type() else {
+            continue;
+        };
+        if !kind.is_file() && !kind.is_dir() {
+            continue;
+        }
         let name = entry.file_name().to_string_lossy().into_owned();
-        let ours = (name.starts_with("abf-") && name.ends_with(".json"))
-            || name.starts_with("abf-opencode-");
+        let ours = is_temp_name(&name, kind.is_dir());
         let old = entry
             .metadata()
             .and_then(|meta| meta.modified())
@@ -352,7 +413,7 @@ fn clean_stale_in(dir: &Path, min_age: Duration) {
             .is_some_and(|age| age >= min_age);
         if ours && old {
             let path = entry.path();
-            let _ = if path.is_dir() { fs::remove_dir_all(path) } else { fs::remove_file(path) };
+            let _ = if kind.is_dir() { fs::remove_dir_all(path) } else { fs::remove_file(path) };
         }
     }
 }
@@ -478,11 +539,12 @@ mod tests {
 
     #[test]
     fn cleans_only_old_files_of_the_app() {
-        let dir = env::temp_dir().join(format!("abf-clean-test-{}", std::process::id()));
+        let root = env::temp_dir().join(format!("abf-clean-test-{}", std::process::id()));
+        let dir = root.join("agent-burn-windows");
         fs::create_dir_all(&dir).unwrap();
         let old_scan = dir.join("abf-1-summary-windows-0.json");
         let new_scan = dir.join("abf-2-summary-windows-0.json");
-        let old_copy = dir.join("abf-opencode-Ubuntu");
+        let old_copy = dir.join("abf-opencode-1-0-Ubuntu-24.04");
         let other = dir.join("notes.json");
         let similar = dir.join("abf-notes.txt");
         for file in [&old_scan, &new_scan, &other, &similar] {
@@ -493,18 +555,7 @@ mod tests {
         for path in [&old_scan, &other, &similar] {
             aged(path, 3);
         }
-        // A directory's own age is what counts; Windows opens a directory only with this flag.
-        {
-            use std::os::windows::fs::OpenOptionsExt;
-            const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
-            fs::OpenOptions::new()
-                .write(true)
-                .custom_flags(FILE_FLAG_BACKUP_SEMANTICS)
-                .open(&old_copy)
-                .unwrap()
-                .set_modified(std::time::SystemTime::now() - Duration::from_secs(3 * 3600))
-                .unwrap();
-        }
+        aged_directory(&old_copy, 3);
 
         clean_stale_in(&dir, Duration::from_secs(3600));
 
@@ -512,7 +563,68 @@ mod tests {
         assert!(!old_copy.exists(), "an old OpenCode copy goes");
         assert!(new_scan.exists(), "a recent file may belong to a running scan");
         assert!(other.exists() && similar.exists(), "files of other programs stay");
-        let _ = fs::remove_dir_all(dir);
+        let _ = fs::remove_dir_all(root);
+    }
+
+    fn aged_directory(path: &Path, hours: u64) {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
+        fs::OpenOptions::new()
+            .write(true)
+            .custom_flags(FILE_FLAG_BACKUP_SEMANTICS)
+            .open(path)
+            .unwrap()
+            .set_modified(std::time::SystemTime::now() - Duration::from_secs(hours * 3600))
+            .unwrap();
+    }
+
+    #[test]
+    fn legacy_cleanup_keeps_similar_names_at_the_temp_root() {
+        let root = env::temp_dir().join(format!("abf-legacy-clean-test-{}", std::process::id()));
+        fs::create_dir(&root).unwrap();
+        let notes = root.join("abf-notes.json");
+        let backup = root.join("abf-opencode-backup");
+        let old_scan = root.join("abf-123-summary-Ubuntu-24.04-7.json");
+        let old_copy = root.join("abf-opencode-123-8-Ubuntu-24.04");
+        fs::write(&notes, b"keep").unwrap();
+        fs::write(&old_scan, b"{}").unwrap();
+        fs::create_dir(&backup).unwrap();
+        fs::write(backup.join("notes.txt"), b"keep").unwrap();
+        fs::create_dir(&old_copy).unwrap();
+        fs::write(old_copy.join("opencode.db"), b"x").unwrap();
+        aged(&notes, 3);
+        aged(&old_scan, 3);
+        aged_directory(&backup, 3);
+        aged_directory(&old_copy, 3);
+
+        clean_stale_in(&root, Duration::from_secs(3600));
+
+        assert!(notes.exists(), "a similar JSON filename is not ours");
+        assert!(backup.join("notes.txt").exists(), "a similar directory is not ours");
+        assert!(!old_scan.exists());
+        assert!(!old_copy.exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn legacy_temp_names_require_numeric_ids_and_known_labels() {
+        assert!(is_temp_name("abf-123-summary-Ubuntu-24.04-7.json", false));
+        assert!(is_temp_name("abf-123-limits-windows-0.json", false));
+        assert!(is_temp_name("abf-123-claude-windows-0.json", false));
+        assert!(is_temp_name("abf-123-codex-windows-0.json", false));
+        assert!(is_temp_name("abf-opencode-123-7-Ubuntu-24.04", true));
+        assert!(!is_temp_name("abf-notes.json", false));
+        assert!(!is_temp_name("abf-x-summary-windows-0.json", false));
+        assert!(!is_temp_name("abf-123-notes-windows-0.json", false));
+        assert!(!is_temp_name("abf-123-summary-windows-x.json", false));
+        assert!(!is_temp_name("abf-123-summary--0.json", false));
+        assert!(!is_temp_name("abf-opencode-backup", true));
+        assert!(!is_temp_name("abf-opencode-Ubuntu", true));
+        assert!(!is_temp_name("abf-opencode-x-7-Ubuntu", true));
+        assert!(!is_temp_name("abf-opencode-123-x-Ubuntu", true));
+        assert!(!is_temp_name("abf-opencode-123-7-", true));
+        assert!(!is_temp_name("abf-123-summary-windows-0.json", true));
+        assert!(!is_temp_name("abf-opencode-123-7-Ubuntu", false));
     }
 
     #[test]
@@ -548,11 +660,26 @@ mod tests {
         fs::write(source.join("opencode.db"), b"x").unwrap();
         let (dir, copy) = snapshot_opencode("Test", source.to_str().unwrap());
         let copied = copy.0.clone().expect("a copy is made");
+        assert_eq!(copied.parent(), Some(env::temp_dir().join("agent-burn-windows").as_path()));
         assert!(copied.join("opencode.db").is_file());
         assert_eq!(Path::new(&dir), copied);
         drop(copy);
         assert!(!copied.exists());
         let _ = fs::remove_dir_all(source);
+    }
+
+    #[test]
+    fn copying_a_database_never_overwrites_an_existing_file() {
+        let dir = env::temp_dir().join(format!("abf-copy-new-test-{}", std::process::id()));
+        fs::create_dir(&dir).unwrap();
+        let source = dir.join("source.db");
+        let target = dir.join("opencode.db");
+        fs::write(&source, b"new conversations").unwrap();
+        fs::write(&target, b"existing file").unwrap();
+
+        assert_eq!(copy_new(&source, &target).unwrap_err().kind(), io::ErrorKind::AlreadyExists);
+        assert_eq!(fs::read(&target).unwrap(), b"existing file");
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
@@ -601,5 +728,13 @@ mod tests {
         let command = cli_command(PathBuf::from("agent-burn.exe"), &["summary", "--json"]);
         let args: Vec<_> = command.get_args().map(|arg| arg.to_string_lossy().into_owned()).collect();
         assert_eq!(args, ["summary", "--json", "--config", "NUL"]);
+    }
+
+    #[test]
+    fn every_cli_run_disables_claude_token_renewal() {
+        let command = cli_command(PathBuf::from("agent-burn.exe"), &["summary", "--json"]);
+        assert!(command.get_envs().any(|(name, value)| {
+            name == "AGENT_BURN_NO_RENEW" && value == Some(std::ffi::OsStr::new("1"))
+        }));
     }
 }

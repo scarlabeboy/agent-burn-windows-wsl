@@ -76,12 +76,20 @@ export function useUpdater(auto: boolean, offline: boolean) {
       date: pending.date ?? undefined,
       notes: pending.body ?? undefined,
     };
-    // The installer ends the process: the quota history is saved first.
-    flush();
     let total = 0;
     let received = 0;
     setState({ status: "installing", ...release });
     try {
+      // Give pending history saves up to three seconds before the installer can exit the app.
+      let saveTimeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          flush(),
+          new Promise<void>((resolve) => { saveTimeout = setTimeout(resolve, 3000); }),
+        ]);
+      } finally {
+        clearTimeout(saveTimeout);
+      }
       await pending.downloadAndInstall((event) => {
         if (event.event === "Started") total = event.data.contentLength ?? 0;
         if (event.event === "Progress") {

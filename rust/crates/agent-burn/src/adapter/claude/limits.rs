@@ -82,6 +82,7 @@ fn usage_body(offline: bool, max_age_ms: i64) -> Usage {
             now: utc_now(),
             max_age_ms,
             force: env::var("AGENT_BURN_FORCE_REFRESH").as_deref() == Ok("1"),
+            no_renew: env::var("AGENT_BURN_NO_RENEW").as_deref() == Ok("1"),
         },
         Sources {
             token: || Credentials::load()?.token(),
@@ -98,6 +99,8 @@ struct Request {
     max_age_ms: i64,
     /// A hard refresh: skip the shared fresh reading and ask Anthropic again.
     force: bool,
+    /// Read-only consumers must leave Claude Code's sign-in and renewal state alone.
+    no_renew: bool,
 }
 
 struct Sources<T, F, C, R> {
@@ -119,6 +122,7 @@ fn resolve_usage<T, F, C, R>(
         now,
         max_age_ms,
         force,
+        no_renew,
     }: Request,
     Sources {
         token,
@@ -146,11 +150,11 @@ where
         };
     }
     let mut sign_in_expired = false;
-    if let Some(token) = token()
+    if let Some(token) = token().filter(|token| !no_renew || !token.is_expired(now))
         && !cache.is_blocked(now)
     {
         let mut renew = |cache: &mut UsageCache, token: &OAuthToken, rejected: bool| {
-            if !cache.renew_due(now, force) {
+            if no_renew || !cache.renew_due(now, force) {
                 return None;
             }
             let renewed = renew(token, rejected);
@@ -178,7 +182,7 @@ where
             }
             Some(Fetch::RateLimited(retry_after)) => cache.store_rate_limit(retry_after, now),
             Some(Fetch::Failed) => {}
-            Some(Fetch::Unauthorized) | None => sign_in_expired = true,
+            Some(Fetch::Unauthorized) | None => sign_in_expired = !no_renew,
         }
     }
     Usage {
@@ -627,6 +631,7 @@ mod tests {
             now,
             max_age_ms,
             force: false,
+            no_renew: false,
         }
     }
 
@@ -647,6 +652,63 @@ mod tests {
     }
 
     const BODY: &str = r#"{"five_hour":{"utilization":7}}"#;
+
+    #[test]
+    fn disabled_renewal_ignores_an_expired_token_without_changing_renewal_state() {
+        let now = at(0);
+        let mut cache = UsageCache {
+            renew_blocked_until: Some(at(600)),
+            ..UsageCache::default()
+        };
+        let before = cache.clone();
+        let usage = resolve_usage(
+            &mut cache,
+            Request {
+                no_renew: true,
+                force: true,
+                ..request(now, usage_cache::LIVE_MS)
+            },
+            Sources {
+                token: || token(Some(now)),
+                fetch: |_: &str| -> Fetch { panic!("an expired token must not reach Anthropic") },
+                claude_code: no_claude_code,
+                renew: no_renewal,
+            },
+        );
+
+        assert!(usage.body.is_none());
+        assert!(!usage.sign_in_expired);
+        assert_eq!(cache, before);
+    }
+
+    #[test]
+    fn disabled_renewal_does_not_retry_a_rejected_token_or_record_a_renewal() {
+        let now = at(0);
+        let mut cache = UsageCache::default();
+        let before = cache.clone();
+        let mut sent = 0;
+        let usage = resolve_usage(
+            &mut cache,
+            Request {
+                no_renew: true,
+                ..request(now, usage_cache::LIVE_MS)
+            },
+            Sources {
+                token: || token(None),
+                fetch: |_: &str| {
+                    sent += 1;
+                    Fetch::Unauthorized
+                },
+                claude_code: no_claude_code,
+                renew: no_renewal,
+            },
+        );
+
+        assert_eq!(sent, 1);
+        assert!(usage.body.is_none());
+        assert!(!usage.sign_in_expired);
+        assert_eq!(cache, before);
+    }
 
     #[test]
     fn renews_an_expired_sign_in_instead_of_sending_it() {
