@@ -23,9 +23,12 @@ for changes under `desktop/`, the Windows desktop app of this fork. Everything o
 
 - Never change the CLI's cost calculation. The CLI additions are the Codex 5-hour window
   (`sessionWindow`), each model's rates (`pricing`) in `summary --json`, and
-  `AGENT_BURN_NO_RENEW` (no Claude sign-in renewal, unless the user turns renewal on), plus security updates in `rust/Cargo.lock`;
-  keep upstream files untouched otherwise, so upstream merges stay clean (disable upstream
-  workflows through GitHub, never by editing them).
+  `AGENT_BURN_NO_RENEW` (no Claude sign-in renewal, unless the user turns renewal on), plus
+  security updates in `rust/Cargo.lock`. Outside the CLI, three upstream files changed too:
+  the root `LICENSE` (a real MIT file with our copyright line instead of a link) and
+  `.github/ISSUE_TEMPLATE/bug.yml` and `contribution.yml` (without upstream's automatic
+  closing). Keep upstream files untouched otherwise, so upstream merges stay clean, and merge
+  these ones by hand (disable upstream workflows through GitHub, never by editing them).
 - WSL is never woken up, except by the "Kept running" mode the user chooses (`keepalive.rs`):
   list distributions with `wsl -l -q` / `--list --running`, read only running ones, and call
   `%SystemRoot%\System32\wsl.exe`. Never run `wsl --shutdown`.
