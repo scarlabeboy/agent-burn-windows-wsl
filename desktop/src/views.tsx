@@ -236,7 +236,7 @@ export function SpendChart({
               }
             />
             <Tooltip
-              cursor={{ fill: "rgba(255,255,255,0.05)" }}
+              cursor={{ className: "chart-cursor" }}
               contentStyle={{ background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 8 }}
               formatter={(value: number, name: string) => [
                 metric === "tokens" ? formatTokens(value) : formatUsd(value),

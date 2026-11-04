@@ -10,7 +10,6 @@ import {
   loadUsage,
   readPeriod,
   readSeen,
-  readSettings,
   readTab,
   setAutostart,
   setCloseToTray,
@@ -204,8 +203,11 @@ function Pending({ state, label }: { state: SourceState | undefined; label: stri
   return <div className="notice">{t().app.reading(label)}</div>;
 }
 
-export default function App() {
-  const [settings, setSettings] = useState<Settings>(readSettings);
+export default function App({ initialSettings, onThemeChange }: {
+  initialSettings: Settings;
+  onThemeChange: (theme: Settings["theme"]) => void;
+}) {
+  const [settings, setSettings] = useState<Settings>(initialSettings);
   // Set before anything renders: every text and format below reads it.
   const lang = settings.language ?? systemLang();
   setLang(lang);
@@ -508,6 +510,7 @@ export default function App() {
   const [showUpdate, setShowUpdate] = useState(false);
   const appVersion = useAppVersion();
   const updateSettings = (next: Settings) => {
+    if (next.theme !== settings.theme) onThemeChange(next.theme);
     setSettings(next);
     writeSettings(next);
   };
@@ -1020,6 +1023,22 @@ export default function App() {
                         {LANG_NAMES[value]}
                       </option>
                     ))}
+                  </select>
+                </SettingRow>
+                <SettingRow title={text.settings.theme} description={text.settings.themeHints[settings.theme]}>
+                  <select
+                    aria-label={text.settings.theme}
+                    value={settings.theme}
+                    onChange={(event) => {
+                      const theme = event.target.value;
+                      if (theme === "system" || theme === "dark" || theme === "light") {
+                        updateSettings({ ...settings, theme });
+                      }
+                    }}
+                  >
+                    <option value="system">{text.settings.themes.system}</option>
+                    <option value="dark">{text.settings.themes.dark}</option>
+                    <option value="light">{text.settings.themes.light}</option>
                   </select>
                 </SettingRow>
                 <SettingRow title={text.settings.autostart} description={text.settings.autostartHint}>

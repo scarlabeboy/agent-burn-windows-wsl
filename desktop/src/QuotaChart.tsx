@@ -94,7 +94,8 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
         </g>
       )}
 
-      <path d={fill} fill={ahead ? "rgba(46,213,115,0.18)" : "rgba(255,93,108,0.18)"} />
+      {/* Theme colours: the light theme needs a stronger tint to show on white. */}
+      <path d={fill} style={{ fill: ahead ? "var(--quota-ahead-fill)" : "var(--quota-behind-fill)" }} />
       <line
         x1={x(startMs)}
         y1={y(100)}

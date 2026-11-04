@@ -57,7 +57,7 @@ export function LimitUsageChart({ days, where }: { days: LimitUsageDay[]; where:
                   tickFormatter={(value: number) => percent(Math.round(value))}
                 />
                 <Tooltip
-                  cursor={{ fill: "rgba(255,255,255,0.05)" }}
+                  cursor={{ className: "chart-cursor" }}
                   contentStyle={{ background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 8 }}
                   labelFormatter={(date: string) => shortDay(date)}
                   formatter={(value: number, name: string) => [percent(value.toFixed(1)), name]}

@@ -79,6 +79,7 @@ const defaults: Settings = {
   restartOnCrash: true,
   autoUpdate: true,
   harnessStates: {},
+  theme: "system",
 };
 
 const SEEN_KEY = "abf.seen-harnesses";
@@ -111,7 +112,8 @@ export function readSettings(): Settings {
     const refreshMinutes = stored.refreshMinutes === 1 ? 5 : (stored.refreshMinutes ?? defaults.refreshMinutes);
     // An unknown language is dropped, so Windows' own language decides again.
     const language = isLang(stored.language) ? stored.language : undefined;
-    return { ...defaults, ...rest, ...wslSettings(stored), refreshMinutes, language };
+    const theme = stored.theme === "dark" || stored.theme === "light" ? stored.theme : "system";
+    return { ...defaults, ...rest, ...wslSettings(stored), refreshMinutes, language, theme };
   } catch {
     return defaults;
   }

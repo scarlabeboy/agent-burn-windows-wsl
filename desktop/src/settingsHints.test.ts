@@ -26,6 +26,7 @@ const base: Settings = {
   restartOnCrash: true,
   autoUpdate: true,
   harnessStates: {},
+  theme: "system",
 };
 
 test("offline mode turns quotas and updates off without changing their own setting", () => {

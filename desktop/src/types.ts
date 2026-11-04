@@ -153,5 +153,7 @@ export interface Settings {
   harnessStates: HarnessStates;
   /** Interface language once chosen; until then Windows' own language decides. */
   language?: Lang;
+  /** Follow Windows unless a light or dark appearance is explicitly chosen. */
+  theme: "system" | "dark" | "light";
 }
 

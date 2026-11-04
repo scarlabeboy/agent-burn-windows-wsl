@@ -54,6 +54,13 @@ export const en: Strings = {
     general: "General",
     language: "Language",
     languageHint: "Language of the interface, amounts, dates and update notes.",
+    theme: "Theme",
+    themes: { system: "System", dark: "Dark", light: "Light" },
+    themeHints: {
+      system: "The app follows Windows' light or dark mode.",
+      dark: "The app stays in dark mode.",
+      light: "The app stays in light mode.",
+    },
     autostart: "Start with Windows",
     autostartHint: "The app opens minimized in the notification area.",
     autostartBusy: "Saving in Windows…",

@@ -56,6 +56,13 @@ export const fr = {
     general: "Général",
     language: "Langue",
     languageHint: "Langue de l'interface, des montants, des dates et des notes de mise à jour.",
+    theme: "Thème",
+    themes: { system: "Système", dark: "Sombre", light: "Clair" },
+    themeHints: {
+      system: "L'application suit le mode clair ou sombre de Windows.",
+      dark: "L'application reste en mode sombre.",
+      light: "L'application reste en mode clair.",
+    },
     autostart: "Lancer au démarrage de Windows",
     autostartHint: "L'application s'ouvre réduite dans la zone de notification.",
     autostartBusy: "Enregistrement dans Windows…",
