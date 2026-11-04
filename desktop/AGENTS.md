@@ -20,9 +20,11 @@ for changes under `desktop/`, the Windows desktop app of this fork. Everything o
 
 ## Rules
 
-- Never change the CLI's cost calculation. The only addition to the CLI is the Codex 5-hour
-  window (`sessionWindow`); keep upstream files untouched otherwise, so upstream merges stay
-  clean (disable upstream workflows through GitHub, never by editing them).
+- Never change the CLI's cost calculation. The CLI additions are the Codex 5-hour window
+  (`sessionWindow`), each model's rates (`pricing`) in `summary --json`, and
+  `AGENT_BURN_NO_RENEW` (no Claude sign-in renewal), plus security updates in `rust/Cargo.lock`;
+  keep upstream files untouched otherwise, so upstream merges stay clean (disable upstream
+  workflows through GitHub, never by editing them).
 - WSL is never woken up: list distributions with `wsl -l -q` / `--list --running`, read only
   running ones, and call `%SystemRoot%\System32\wsl.exe`. Never run `wsl --shutdown`.
 - The UI is in French and English. Every text goes in `src/i18n/fr.ts` and `src/i18n/en.ts`

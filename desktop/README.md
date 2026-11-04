@@ -3,8 +3,10 @@
 Tauri v2 + React/TypeScript desktop app that reads Agent Burn usage for native Windows,
 for WSL (optional), and for both combined (Computer). It runs the Agent Burn CLI from
 `../rust` as a sidecar and renders its JSON; it never parses logs itself. The CLI is Melvynx's
-code with a single addition, the Codex 5-hour window (`sessionWindow`) in the quota reading;
-cost calculation is untouched.
+code with three small additions: the Codex 5-hour window (`sessionWindow`) in the quota
+reading, each model's reference rates (`pricing`) in `summary --json`, and
+`AGENT_BURN_NO_RENEW`, which stops it from renewing the Claude sign-in. Cost calculation is
+untouched.
 
 ## Build the installer
 
@@ -71,9 +73,10 @@ app is not 1.0 yet.
   The environment is chosen in the sidebar, above the pages.
   Sign-ins (and the Claude plan) are read from the environment's own home directory: a
   Windows without a readable `~/.claude/.credentials.json` shows "quota not read".
-- When the Claude sign-in has expired or is refused, the CLI renews it with Claude Code's own
-  protocol (holding `~/.claude/.oauth_refresh.lock` and `~/.claude.lock`) and writes it back
-  to `~/.claude/.credentials.json`; the app itself only reads the plan from that file.
+- The app runs every CLI command with `AGENT_BURN_NO_RENEW=1`: the CLI never renews the
+  Claude sign-in and never writes `~/.claude/.credentials.json`, so it cannot lose a rotated
+  token. An expired sign-in is not sent; the Claude quota comes back once Claude Code has
+  renewed it. The app itself only reads the plan from that file.
 - Quota history is kept in the archive while the app runs; Codex history is also rebuilt
   from its session logs.
 - Harnesses can be switched off in the settings: they are no longer scanned (`--agents`) and

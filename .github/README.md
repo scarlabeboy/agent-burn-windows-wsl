@@ -4,20 +4,30 @@ An unofficial Windows desktop port of [Agent Burn](https://github.com/Melvynx/ag
 [Melvynx](https://github.com/Melvynx). It is a fork: everything outside `desktop/` is his work,
 kept in sync with upstream.
 
-The app reads Claude Code, Codex, OpenCode and the other supported harnesses on native Windows
-and inside WSL, and shows usage, cost and subscription quotas for each environment or for the
-whole computer. It runs Melvynx's CLI from `rust/` as a sidecar and renders its JSON; the cost
-calculation is his, unchanged. The CLI additions are small: the Codex 5-hour window in the
-quota reading, each model's reference rates in the JSON summary, and a switch that stops it
-from renewing the Claude Code sign-in.
+The app reads Claude Code, Codex, OpenCode and the other supported harnesses on native Windows,
+and inside WSL if you use it, and shows usage, cost and subscription quotas for each
+environment or for the whole computer. It runs Melvynx's CLI from `rust/` as a sidecar and
+renders its JSON; the cost calculation is his, unchanged. The CLI additions are small: the
+Codex 5-hour window in the quota reading, each model's reference rates in the JSON summary,
+and a switch that stops it from renewing the Claude Code sign-in.
 
 - Windows app: [`desktop/`](../desktop/README.md) (Tauri v2, React, TypeScript)
+- What changed in each version: [CHANGELOG](../desktop/CHANGELOG.md)
 - Original project, CLI and macOS app: [Agent Burn README](../apps/agent-burn/README.md),
   [agent-burn.melvynx.dev](https://agent-burn.melvynx.dev)
 
-Status: in development. The installer is on the
+Status: in development (0.x). The installer is on the
 [releases page](https://github.com/scarlabeboy/agent-burn-windows-wsl/releases), and the app
 updates itself from it.
+
+## Requirements
+
+- Windows 10 or 11, 64-bit (x64).
+- Microsoft Edge WebView2, which Windows 11 includes and Windows 10 gets with Microsoft Edge.
+  The installer adds it if it is missing.
+- At least one supported harness used on this computer, so there is something to show.
+- **WSL is optional.** On Windows alone, the app reads your Windows harnesses. If you have WSL
+  distributions, it can read them too; that can be turned off in the settings.
 
 ## Installing
 
@@ -60,5 +70,12 @@ changes your distributions; "Kept running" only keeps WSL awake while the app is
 Uninstall "Agent Burn Windows" from Windows Settings > Apps. The uninstaller removes the
 startup entry, and offers to delete the app data (settings and history) too. Your harnesses
 and their sign-ins are left as they were.
+
+## Feedback
+
+Bugs and ideas are welcome in the
+[issues](https://github.com/scarlabeboy/agent-burn-windows-wsl/issues/new/choose); see
+[CONTRIBUTING](CONTRIBUTING.md). A security problem should be reported privately: see
+[SECURITY](SECURITY.md).
 
 Licensed under MIT, like the original project ([LICENSE](../LICENSE)).
