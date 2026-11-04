@@ -891,17 +891,22 @@ export default function App({ initialSettings, onThemeChange }: {
           {tabs.length > 0 && (
             <>
               <div className="nav-group">{text.app.environment}</div>
-              {tabs.map((entry) => (
-                <button
-                  key={entry.id}
-                  className={`nav env${tab === entry.id ? " on" : ""}`}
-                  onClick={() => openTab(entry.id)}
-                >
-                  <span className="nav-icon">
-                    <EnvIcon env={entry.id} />
-                  </span>
-                  <span className="nav-label">{entry.label}</span>
-                </button>
+              {/* The computer on its own line, then its two parts, Windows and WSL, side by side. */}
+              {[tabs.slice(0, 1), tabs.slice(1)].map((row, index) => (
+                <div key={index} className={index === 0 ? "nav-row" : "nav-row nav-pair"}>
+                  {row.map((entry) => (
+                    <button
+                      key={entry.id}
+                      className={`nav env${tab === entry.id ? " on" : ""}`}
+                      onClick={() => openTab(entry.id)}
+                    >
+                      <span className="nav-icon">
+                        <EnvIcon env={entry.id} />
+                      </span>
+                      <span className="nav-label">{entry.label}</span>
+                    </button>
+                  ))}
+                </div>
               ))}
               {tab === "wsl" && distros.length > 1 && (
                 <select
