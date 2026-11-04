@@ -133,6 +133,16 @@ function bucketKey(date: string, granularity: Granularity): string {
   return date;
 }
 
+/** A bucket key ("2026-09-14", "2026-10") as the language writes it: "14/09" or "09/14",
+ * "oct. 2026" or "Oct 2026". Keys stay ISO so the rows sort by date. */
+function bucketLabel(key: string, granularity: Granularity): string {
+  if (granularity === "monthly") {
+    const month = new Date(`${key}-01T00:00:00Z`);
+    return month.toLocaleDateString(locale(), { month: "short", year: "numeric", timeZone: "UTC" });
+  }
+  return getLang() === "en" ? `${key.slice(5, 7)}/${key.slice(8, 10)}` : `${key.slice(8, 10)}/${key.slice(5, 7)}`;
+}
+
 function chartRows(agents: AgentReport[], granularity: Granularity, metric: Metric) {
   const rows = new Map<string, Record<string, number | string>>();
   for (const agent of agents) {
@@ -226,7 +236,13 @@ export function SpendChart({
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="var(--grid)" vertical={false} />
-            <XAxis dataKey="bucket" stroke="var(--muted)" tickLine={false} minTickGap={28} />
+            <XAxis
+              dataKey="bucket"
+              stroke="var(--muted)"
+              tickLine={false}
+              minTickGap={28}
+              tickFormatter={(key: string) => bucketLabel(key, granularity)}
+            />
             <YAxis
               stroke="var(--muted)"
               tickLine={false}
@@ -244,7 +260,7 @@ export function SpendChart({
               contentStyle={{ background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 8 }}
               labelFormatter={(label: string, payload) => (
                 <ChartLabel
-                  label={label}
+                  label={bucketLabel(label, granularity)}
                   payload={payload}
                   format={(total) => (metric === "tokens" ? formatTokens(total) : formatUsd(total))}
                 />
