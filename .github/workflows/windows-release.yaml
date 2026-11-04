@@ -47,6 +47,22 @@ jobs:
             rust -> target
             desktop/src-tauri -> target
 
+      # The CLI embeds LiteLLM's prices for offline mode when it is built. By default build.rs
+      # takes the version locked in flake.lock, months old; this gives it today's instead. On any
+      # failure the variable stays unset and build.rs falls back to the locked version.
+      - name: Fetch today's LiteLLM prices for offline mode
+        run: |
+          $path = Join-Path $env:RUNNER_TEMP "litellm-pricing.json"
+          try {
+            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json" -OutFile $path -MaximumRetryCount 3 -TimeoutSec 60
+            $models = (Get-Content $path -Raw | ConvertFrom-Json -AsHashtable).Count
+            if ($models -lt 1000) { throw "only $models models" }
+            "AGENT_BURN_PRICING_JSON_PATH=$path" >> $env:GITHUB_ENV
+            Write-Host "Embedding today's LiteLLM prices ($models models)."
+          } catch {
+            Write-Warning "LiteLLM prices not fetched ($_); the CLI keeps the locked version."
+          }
+
       - name: Build the Agent Burn CLI (sidecar)
         run: ./desktop/scripts/prepare-cli.ps1
 
