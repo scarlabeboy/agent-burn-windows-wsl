@@ -6,6 +6,32 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.5.5
+
+#### English
+
+### Improvements
+- The app never renews the Claude Code sign-in itself any more, so it can never disturb your Claude Code session. When that sign-in has expired, the Claude quota comes back the next time you use Claude Code.
+- Temporary scan files live in the app's own folder, and the app never removes another program's files.
+- Before an update installs, the app finishes saving its history.
+- An update is only installed if its signature names its version.
+- The secure connections used to read quotas get the latest security fixes.
+
+### Fixes
+- A malformed date in a Codex log can no longer close the app.
+
+#### Français
+
+### Améliorations
+- L'application ne renouvelle plus jamais elle-même la connexion de Claude Code : elle ne peut donc plus perturber votre session Claude Code. Quand cette connexion a expiré, le quota Claude revient à votre prochaine utilisation de Claude Code.
+- Les fichiers temporaires de lecture sont rangés dans un dossier propre à l'application, qui ne supprime jamais les fichiers d'un autre programme.
+- Avant d'installer une mise à jour, l'application termine l'enregistrement de son historique.
+- Une mise à jour n'est installée que si sa signature indique sa version.
+- Les connexions sécurisées qui lisent les quotas reçoivent les derniers correctifs de sécurité.
+
+### Corrections
+- Une date malformée dans un journal Codex ne peut plus fermer l'application.
+
 ## 0.5.4
 
 #### English
