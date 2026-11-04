@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { getLang, percent, t } from "./i18n";
+import { ChartLabel } from "./ChartLabel";
 import { TitleIcon } from "./TitleIcons";
 import { buildChart, otherLabel, totalUsed, type Grouping, type LimitUsageDay } from "./limitUsage";
 
@@ -59,7 +60,9 @@ export function LimitUsageChart({ days, where }: { days: LimitUsageDay[]; where:
                 <Tooltip
                   cursor={{ className: "chart-cursor" }}
                   contentStyle={{ background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 8 }}
-                  labelFormatter={(date: string) => shortDay(date)}
+                  labelFormatter={(date: string, payload) => (
+                    <ChartLabel label={shortDay(date)} payload={payload} format={(sum) => percent(sum.toFixed(1))} />
+                  )}
                   formatter={(value: number, name: string) => [percent(value.toFixed(1)), name]}
                 />
                 {chart.series.map((entry, index) => (

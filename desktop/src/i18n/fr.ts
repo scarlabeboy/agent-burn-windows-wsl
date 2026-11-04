@@ -196,6 +196,7 @@ export const fr = {
     detailPending: "Calcul du détail pour cette période en cours… Les totaux et le graphique sont déjà exacts.",
     columns: { model: "Modèle", tokens: "Tokens", cost: "Dépense", share: "Part" },
     filterModels: "Filtrer les modèles",
+    chartTotal: (value: string) => `Total : ${value}`,
     pricingLabel: "Tarifs du modèle",
     pricingRate: (label: string, rate: string) => `${label} : ${rate} $US / M tokens`,
     pricingAbove200k: "Au-delà de 200k tokens :",

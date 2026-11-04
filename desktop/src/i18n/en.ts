@@ -191,6 +191,7 @@ export const en: Strings = {
     detailPending: "Computing the detail for this period… Totals and the chart are already exact.",
     columns: { model: "Model", tokens: "Tokens", cost: "Spend", share: "Share" },
     filterModels: "Filter models",
+    chartTotal: (value: string) => `Total: ${value}`,
     pricingLabel: "Model rates",
     pricingRate: (label: string, rate: string) => `${label}: ${rate} US$ / M tokens`,
     pricingAbove200k: "Above 200k tokens:",

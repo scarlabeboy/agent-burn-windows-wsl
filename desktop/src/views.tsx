@@ -14,6 +14,7 @@ import { budget, cycleEnded, formatDay, formatDuration, freshness, type GaugeMod
 import { locale, percent, t } from "./i18n";
 import { pricingTip } from "./pricingFormat";
 import { Glyph, TitleIcon, type GlyphKind } from "./TitleIcons";
+import { ChartLabel } from "./ChartLabel";
 import { Tooltip as InfoTooltip } from "./Tooltip";
 import { useNow } from "./useNow";
 import type { AgentReport, ClaudeAccount, ModelPricing, SubscriptionAgent, TokenBreakdown, UsageReport } from "./types";
@@ -238,6 +239,13 @@ export function SpendChart({
             <Tooltip
               cursor={{ className: "chart-cursor" }}
               contentStyle={{ background: "var(--panel-2)", border: "1px solid var(--line)", borderRadius: 8 }}
+              labelFormatter={(label: string, payload) => (
+                <ChartLabel
+                  label={label}
+                  payload={payload}
+                  format={(total) => (metric === "tokens" ? formatTokens(total) : formatUsd(total))}
+                />
+              )}
               formatter={(value: number, name: string) => [
                 metric === "tokens" ? formatTokens(value) : formatUsd(value),
                 agentLabel(name),

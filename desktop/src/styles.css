@@ -261,6 +261,8 @@ main { flex: 1; overflow-y: auto; padding: 20px; container-type: inline-size; }
 .seg button { padding: 4px 12px; }
 .chart { height: 280px; }
 .chart-cursor { fill: var(--chart-cursor); }
+/* The total of a stacked bar, under the date in the chart tooltip. */
+.chart-total { display: block; margin-top: 2px; font-weight: 600; }
 .legend { display: flex; gap: 16px; margin-top: 10px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
 .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
 
