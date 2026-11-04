@@ -23,6 +23,7 @@ const base: Settings = {
   quotas: true,
   refreshMinutes: 10,
   closeToTray: false,
+  claudeRenew: false,
   restartOnCrash: true,
   autoUpdate: true,
   harnessStates: {},

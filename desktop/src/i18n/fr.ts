@@ -74,6 +74,9 @@ export const fr = {
     data: "Données",
     offline: "Mode hors ligne",
     quotas: "Lecture des quotas",
+    claudeRenew: "Renouveler la connexion Claude Code",
+    claudeRenewHint:
+      "Garde le quota Claude lisible si vous n'utilisez que les apps Claude, sans la commande claude. Peut déconnecter cette commande si elle est ouverte en même temps.",
     refresh: "Rafraîchir l'usage automatiquement",
     never: "Jamais",
     everyMinutes: (minutes: number) => `Toutes les ${minutes} minutes`,

@@ -72,6 +72,9 @@ export const en: Strings = {
     data: "Data",
     offline: "Offline mode",
     quotas: "Read quotas",
+    claudeRenew: "Renew the Claude Code sign-in",
+    claudeRenewHint:
+      "Keeps the Claude quota readable if you only use the Claude apps, not the claude command. It can sign out that command if it is open at the same time.",
     refresh: "Refresh usage automatically",
     never: "Never",
     everyMinutes: (minutes: number) => `Every ${minutes} minutes`,

@@ -75,10 +75,13 @@ app is not 1.0 yet.
   The environment is chosen in the sidebar, above the pages.
   Sign-ins (and the Claude plan) are read from the environment's own home directory: a
   Windows without a readable `~/.claude/.credentials.json` shows "quota not read".
-- The app runs every CLI command with `AGENT_BURN_NO_RENEW=1`: the CLI never renews the
-  Claude sign-in and never writes `~/.claude/.credentials.json`, so it cannot lose a rotated
-  token. An expired sign-in is not sent; the Claude quota comes back once Claude Code has
-  renewed it. The app itself only reads the plan from that file.
+- By default the app runs every CLI command with `AGENT_BURN_NO_RENEW=1`: the CLI never
+  renews the Claude sign-in and never writes `~/.claude/.credentials.json`, so it cannot lose a
+  rotated token. An expired sign-in is not sent; the Claude quota comes back once Claude Code
+  has renewed it. The app itself only reads the plan from that file.
+- The **Renew the Claude Code sign-in** setting (off by default, Windows and WSL) leaves that
+  variable out, for people who only use the Claude apps, which never renew that file. A
+  renewal can then sign out a `claude` command running at the same time.
 - Quota history is kept in the archive while the app runs; Codex history is also rebuilt
   from its session logs.
 - Harnesses can be switched off in the settings: they are no longer scanned (`--agents`) and

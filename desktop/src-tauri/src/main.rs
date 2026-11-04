@@ -184,6 +184,7 @@ fn main() {
             backfill_codex,
             set_wsl_keepalive,
             background::set_close_to_tray,
+            cli::set_claude_renew,
             background::set_restart_on_crash,
             background::get_autostart,
             background::set_autostart,

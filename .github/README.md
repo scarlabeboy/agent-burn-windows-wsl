@@ -44,7 +44,12 @@ and your prompts, conversations and file paths never leave the machine.
 **What the app reads**, on Windows and inside your WSL distributions: the local usage logs of
 the supported harnesses (Claude Code, Codex, OpenCode, Cursor…), and, for the subscription
 quotas, the sign-in each harness already stored (for example `~/.claude/.credentials.json` or
-`~/.codex/auth.json`). It never writes to those files, and never renews a sign-in.
+`~/.codex/auth.json`). By default it never writes to those files, and never renews a sign-in.
+One setting, off by default, changes that for Claude Code: **Renew the Claude Code sign-in**
+lets it renew an expired sign-in in `~/.claude/.credentials.json`, as Claude Code itself does.
+Turn it on only if you use the Claude apps without the `claude` command: the apps never renew
+that file, so the Claude quota is otherwise lost a few hours after your last `claude` run. The
+renewal replaces the stored token, which can sign out a `claude` command open at the same time.
 
 **What it sends, and where**:
 
@@ -68,6 +73,8 @@ release.
 - short-lived scan files in `%TEMP%\agent-burn-windows`;
 - the CLI's cache of the last Claude quota reading, `~/.cache/agent-burn/claude-usage.json`,
   in your Windows user folder and in the home folder of each WSL distribution it reads;
+- only if you turn on "Renew the Claude Code sign-in", the renewed sign-in in
+  `~/.claude/.credentials.json`, on Windows and in each WSL distribution it reads;
 - only if you turn on "Start with Windows", an entry in your user's startup programs.
 
 Nothing else is changed in your WSL distributions; "Kept running" only keeps WSL awake while

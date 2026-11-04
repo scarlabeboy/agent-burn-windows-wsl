@@ -13,6 +13,7 @@ import {
   readTab,
   setAutostart,
   setCloseToTray,
+  setClaudeRenew,
   setRestartOnCrash,
   setTrayLabels,
   setTrayTooltip,
@@ -468,6 +469,9 @@ export default function App({ initialSettings, onThemeChange }: {
   useEffect(() => {
     void setCloseToTray(settings.closeToTray).catch(() => undefined);
   }, [settings.closeToTray]);
+  useEffect(() => {
+    void setClaudeRenew(settings.claudeRenew).catch(() => undefined);
+  }, [settings.claudeRenew]);
   useEffect(() => {
     void setRestartOnCrash(settings.restartOnCrash).catch(() => undefined);
   }, [settings.restartOnCrash]);
@@ -1110,6 +1114,13 @@ export default function App({ initialSettings, onThemeChange }: {
                     disabled={settings.offline}
                     label={text.settings.quotas}
                     onChange={(next) => updateSettings({ ...settings, quotas: next })}
+                  />
+                </SettingRow>
+                <SettingRow title={text.settings.claudeRenew} description={text.settings.claudeRenewHint}>
+                  <Switch
+                    checked={settings.claudeRenew}
+                    label={text.settings.claudeRenew}
+                    onChange={(next) => updateSettings({ ...settings, claudeRenew: next })}
                   />
                 </SettingRow>
                 <SettingRow title={text.settings.refresh} description={refreshHint(settings.refreshMinutes)}>

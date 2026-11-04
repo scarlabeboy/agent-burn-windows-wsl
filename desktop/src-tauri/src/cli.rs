@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use serde_json::Value;
 
@@ -73,11 +73,24 @@ fn locate_cli() -> Result<PathBuf, String> {
 /// configuration that cannot be read is simply none.
 const NO_USER_CONFIG: [&str; 2] = ["--config", "NUL"];
 
+/// Whether the CLI may renew the Claude Code sign-in (the "Renew the Claude Code sign-in"
+/// setting). Off by default: a renewal replaces the token in `~/.claude/.credentials.json`,
+/// which can sign out a `claude` command running at the same time. People who only use the
+/// Claude apps, which never renew that file, need it to keep their quota.
+static CLAUDE_RENEW: AtomicBool = AtomicBool::new(false);
+
+#[tauri::command]
+pub fn set_claude_renew(enabled: bool) {
+    CLAUDE_RENEW.store(enabled, Ordering::SeqCst);
+}
+
 /// A run of `program` with `args` (the command and its first options) and no user configuration.
 fn cli_command(program: PathBuf, args: &[&str]) -> Command {
     let mut command = Command::new(program);
     command.args(args).args(NO_USER_CONFIG);
-    command.env("AGENT_BURN_NO_RENEW", "1");
+    if !CLAUDE_RENEW.load(Ordering::SeqCst) {
+        command.env("AGENT_BURN_NO_RENEW", "1");
+    }
     command
 }
 
@@ -731,10 +744,17 @@ mod tests {
     }
 
     #[test]
-    fn every_cli_run_disables_claude_token_renewal() {
-        let command = cli_command(PathBuf::from("agent-burn.exe"), &["summary", "--json"]);
-        assert!(command.get_envs().any(|(name, value)| {
-            name == "AGENT_BURN_NO_RENEW" && value == Some(std::ffi::OsStr::new("1"))
-        }));
+    fn claude_token_renewal_is_off_unless_the_setting_allows_it() {
+        let no_renew = || {
+            cli_command(PathBuf::from("agent-burn.exe"), &["summary", "--json"])
+                .get_envs()
+                .any(|(name, value)| name == "AGENT_BURN_NO_RENEW" && value == Some(std::ffi::OsStr::new("1")))
+        };
+        assert!(no_renew(), "off by default");
+        set_claude_renew(true);
+        let allowed = !no_renew();
+        set_claude_renew(false);
+        assert!(allowed, "the setting lets the CLI renew");
+        assert!(no_renew());
     }
 }

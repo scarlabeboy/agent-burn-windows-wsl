@@ -145,6 +145,8 @@ export interface Settings {
   refreshMinutes: number;
   /** Closing the window keeps the app running in the notification area. */
   closeToTray: boolean;
+  /** The CLI may renew the Claude Code sign-in, which can sign out a `claude` command. */
+  claudeRenew: boolean;
   /** Windows starts the app again after a crash, or when an installer or Windows Update closed it. */
   restartOnCrash: boolean;
   /** Look for a new release at startup and every few hours (never in offline mode, whatever this says). */

@@ -76,6 +76,7 @@ const defaults: Settings = {
   quotas: true,
   refreshMinutes: 10,
   closeToTray: false,
+  claudeRenew: false,
   restartOnCrash: true,
   autoUpdate: true,
   harnessStates: {},
@@ -166,6 +167,7 @@ export function writePeriod(period: Period) {
 }
 
 export const setCloseToTray = (enabled: boolean) => invoke<void>("set_close_to_tray", { enabled });
+export const setClaudeRenew = (enabled: boolean) => invoke<void>("set_claude_renew", { enabled });
 export const setRestartOnCrash = (enabled: boolean) => invoke<void>("set_restart_on_crash", { enabled });
 export const getAutostart = () => invoke<boolean>("get_autostart");
 export const setAutostart = (enabled: boolean) => invoke<void>("set_autostart", { enabled });
