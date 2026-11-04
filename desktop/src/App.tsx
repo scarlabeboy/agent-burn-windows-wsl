@@ -1116,9 +1116,14 @@ export default function App({ initialSettings, onThemeChange }: {
                     onChange={(next) => updateSettings({ ...settings, quotas: next })}
                   />
                 </SettingRow>
-                <SettingRow title={text.settings.claudeRenew} description={text.settings.claudeRenewHint}>
+                {/* Renewal only happens on an online quota reading: without one the switch has no effect. */}
+                <SettingRow
+                  title={text.settings.claudeRenew}
+                  description={quotasOn ? text.settings.claudeRenewHint : text.settings.claudeRenewIdle}
+                >
                   <Switch
                     checked={settings.claudeRenew}
+                    disabled={!quotasOn}
                     label={text.settings.claudeRenew}
                     onChange={(next) => updateSettings({ ...settings, claudeRenew: next })}
                   />
