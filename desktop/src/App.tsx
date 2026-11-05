@@ -758,14 +758,15 @@ export default function App({ initialSettings, onThemeChange }: {
     [activeKey, states],
   );
 
-  // The quota belongs to the account, so its value counts the spend of every source read now,
-  // whichever tab is open.
-  const liveReports = useMemo(
+  // The quota belongs to the account, so its value counts the spend of every source, whichever
+  // tab is open: a stopped WSL distribution counts through its last report.
+  const accountReadings = useMemo(
     () =>
-      readableIds
-        .map((id) => reportOf(states[id]))
-        .filter((entry): entry is UsageReport => entry !== undefined),
-    [readableIds, states],
+      sourceIds.flatMap((id) => {
+        const report = reportOf(states[id]);
+        return report ? [{ report, at: loadedAtOf(states[id]) }] : [];
+      }),
+    [sourceIds, states],
   );
 
   // Only offered with WSL: with Windows alone there is nothing to choose.
@@ -1288,7 +1289,7 @@ export default function App({ initialSettings, onThemeChange }: {
                   {(page === "claude" || page === "codex") && (
                     <SubscriptionCard
                       harness={page}
-                      sub={withAccountSpend(pickSubscription(sourceReports, page), liveReports)}
+                      sub={withAccountSpend(pickSubscription(sourceReports, page), accountReadings)}
                       account={pickClaudeAccount(sourceReports)}
                       card={pageCards[0]}
                       offReason={subscriptionOffReason(settings)}

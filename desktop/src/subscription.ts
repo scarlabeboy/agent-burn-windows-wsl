@@ -15,40 +15,57 @@ export function pickSubscription(
   );
 }
 
-/** Sources read this close together are in the same quota window; further apart, one may be past a reset. */
+/** Windows starting this close together are the same quota window; further apart, one is past a reset. */
 const SAME_WINDOW_MINUTES = 60;
+
+/** A source's report and when it was read. */
+export interface Reading {
+  report: UsageReport;
+  at: number;
+}
+
+/** When a reading's quota window started, in minutes. */
+const windowStart = (entry: SubscriptionAgent, at: number) => at / 60_000 - (entry.window?.elapsedMinutes ?? 0);
 
 /**
  * The subscription with its quota value counting the spend of every source. The CLI divides one
  * source's spend by the account's used percentage, which undervalues the quota when Windows and
  * WSL share it. The value grows in proportion to the spend, so the estimate is scaled to the sum.
+ * A stopped WSL distribution keeps its last report: its spend still belongs to the account's
+ * window as long as that window has not been reset, however long ago it was read.
  */
 export function withAccountSpend(
   sub: SubscriptionAgent | undefined,
-  reports: UsageReport[],
+  readings: Reading[],
 ): SubscriptionAgent | undefined {
   const window = sub?.window;
   if (!sub?.estimate || !window) return sub;
-  const others = reports
-    .flatMap((report) => report.subscription?.agents ?? [])
+  const own = readings.find(({ report }) => report.subscription?.agents.includes(sub));
+  if (!own) return sub;
+  const start = windowStart(sub, own.at);
+  const others = readings
+    .flatMap(({ report, at }) => (report.subscription?.agents ?? []).map((entry) => ({ entry, at })))
     .filter(
-      (entry) =>
+      ({ entry, at }) =>
         entry !== sub &&
         entry.agent === sub.agent &&
         entry.window?.label === window.label &&
-        Math.abs(entry.window.elapsedMinutes - window.elapsedMinutes) <= SAME_WINDOW_MINUTES,
+        Math.abs(windowStart(entry, at) - start) <= SAME_WINDOW_MINUTES,
     );
-  const entries = [sub, ...others];
-  const spent = entries.reduce((sum, entry) => sum + (entry.window?.apiEquivalentSpent ?? 0), 0);
-  // Any source that spent in the window can be scaled: this one may have spent nothing.
-  const base = entries.find((entry) => entry.estimate && (entry.window?.apiEquivalentSpent ?? 0) > 0);
+  const entries = [{ entry: sub, at: own.at }, ...others];
+  const spent = entries.reduce((sum, { entry }) => sum + (entry.window?.apiEquivalentSpent ?? 0), 0);
+  // Scaled from the latest reading that spent in the window: its used percentage is the current
+  // one, so every tab shows the same value even while one source's report is hours old.
+  const base = entries
+    .filter(({ entry }) => entry.estimate && (entry.window?.apiEquivalentSpent ?? 0) > 0)
+    .sort((a, b) => b.at - a.at)[0]?.entry;
   if (!base?.estimate || !base.window) return sub;
   const scale = spent / base.window.apiEquivalentSpent;
   const monthlyValue = base.estimate.monthlyValue * scale;
   return {
     ...sub,
     estimate: {
-      ...sub.estimate,
+      ...base.estimate,
       fullQuotaValue: base.estimate.fullQuotaValue * scale,
       monthlyValue,
       valueMultiple: sub.pricePerMonth ? monthlyValue / sub.pricePerMonth : null,
