@@ -126,9 +126,7 @@ fn apply_source(
     let user = sources::running_user(distro)?;
     let home = sources::wsl_home_unc(distro, &user);
     let has_claude = std::path::Path::new(&format!(r"{home}\.claude\projects")).is_dir();
-    command.envs(wsl_environment(&home, has_claude));
-    // A Cursor token set on Windows belongs to the Windows source, which already counts it.
-    command.env_remove("CURSOR_ACCESS_TOKEN");
+    point_at_wsl(command, &home, has_claude);
     let mut snapshot = Snapshot(None);
     if with_opencode {
         let (dir, copy) = snapshot_opencode(distro, &format!(r"{home}\.local\share\opencode"));
@@ -136,6 +134,37 @@ fn apply_source(
         snapshot = copy;
     }
     Ok((Some(home), snapshot))
+}
+
+/// Variables of the Windows session the CLI reads to find a harness, its cache or a token. Set
+/// on Windows, they point at Windows data, which the Windows source already counts: a WSL
+/// source inherits none of them, and finds everything under the distribution's home instead.
+const WINDOWS_ONLY: [&str; 17] = [
+    "CLAUDE_CONFIG_DIR",
+    "XDG_CONFIG_HOME",
+    "XDG_CACHE_HOME",
+    "AGENT_BURN_CACHE_DIR",
+    "OPENCODE_DATA_DIR",
+    "CURSOR_ACCESS_TOKEN",
+    "AMP_DATA_DIR",
+    "COPILOT_OTEL_FILE_EXPORTER_PATH",
+    "KIMI_DATA_DIR",
+    "GEMINI_DATA_DIR",
+    "QWEN_DATA_DIR",
+    "HERMES_HOME",
+    "DROID_SESSIONS_DIR",
+    "PI_AGENT_DIR",
+    "KILO_DATA_DIR",
+    "CODEBUFF_DATA_DIR",
+    "OPENCLAW_DIR",
+];
+
+/// Point a CLI run at a distribution's home, without any Windows harness location.
+fn point_at_wsl(command: &mut Command, home: &str, has_claude: bool) {
+    for name in WINDOWS_ONLY {
+        command.env_remove(name);
+    }
+    command.envs(wsl_environment(home, has_claude));
 }
 
 /// Where the CLI finds each harness of a distribution. Sign-in tokens are read from the
@@ -817,5 +846,29 @@ mod tests {
         set_claude_renew(false);
         assert!(allowed, "the setting lets the CLI renew");
         assert!(no_renew());
+    }
+
+    /// A WSL run never follows a harness location set on Windows: it would count Windows data
+    /// a second time.
+    #[test]
+    fn a_wsl_run_inherits_no_windows_harness_location() {
+        let home = r"\\wsl.localhost\Ubuntu\home\user";
+        let value_of = |has_claude: bool, name: &str| {
+            let mut command = Command::new("agent-burn.exe");
+            point_at_wsl(&mut command, home, has_claude);
+            command
+                .get_envs()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| value.map(|value| value.to_string_lossy().into_owned()))
+        };
+        for name in ["CLAUDE_CONFIG_DIR", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "AMP_DATA_DIR"] {
+            assert_eq!(value_of(false, name), Some(None), "{name} is removed");
+        }
+        assert_eq!(
+            value_of(true, "CLAUDE_CONFIG_DIR"),
+            Some(Some(format!(r"{home}\.claude"))),
+            "the distribution's own Claude folder replaces it"
+        );
+        assert_eq!(value_of(false, "HOME"), Some(Some(home.to_string())));
     }
 }
