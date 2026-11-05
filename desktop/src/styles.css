@@ -16,11 +16,13 @@
   --modal-shadow: rgba(0, 0, 0, 0.45);
   --modal-backdrop: rgba(0, 0, 0, 0.55);
   --chart-cursor: rgba(255, 255, 255, 0.05);
-  --pill-ok-bg: rgba(46, 213, 115, 0.15);
+  --pill-ok-text: #2ed573;
+  --pill-ok-bg: rgba(46, 213, 115, 0.28);
   --pill-mid-text: #f4b740;
-  --pill-mid-bg: rgba(244, 183, 64, 0.15);
-  --pill-bad-bg: rgba(255, 93, 108, 0.15);
-  --pill-stale-bg: rgba(154, 154, 162, 0.18);
+  --pill-mid-bg: rgba(244, 183, 64, 0.28);
+  --pill-bad-text: #ff5d6c;
+  --pill-bad-bg: rgba(255, 93, 108, 0.28);
+  --pill-stale-bg: rgba(154, 154, 162, 0.28);
   --pricing-tone: #ff8a3d;
   --error-border: rgba(255, 93, 108, 0.4);
   --banner-bg: rgba(255, 93, 108, 0.1);
@@ -58,11 +60,13 @@
   --modal-shadow: rgba(0, 0, 0, 0.18);
   --modal-backdrop: rgba(0, 0, 0, 0.25);
   --chart-cursor: rgba(0, 0, 0, 0.05);
-  --pill-ok-bg: rgba(31, 157, 85, 0.15);
-  --pill-mid-text: #b7791f;
-  --pill-mid-bg: rgba(183, 121, 31, 0.15);
-  --pill-bad-bg: rgba(214, 52, 71, 0.15);
-  --pill-stale-bg: rgba(107, 107, 118, 0.15);
+  --pill-ok-text: #15703c;
+  --pill-ok-bg: rgba(31, 157, 85, 0.22);
+  --pill-mid-text: #8a5a10;
+  --pill-mid-bg: rgba(183, 121, 31, 0.24);
+  --pill-bad-text: #a8222f;
+  --pill-bad-bg: rgba(214, 52, 71, 0.2);
+  --pill-stale-bg: rgba(107, 107, 118, 0.22);
   --pricing-tone: #e8641c;
   --error-border: rgba(214, 52, 71, 0.4);
   --banner-bg: rgba(214, 52, 71, 0.1);
@@ -131,6 +135,10 @@ button { cursor: pointer; }
 .nav.sub { flex-direction: column; align-items: stretch; gap: 4px; }
 .nav-line { display: flex; align-items: center; gap: 10px; }
 .nav-quota { padding-left: 32px; color: var(--muted); font-size: 12px; }
+/* With the 5-hour quota: its pill under the icon, the weekly one at the right edge. */
+.nav-quota.both { display: grid; grid-template-columns: 1fr auto 1fr; padding-left: 0; gap: 6px; }
+.nav-quota.both .pill:first-child { justify-self: start; }
+.nav-quota.both .pill:last-child { justify-self: end; }
 .nav.on .nav-quota { color: #fff; }
 .nav-select { margin: 4px 0 2px 42px; width: calc(100% - 42px); }
 .nav-row { display: flex; gap: 6px; }
@@ -144,9 +152,9 @@ button { cursor: pointer; }
 .nav-value { color: var(--muted); font-variant-numeric: tabular-nums; }
 .nav.on .nav-value { color: #fff; }
 .pill { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-.pill.ok { color: var(--ok); background: var(--pill-ok-bg); }
+.pill.ok { color: var(--pill-ok-text); background: var(--pill-ok-bg); }
 .pill.mid { color: var(--pill-mid-text); background: var(--pill-mid-bg); }
-.pill.bad { color: var(--danger); background: var(--pill-bad-bg); }
+.pill.bad { color: var(--pill-bad-text); background: var(--pill-bad-bg); }
 /* On the blue of the open page a tint would vanish: the quota pill turns solid, white on its colour. */
 .nav.on .pill { color: #fff; }
 .nav.on .pill.ok { background: #1f9d55; }

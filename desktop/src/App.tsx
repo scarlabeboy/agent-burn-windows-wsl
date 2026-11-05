@@ -952,9 +952,14 @@ export default function App({ initialSettings, onThemeChange }: {
                   <span className="nav-value">{cost !== undefined ? formatUsd(cost) : ""}</span>
                 </span>
                 {quota && (
-                  <span className="nav-line nav-quota">
-                    <span className="nav-label">{text.app.weeklyQuota}</span>
-                    {/* Faded when the reading is not live. */}
+                  <span className={`nav-line nav-quota${quota.session ? " both" : ""}`}>
+                    {/* Grey when the reading is not live. */}
+                    {quota.session && (
+                      <span className={`${pillClass(quota.session.remaining)}${stale ? " stale" : ""}`}>
+                        {percent(quota.session.remaining.toFixed(0))}
+                      </span>
+                    )}
+                    <span className="nav-label">{quota.session ? text.app.bothQuotas : text.app.weeklyQuota}</span>
                     <span className={`${pillClass(quota.weekly.remaining)}${stale ? " stale" : ""}`}>
                       {percent(quota.weekly.remaining.toFixed(0))}
                     </span>

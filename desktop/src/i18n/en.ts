@@ -13,6 +13,7 @@ export const en: Strings = {
     subscriptions: "Subscriptions",
     harness: "Harnesses",
     weeklyQuota: "Weekly quota",
+    bothQuotas: "5h · weekly quota",
     wslDistro: "WSL distribution",
     periodShown: "Period shown",
     refresh: "Refresh (Ctrl+R · quotas only: Ctrl+Shift+R)",

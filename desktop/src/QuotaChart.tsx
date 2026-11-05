@@ -53,6 +53,11 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
   const nowX = x(observedAt);
   const nowY = y(model.remaining);
   const emptyAt = projection?.emptyAtMs ?? null;
+  // Left of the point the curve may still run near 0 %: the label goes right of it, into the
+  // locked area, when the quota empties within a label's width of now and there is room.
+  const EMPTY_LABEL = 90;
+  const emptyLeft =
+    emptyAt === null || x(emptyAt) - nowX >= EMPTY_LABEL || x(emptyAt) + EMPTY_LABEL > W - PAD.right;
   const hatchId = `hatch-${harness}-${model.window.windowMinutes}`;
   const labelId = `label-${harness}-${model.window.windowMinutes}`;
   const onPlot = `url(#${labelId})`;
@@ -123,7 +128,14 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
               {t().chart.atReset(projection.remainingAtReset.toFixed(0))}
             </text>
           ) : (
-            <text x={x(emptyAt) - 6} y={y(0) - 8} textAnchor="end" className="qnote" fill="var(--danger)" filter={onPlot}>
+            <text
+              x={emptyLeft ? x(emptyAt) - 6 : x(emptyAt) + 6}
+              y={y(0) - 8}
+              textAnchor={emptyLeft ? "end" : "start"}
+              className="qnote"
+              fill="var(--danger)"
+              filter={onPlot}
+            >
               {t().chart.emptyOn(formatDay(emptyAt))}
             </text>
           )}

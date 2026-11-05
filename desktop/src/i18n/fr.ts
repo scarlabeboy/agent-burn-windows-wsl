@@ -14,6 +14,7 @@ export const fr = {
     subscriptions: "Abonnements",
     harness: "Harness",
     weeklyQuota: "Quota hebdo",
+    bothQuotas: "Quota 5 h · hebdo",
     wslDistro: "Distribution WSL",
     periodShown: "Période affichée",
     refresh: "Actualiser (Ctrl+R · quotas seuls : Ctrl+Maj+R)",
