@@ -6,6 +6,32 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.5.9
+
+#### English
+
+### New
+- The update window says when updates were skipped since the installed version, as their notes are not listed there. Its link now always opens the notes of every version.
+
+### Improvements
+- In the side bar, the quota line reads "5h · Quota · 7d", each duration next to its percentage; a subscription with only a weekly quota shows "7d quota".
+- When the history kept by the app cannot be saved, the status bar says so, with the reason on hover, until a save works again.
+
+### Fixes
+- On the quota chart, each stretch keeps its own colour: green while ahead of the steady pace, red while behind it, instead of one colour taken from the current lead.
+
+#### Français
+
+### Nouveautés
+- La fenêtre de mise à jour signale les mises à jour sautées depuis la version installée, dont les notes n'y sont pas listées. Son lien ouvre désormais toujours les notes de toutes les versions.
+
+### Améliorations
+- Dans le menu latéral, la ligne des quotas devient « 5 h · Quota · 7 j », chaque durée à côté de son pourcentage ; un abonnement avec seulement un quota hebdo affiche « Quota 7 j ».
+- Quand l'historique gardé par l'app ne peut pas être enregistré, la barre d'état le signale, avec la raison au survol, jusqu'à ce qu'un enregistrement réussisse.
+
+### Corrections
+- Sur le graphique du quota, chaque passage garde sa couleur : vert en avance sur le rythme régulier, rouge en retard, au lieu d'une seule couleur tirée de l'avance actuelle.
+
 ## 0.5.8
 
 #### English
