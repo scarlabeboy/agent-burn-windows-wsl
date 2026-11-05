@@ -167,6 +167,16 @@ export const en: Strings = {
     ago: (clock: string, age: string) => `${clock} · ${age} ago`,
     durationDays: (days: number, hours: number) => `${days}d ${hours}h`,
   },
+  errors: {
+    timedOut: "the read took over 3 minutes",
+    cliFailed: "the reading tool stopped on an error",
+    cliStart: "the reading tool could not start",
+    badReport: "unreadable answer from the reading tool",
+    wslSilent: "WSL does not answer",
+    distroStopped: "distribution stopped",
+    distroMissing: "distribution not found",
+    unexpected: "unexpected error",
+  },
   status: {
     updating: "Updating…",
     updatedAt: (time: string, age: string) => `Updated at ${time} · ${age} ago`,

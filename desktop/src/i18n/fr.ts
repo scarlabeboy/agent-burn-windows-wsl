@@ -171,6 +171,16 @@ export const fr = {
     ago: (clock: string, age: string) => `${clock} · il y a ${age}`,
     durationDays: (days: number, hours: number) => `${days}j ${hours}h`,
   },
+  errors: {
+    timedOut: "la lecture a dépassé 3 minutes",
+    cliFailed: "l'outil de lecture s'est arrêté sur une erreur",
+    cliStart: "l'outil de lecture n'a pas pu démarrer",
+    badReport: "réponse de l'outil de lecture illisible",
+    wslSilent: "WSL ne répond pas",
+    distroStopped: "distribution arrêtée",
+    distroMissing: "distribution introuvable",
+    unexpected: "erreur inattendue",
+  },
   status: {
     updating: "Mise à jour…",
     updatedAt: (time: string, age: string) => `Mis à jour à ${time} · il y a ${age}`,

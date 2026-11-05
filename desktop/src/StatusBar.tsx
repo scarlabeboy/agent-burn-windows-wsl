@@ -25,6 +25,7 @@ export function StatusBar({
   nextScan,
   autoRefresh,
   error,
+  errorDetail,
   offline,
   update,
   onOpenUpdate,
@@ -36,6 +37,8 @@ export function StatusBar({
   autoRefresh: boolean;
   /** The last read of a source failed (for example the CLI removed by an antivirus). */
   error?: string;
+  /** The original message behind `error`, shown in its tooltip. */
+  errorDetail?: string;
   offline: boolean;
   update: UpdateState;
   onOpenUpdate: () => void;
@@ -53,7 +56,7 @@ export function StatusBar({
         className={`dot${loading ? " busy" : error ? " bad" : lastScan > 0 ? (autoRefresh ? " ok" : " idle") : ""}`}
       />
       {!loading && error ? (
-        <Tooltip text={error} className="status-error-tip">
+        <Tooltip text={errorDetail ? `${error} · ${errorDetail}` : error} className="status-error-tip">
           <span className="status-error">{error}</span>
         </Tooltip>
       ) : (

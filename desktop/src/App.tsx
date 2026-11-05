@@ -1,7 +1,6 @@
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  CLI_MISSING,
   backfillCodex,
   detectSources,
   getAutostart,
@@ -61,6 +60,7 @@ import {
   type Period,
 } from "./periods";
 import { updateError } from "./releaseNotes";
+import { errorText } from "./errors";
 import { formatAge, freshness, quotaCards, quotaFailure, type QuotaCard } from "./quota";
 import { useNow } from "./useNow";
 import {
@@ -150,7 +150,7 @@ function quotaMissing(harness: string, tab: TabId, wslRunning: boolean, cause?: 
   const text = t().app;
   if (tab === "wsl" && !wslRunning) return text.quotaWslOff(name);
   const where = text.quotaWhere[tab];
-  if (cause) return text.quotaReadFailed(name, where, sourceError(cause));
+  if (cause) return text.quotaReadFailed(name, where, errorText(cause));
   return harness === "claude" ? text.quotaMissingClaude(name, where) : text.quotaMissingCodex(name, where);
 }
 
@@ -184,7 +184,6 @@ function updateHint(state: UpdateState, offline: boolean): string {
 }
 
 /** A source's read error, with the app's own errors said in the interface language. */
-const sourceError = (message: string) => (message.includes(CLI_MISSING) ? t().status.cliMissing : message);
 
 function pillClass(remaining: number): string {
   if (remaining < 20) return "pill bad";
@@ -192,12 +191,26 @@ function pillClass(remaining: number): string {
   return "pill ok";
 }
 
+/** `quotaMissing` as a notice, with the CLI's own message on hover when there is one. */
+function QuotaMissing({ harness, tab, wslRunning, cause }: {
+  harness: string;
+  tab: TabId;
+  wslRunning: boolean;
+  cause?: string;
+}) {
+  return (
+    <div className="notice" title={cause}>
+      {quotaMissing(harness, tab, wslRunning, cause)}
+    </div>
+  );
+}
+
 function Pending({ state, label }: { state: SourceState | undefined; label: string }) {
   if (state?.status === "error") {
     return (
-      <div className="notice error">
+      <div className="notice error" title={state.message}>
         <strong>{t().app.readFailed(label.charAt(0).toUpperCase() + label.slice(1))}</strong>{" "}
-        {sourceError(state.message)}
+        {errorText(state.message)}
       </div>
     );
   }
@@ -542,7 +555,7 @@ export default function App({ initialSettings, onThemeChange }: {
   const failedState = failedId ? states[failedId] : undefined;
   const scanError =
     failedId && failedState?.status === "error"
-      ? text.app.scanError(label(failedId), sourceError(failedState.message))
+      ? text.app.scanError(label(failedId), errorText(failedState.message))
       : undefined;
   const lastScan = Math.max(
     0,
@@ -1266,18 +1279,16 @@ export default function App({ initialSettings, onThemeChange }: {
                         <p className="muted small">{quotaOffReason(settings)}</p>
                       </section>
                     ) : (
-                      <div className="notice">
-                        {quotaMissing(
-                          page,
-                          tab,
-                          activeDistro?.running ?? false,
-                          quotaFailure(
-                            activeIds
-                              .filter((id) => readableIds.includes(id as SourceId))
-                              .map((id) => quotaErrors[`${id}|${page}`]),
-                          ),
+                      <QuotaMissing
+                        harness={page}
+                        tab={tab}
+                        wslRunning={activeDistro?.running ?? false}
+                        cause={quotaFailure(
+                          activeIds
+                            .filter((id) => readableIds.includes(id as SourceId))
+                            .map((id) => quotaErrors[`${id}|${page}`]),
                         )}
-                      </div>
+                      />
                     ))}
                   {pageCards.map((card) => (
                     <QuotaSection
@@ -1338,6 +1349,7 @@ export default function App({ initialSettings, onThemeChange }: {
           nextScan={nextScan}
           autoRefresh={settings.refreshMinutes > 0}
           error={scanError}
+          errorDetail={failedState?.status === "error" ? failedState.message : undefined}
           offline={settings.offline}
           update={updater.state}
           onOpenUpdate={() => setShowUpdate(true)}
