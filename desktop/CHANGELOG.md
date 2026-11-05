@@ -6,6 +6,34 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.5.8
+
+#### English
+
+### Improvements
+- In the side bar, each subscription shows its 5-hour quota on the left and its weekly quota on the right.
+- Quota pills have stronger colours, easier to read in both themes.
+- When a quota empties right after now, its "empty on" label no longer covers the curve.
+- A failed read says what happened in a short sentence in your language; the technical message stays on hover.
+
+### Fixes
+- The subscription value keeps the spend of a stopped WSL distribution, and every tab shows the same value.
+- A check for updates can no longer interrupt an update being installed.
+- A WSL distribution that stops answering can no longer hold the following reads: the three-minute limit now covers the whole read.
+
+#### Français
+
+### Améliorations
+- Dans le menu latéral, chaque abonnement affiche son quota 5 h à gauche et son quota hebdo à droite.
+- Les pastilles de quota ont des couleurs plus marquées, plus lisibles dans les deux thèmes.
+- Quand un quota se vide juste après maintenant, son étiquette « Vide » ne cache plus la courbe.
+- Une lecture qui échoue dit ce qui s'est passé en une phrase courte dans votre langue ; le message technique reste au survol.
+
+### Corrections
+- La valeur de l'abonnement garde la dépense d'une distribution WSL arrêtée, et chaque onglet affiche la même valeur.
+- Une recherche de mise à jour ne peut plus interrompre une mise à jour en cours d'installation.
+- Une distribution WSL qui ne répond plus ne peut plus bloquer les lectures suivantes : la limite de trois minutes couvre désormais toute la lecture.
+
 ## 0.5.7
 
 #### English
