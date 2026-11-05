@@ -48,6 +48,20 @@ const writes: Partial<Record<StoreName, Promise<void>>> = {};
  * run, and the page works from memory: saving over it would lose its days for good.
  */
 const writable = new Set<StoreName>();
+/**
+ * Why an archive is not saved: it could not be loaded (read-only for this run) or its last
+ * write failed. Cleared by the next write that works.
+ */
+const problems: Partial<Record<StoreName, string>> = {};
+const reasonOf = (error: unknown) => (error instanceof Error ? error.message : String(error));
+const setProblem = (name: StoreName, problem: string | undefined) => {
+  if (problems[name] === problem) return;
+  if (problem === undefined) delete problems[name];
+  else problems[name] = problem;
+  changed();
+};
+/** Why archives are not saved, or undefined when every archive is. */
+export const archiveProblem = (): string | undefined => Object.values(problems).join(" · ") || undefined;
 const contentOf = (name: StoreName) =>
   name === "quota-history" ? quota : name === "report-cache" ? reports : daily;
 
@@ -66,9 +80,11 @@ const changed = () => {
 function queueWrite(name: StoreName): Promise<void> {
   const write = (writes[name] ?? Promise.resolve())
     .then(() => archiveWrite(name, contentOf(name)))
-    .catch(() => {
+    .then(
+      () => setProblem(name, undefined),
       // The in-memory copy stays valid; the next change retries the write.
-    });
+      (error) => setProblem(name, reasonOf(error)),
+    );
   writes[name] = write;
   return write;
 }
@@ -135,8 +151,10 @@ async function loadStore<T>(name: StoreName, valid: (value: T) => boolean): Prom
       writable.add(name);
       return value;
     }
-  } catch {
+    setProblem(name, `${name}.json holds unexpected content`);
+  } catch (error) {
     // Read-only for this run, see `writable`.
+    setProblem(name, reasonOf(error));
   }
   return null;
 }

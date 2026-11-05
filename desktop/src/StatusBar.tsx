@@ -1,5 +1,6 @@
 import { getVersion } from "@tauri-apps/api/app";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { archiveProblem, subscribe } from "./archive";
 import { locale, t } from "./i18n";
 import { formatAge } from "./quota";
 import type { UpdateState } from "./updater";
@@ -44,6 +45,8 @@ export function StatusBar({
   onOpenUpdate: () => void;
 }) {
   const version = useAppVersion();
+  // An archive that is not saved: discreet, the app keeps working from memory.
+  const archiveIssue = useSyncExternalStore(subscribe, archiveProblem);
   const nowMs = useNow(15_000);
   // Rounded up: "in 1 min" until the scan starts, never "in 0 min". The clock is read now, not
   // at the last tick of `nowMs`, which would say "31 min" right after choosing 30.
@@ -69,6 +72,11 @@ export function StatusBar({
         </span>
       )}
       <div className="spacer" />
+      {archiveIssue && (
+        <Tooltip text={`${text.archiveTitle} · ${archiveIssue}`}>
+          <span className="offline-tag archive-tag">{text.archiveUnsaved}</span>
+        </Tooltip>
+      )}
       {offline && (
         <Tooltip text={text.offlineTitle}>
           <span className="offline-tag">{text.offline}</span>

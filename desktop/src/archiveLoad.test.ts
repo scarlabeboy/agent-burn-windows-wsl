@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { cacheReport, flush, loadArchive } from "./archive";
+import { archiveProblem, cacheReport, flush, loadArchive } from "./archive";
 import type { UsageReport } from "./types";
 
 // The Rust side, as the page sees it: the daily archive exists but cannot be read.
@@ -116,9 +116,17 @@ test("a failed archive write does not block the next save", async (context) => {
   cacheReport("windows", report, 5, false);
   await flush();
 
+  assert.match(archiveProblem() ?? "", /temporarily unavailable/, "a failed write is reported");
+
   let saved = false;
   writeArchive = async () => { saved = true; return null; };
   cacheReport("windows", report, 6, false);
   await flush();
   assert.equal(saved, true);
+  assert.doesNotMatch(archiveProblem() ?? "", /temporarily unavailable/, "a write that works clears it");
+});
+
+test("an archive that could not be loaded is reported for the whole run", async () => {
+  await loadArchive();
+  assert.match(archiveProblem() ?? "", /daily-metrics\.json cannot be read/);
 });

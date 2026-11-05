@@ -189,6 +189,8 @@ export const fr = {
     notRead: "Pas encore lu",
     offline: "Hors ligne",
     offlineTitle: "Aucun appel réseau : quotas et mises à jour suspendus (Réglages › Données)",
+    archiveUnsaved: "Historique non enregistré",
+    archiveTitle: "L'historique gardé par l'app n'a pas pu être enregistré : il reste en mémoire jusqu'à la fermeture",
     updateAvailable: (version: string) => `Version ${version} disponible · Voir`,
     updateTitle: "Voir les nouveautés avant d'installer",
     installing: (percent?: number) => `Mise à jour${percent !== undefined ? ` · ${percent} %` : "…"}`,

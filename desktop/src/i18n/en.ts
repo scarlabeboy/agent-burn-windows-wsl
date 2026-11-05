@@ -185,6 +185,8 @@ export const en: Strings = {
     notRead: "Not read yet",
     offline: "Offline",
     offlineTitle: "No network call: quotas and updates paused (Settings › Data)",
+    archiveUnsaved: "History not saved",
+    archiveTitle: "The history kept by the app could not be saved: it stays in memory until the app closes",
     updateAvailable: (version: string) => `Version ${version} available · See`,
     updateTitle: "See what's new before installing",
     installing: (percent?: number) => `Updating${percent !== undefined ? ` · ${percent}%` : "…"}`,
