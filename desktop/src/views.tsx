@@ -525,10 +525,13 @@ function GaugeCard({
       <div className="gauge-main">
         <span className="gauge-value">{percent(model.remaining.toFixed(0))}</span>
         <span className="muted">{text.remaining}</span>
-        <span className={ahead ? "pace ok" : "pace bad"}>
-          {ahead ? "+" : "−"}
-          {text.pace(formatNumber(Math.abs(model.pace), 1), ahead)}
-        </span>
+        {/* Nothing used yet (right after a reset): a lead that only counts elapsed time says nothing. */}
+        {model.remaining < 100 && (
+          <span className={ahead ? "pace ok" : "pace bad"}>
+            {ahead ? "+" : "−"}
+            {text.pace(formatNumber(Math.abs(model.pace), 1), ahead)}
+          </span>
+        )}
       </div>
       <QuotaChart harness={card.harness} model={model} observedAt={card.observedAt} color={color} weekly={weekly} />
     </div>

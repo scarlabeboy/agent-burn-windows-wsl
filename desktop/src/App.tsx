@@ -710,6 +710,8 @@ export default function App({ initialSettings, onThemeChange }: {
     .map((id) => detailErrors[detailKey(id)])
     .find(Boolean);
 
+  const detailReads = useRef(new Set<string>());
+  const [detailRetry, setDetailRetry] = useState(0);
   useEffect(() => {
     if (!rangeSince || !archiveReady) return;
     let cancelled = false;
@@ -719,6 +721,10 @@ export default function App({ initialSettings, onThemeChange }: {
         const key = `${id}|${rangeSince}|${rangeUntil ?? ""}|${detailScope}`;
         // Asked again after each scan of the source, so per-model figures follow the totals.
         if (currentDetail(id, key)) continue;
+        // Not while the source is scanned: the end of that scan asks for it again anyway. Nor
+        // twice at once: at launch, two scans ending close together used to ask up to four times.
+        if (statesRef.current[id]?.status === "loading" || detailReads.current.has(key)) continue;
+        detailReads.current.add(key);
         const requestedAt = Date.now();
         try {
           const { pricing: nextPricing, ...detail } = await loadUsage(
@@ -734,13 +740,17 @@ export default function App({ initialSettings, onThemeChange }: {
           setDetailErrors(({ [key]: _cleared, ...rest }) => rest);
         } catch (error) {
           setDetailErrors((current) => ({ ...current, [key]: String(error) }));
+        } finally {
+          detailReads.current.delete(key);
+          // A scan that ended during this read made it stale: ask again now that none is running.
+          if (requestedAt < loadedAtOf(statesRef.current[id])) setDetailRetry((count) => count + 1);
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [rangeSince, rangeUntil, detailScope, activeKey, readableKey, detected, archiveReady, lastScan, settings.offline, agentsToScan]);
+  }, [rangeSince, rangeUntil, detailScope, activeKey, readableKey, detected, archiveReady, lastScan, settings.offline, agentsToScan, detailRetry]);
 
   // The weekly Codex limit per day belongs to the account, so any source that can read it gives
   // the whole picture: the open tab shows the freshest answer among its own sources.
