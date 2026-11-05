@@ -11,7 +11,9 @@ use serde_json::Value;
 
 use crate::sources;
 
+/// The whole run of one source: its preparation (WSL user, home, OpenCode copy) and the CLI.
 const TIMEOUT: Duration = Duration::from_secs(180);
+const TIMED_OUT: &str = "agent-burn timed out";
 const MAX_OUTPUT_BYTES: u64 = 16_000_000;
 const CLI_NAME: &str = "agent-burn.exe";
 
@@ -256,13 +258,49 @@ pub fn run_summary(
     if offline {
         command.arg("--offline");
     }
-    let (home, _snapshot) = apply_source(&mut command, distro, reads_opencode(&scope.agents))?;
-    if value {
-        if let Some(plan) = resolve_claude_plan(claude_plan, home.as_deref()) {
-            command.args(["--claude-plan", &plan]);
+    let deadline = Instant::now() + TIMEOUT;
+    let (source, plan_setting) = (distro.map(str::to_owned), claude_plan.to_owned());
+    let opencode = reads_opencode(&scope.agents);
+    let (command, _snapshot) = within(deadline, move || {
+        let (home, snapshot) = apply_source(&mut command, source.as_deref(), opencode)?;
+        if value {
+            if let Some(plan) = resolve_claude_plan(&plan_setting, home.as_deref()) {
+                command.args(["--claude-plan", &plan]);
+            }
         }
-    }
-    run_json(command, distro, "summary")
+        Ok((command, snapshot))
+    })?;
+    run_json(command, distro, "summary", deadline)
+}
+
+/// Prepares a run in its own thread, within the run's time limit. For a WSL source the
+/// preparation goes through `\\wsl.localhost`, which can hang: the run then fails on time instead
+/// of holding the scans that follow. The thread is left to finish on its own; whatever it
+/// prepared (an OpenCode copy) is cleaned up when it is dropped.
+fn within<T: Send + 'static>(
+    deadline: Instant,
+    work: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = sender.send(work());
+    });
+    receiver
+        .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+        .map_err(|_| TIMED_OUT.to_string())?
+}
+
+/// Prepares `command` for `distro` within the run's time limit (see `within`).
+fn prepared(
+    mut command: Command,
+    distro: Option<&str>,
+    deadline: Instant,
+) -> Result<(Command, Snapshot), String> {
+    let source = distro.map(str::to_owned);
+    within(deadline, move || {
+        let (_, snapshot) = apply_source(&mut command, source.as_deref(), false)?;
+        Ok((command, snapshot))
+    })
 }
 
 /// The daily weekly-limit usage of a `harness codex` report, or an empty list when it has none.
@@ -276,9 +314,10 @@ fn limit_usage_of(report: &Value) -> Value {
 /// How much of the weekly Codex limit each recent day used, by surface and model. It comes from
 /// the ChatGPT dashboard through the Codex sign-in of the source, so it needs the network.
 pub fn run_limit_usage(distro: Option<&str>) -> Result<Value, String> {
-    let mut command = cli_command(locate_cli()?, &["harness", "codex", "--json", "--no-color"]);
-    let (_, _snapshot) = apply_source(&mut command, distro, false)?;
-    run_json(command, distro, "limits").map(|report| limit_usage_of(&report))
+    let command = cli_command(locate_cli()?, &["harness", "codex", "--json", "--no-color"]);
+    let deadline = Instant::now() + TIMEOUT;
+    let (command, _snapshot) = prepared(command, distro, deadline)?;
+    run_json(command, distro, "limits", deadline).map(|report| limit_usage_of(&report))
 }
 
 /// Live subscription limits for one harness, read without scanning any usage logs.
@@ -294,8 +333,9 @@ pub fn run_quota(harness: &str, distro: Option<&str>, force: bool) -> Result<Val
     if force {
         command.env("AGENT_BURN_FORCE_REFRESH", "1");
     }
-    let (_, _snapshot) = apply_source(&mut command, distro, false)?;
-    run_json(command, distro, harness)
+    let deadline = Instant::now() + TIMEOUT;
+    let (command, _snapshot) = prepared(command, distro, deadline)?;
+    run_json(command, distro, harness, deadline)
 }
 
 fn temp_directory() -> io::Result<PathBuf> {
@@ -308,7 +348,12 @@ fn temp_directory() -> io::Result<PathBuf> {
     Ok(dir)
 }
 
-fn run_json(mut command: Command, distro: Option<&str>, label: &str) -> Result<Value, String> {
+fn run_json(
+    mut command: Command,
+    distro: Option<&str>,
+    label: &str,
+    deadline: Instant,
+) -> Result<Value, String> {
     hide_window(&mut command);
     // Unique per run: two overlapping runs of the same source must not share a file.
     let output_path = temp_directory().map_err(|error| error.to_string())?.join(format!(
@@ -323,7 +368,7 @@ fn run_json(mut command: Command, distro: Option<&str>, label: &str) -> Result<V
         .create_new(true)
         .open(&output_path)
         .map_err(|error| error.to_string())?;
-    let result = run_to_file(&mut command, output_file, &output_path);
+    let result = run_to_file(&mut command, output_file, &output_path, deadline);
     let _ = fs::remove_file(&output_path);
     result
 }
@@ -435,6 +480,7 @@ fn run_to_file(
     command: &mut Command,
     output_file: fs::File,
     output_path: &Path,
+    deadline: Instant,
 ) -> Result<Value, String> {
     let mut child = command
         .stdin(Stdio::null())
@@ -448,14 +494,13 @@ fn run_to_file(
     if let Some(job) = crate::job::app_job() {
         job.adopt(&child);
     }
-    let deadline = Instant::now() + TIMEOUT;
     let status = loop {
         match child.try_wait().map_err(|error| error.to_string())? {
             Some(status) => break status,
             None if Instant::now() >= deadline => {
                 let _ = child.kill();
                 let _ = child.wait();
-                return Err("agent-burn timed out".to_string());
+                return Err(TIMED_OUT.to_string());
             }
             None => std::thread::sleep(Duration::from_millis(100)),
         }
@@ -480,6 +525,22 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use super::*;
+
+    /// A preparation stuck on `\\wsl.localhost` ends the run on time instead of holding it.
+    #[test]
+    fn a_preparation_that_hangs_fails_on_time() {
+        let started = Instant::now();
+        let stuck = within(started + Duration::from_millis(200), || {
+            std::thread::sleep(Duration::from_secs(5));
+            Ok(())
+        });
+        assert_eq!(stuck, Err(TIMED_OUT.to_string()));
+        assert!(started.elapsed() < Duration::from_secs(2));
+        let quick = within(Instant::now() + Duration::from_secs(5), || Ok(7));
+        assert_eq!(quick, Ok(7));
+        let failed: Result<(), String> = within(Instant::now() + Duration::from_secs(5), || Err("no user".into()));
+        assert_eq!(failed, Err("no user".to_string()));
+    }
 
     /// No harness of a WSL source may be looked up on the Windows side, or Computer adds it twice.
     #[test]

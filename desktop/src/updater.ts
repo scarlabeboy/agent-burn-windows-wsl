@@ -34,11 +34,16 @@ export type UpdateState =
 export function useUpdater(auto: boolean, offline: boolean) {
   const [state, setState] = useState<UpdateState>({ status: "idle" });
   const update = useRef<Update | null>(null);
+  // Once an install starts, no check may replace its progress or the update it downloads: a
+  // timer can fire meanwhile, and a check already under way can answer after it began.
+  const installing = useRef(false);
 
   const checkNow = useCallback(async () => {
+    if (installing.current) return;
     setState({ status: "checking" });
     try {
       const found = await check();
+      if (installing.current) return;
       update.current = found;
       setState(
         found
@@ -52,7 +57,7 @@ export function useUpdater(auto: boolean, offline: boolean) {
           : { status: "none", checkedAt: Date.now() },
       );
     } catch (error) {
-      setState({ status: "error", message: String(error) });
+      if (!installing.current) setState({ status: "error", message: String(error) });
     }
   }, []);
 
@@ -69,7 +74,8 @@ export function useUpdater(auto: boolean, offline: boolean) {
 
   const install = useCallback(async () => {
     const pending = update.current;
-    if (!pending) return;
+    if (!pending || installing.current) return;
+    installing.current = true;
     const release: AvailableUpdate = {
       version: pending.version,
       currentVersion: pending.currentVersion,
@@ -103,6 +109,7 @@ export function useUpdater(auto: boolean, offline: boolean) {
       });
       await relaunch();
     } catch (error) {
+      installing.current = false;
       setState({ status: "error", message: String(error) });
     }
   }, []);
