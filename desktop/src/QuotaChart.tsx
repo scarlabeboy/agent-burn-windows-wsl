@@ -44,7 +44,6 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
   }
 
   const pace = (t: number) => 100 * (1 - (t - startMs) / (endMs - startMs));
-  const ahead = model.pace >= 0;
   const fill =
     `${recorded} L ${x(observedAt)} ${y(pace(observedAt))} ` +
     `L ${x(points[0].t)} ${y(pace(points[0].t))} Z`;
@@ -60,6 +59,11 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
     emptyAt === null || x(emptyAt) - nowX >= EMPTY_LABEL || x(emptyAt) + EMPTY_LABEL > W - PAD.right;
   const hatchId = `hatch-${harness}-${model.window.windowMinutes}`;
   const labelId = `label-${harness}-${model.window.windowMinutes}`;
+  const aheadId = `ahead-${harness}-${model.window.windowMinutes}`;
+  const behindId = `behind-${harness}-${model.window.windowMinutes}`;
+  // Each side of the steady-pace line keeps its own colour: green while above it, red below.
+  const paceStart = `${x(startMs)},${y(100)}`;
+  const paceEnd = `${x(endMs)},${y(0)}`;
   const onPlot = `url(#${labelId})`;
   // The "now" label stays inside the chart near either edge instead of being cut off.
   const nowAnchor = nowX > W - PAD.right - 36 ? "end" : nowX < PAD.left + 36 ? "start" : "middle";
@@ -77,6 +81,12 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
           <line x1="0" y1="0" x2="0" y2="7" stroke="var(--danger)" strokeOpacity="0.45" strokeWidth="2" />
         </pattern>
         <LabelBackground id={labelId} />
+        <clipPath id={aheadId}>
+          <polygon points={`${paceStart} ${paceEnd} ${x(endMs)},${y(100)}`} />
+        </clipPath>
+        <clipPath id={behindId}>
+          <polygon points={`${paceStart} ${paceEnd} ${x(startMs)},${y(0)}`} />
+        </clipPath>
       </defs>
 
       <ChartGrid />
@@ -100,7 +110,8 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
       )}
 
       {/* Theme colours: the light theme needs a stronger tint to show on white. */}
-      <path d={fill} style={{ fill: ahead ? "var(--quota-ahead-fill)" : "var(--quota-behind-fill)" }} />
+      <path d={fill} clipPath={`url(#${aheadId})`} style={{ fill: "var(--quota-ahead-fill)" }} />
+      <path d={fill} clipPath={`url(#${behindId})`} style={{ fill: "var(--quota-behind-fill)" }} />
       <line
         x1={x(startMs)}
         y1={y(100)}
