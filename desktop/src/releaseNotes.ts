@@ -29,7 +29,7 @@ export function parseNotes(notes: string | undefined, lang: Lang): NotesSection[
       block = opens;
       continue;
     }
-    if (!line || (bilingual && block !== lang)) continue;
+    if (!line || line.startsWith("<!--") || (bilingual && block !== lang)) continue;
     const title = /^#{1,6}\s+(.*)$/.exec(line);
     if (title) {
       sections.push({ title: title[1], items: [] });
@@ -50,6 +50,32 @@ export function releaseDay(date: string | undefined): string | undefined {
   if (!day) return undefined;
   const value = new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3]));
   return new Intl.DateTimeFormat(locale(), { day: "numeric", month: "long", year: "numeric" }).format(value);
+}
+
+/** Compares two "1.2.3" versions: negative, zero or positive, like a sort. */
+function compareVersions(a: string, b: string): number {
+  const left = a.split(".").map(Number);
+  const right = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((left[i] ?? 0) !== (right[i] ?? 0)) return (left[i] ?? 0) - (right[i] ?? 0);
+  }
+  return 0;
+}
+
+/**
+ * The versions released between the installed one and the one offered, oldest first: updates
+ * the person skipped, whose notes this release does not hold. The release notes start with a
+ * hidden "<!-- releases: … -->" line listing every version (scripts/release-notes.ps1).
+ */
+export function skippedVersions(notes: string | undefined, installed: string, offered: string): string[] {
+  const list = /<!--\s*releases:([\d.\s]*)-->/.exec(notes ?? "");
+  if (!list) return [];
+  return list[1]
+    .trim()
+    .split(/\s+/)
+    .filter((version) => /^\d+\.\d+\.\d+$/.test(version))
+    .filter((version) => compareVersions(version, installed) > 0 && compareVersions(version, offered) < 0)
+    .sort(compareVersions);
 }
 
 /** The updater's errors, in English and technical, said in plain words. */

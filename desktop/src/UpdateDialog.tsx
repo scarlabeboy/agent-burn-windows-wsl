@@ -1,12 +1,12 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect, useRef } from "react";
 import { getLang, t } from "./i18n";
-import { parseNotes, releaseDay, updateError } from "./releaseNotes";
-import { releaseUrl, type UpdateState } from "./updater";
+import { parseNotes, releaseDay, skippedVersions, updateError } from "./releaseNotes";
+import { CHANGELOG_URL, type UpdateState } from "./updater";
 
 /**
- * Asks before installing an update: which version, what changed, and a link to the full notes
- * on GitHub. Installing shows the download here until the installer closes the app.
+ * Asks before installing an update: which version, what changed, the updates skipped since the
+ * installed one, and a link to the notes of every version on GitHub. Installing shows the download here until the installer closes the app.
  */
 export function UpdateDialog({
   state,
@@ -44,6 +44,7 @@ export function UpdateDialog({
   const release = state.status === "error" ? undefined : state;
   const day = releaseDay(release?.date);
   const sections = parseNotes(release?.notes, getLang());
+  const skipped = release ? skippedVersions(release.notes, release.currentVersion, release.version) : [];
   const text = t().update;
 
   return (
@@ -75,8 +76,9 @@ export function UpdateDialog({
                 ))}
               </div>
             )}
-            <button className="link" onClick={() => void openUrl(releaseUrl(release.version))}>
-              {text.fullNotes}
+            {skipped.length > 0 && <p className="small skipped-note">{text.skipped(skipped)}</p>}
+            <button className="link" onClick={() => void openUrl(CHANGELOG_URL)}>
+              {text.allNotes}
             </button>
             <p className="muted small">{offline ? text.offlineInstall : text.restartNote}</p>
           </>

@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setLang } from "./i18n";
-import { parseNotes, releaseDay, updateError } from "./releaseNotes";
+import { parseNotes, releaseDay, skippedVersions, updateError } from "./releaseNotes";
 
 test("the release day is read from the updater's date or an ISO date", () => {
   assert.equal(releaseDay("2026-11-02 0:30:20.0 +00:00:00"), "2 novembre 2026");
@@ -42,4 +42,16 @@ test("updater errors are said in the interface language", () => {
   } finally {
     setLang("fr");
   }
+});
+
+const NOTES = "<!-- releases: 0.6.1 0.6.0 0.5.10 0.5.9 0.5.8 0.5.7 -->\n\n### Fixes\n- A fix.";
+
+test("the updates skipped between the installed version and the one offered", () => {
+  assert.deepEqual(skippedVersions(NOTES, "0.5.8", "0.6.1"), ["0.5.9", "0.5.10", "0.6.0"]);
+  assert.deepEqual(skippedVersions(NOTES, "0.6.0", "0.6.1"), [], "the next version skips nothing");
+  assert.deepEqual(skippedVersions("### Fixes\n- A fix.", "0.5.7", "0.6.1"), [], "older notes have no list");
+});
+
+test("the hidden list of versions is not shown as a note", () => {
+  assert.deepEqual(parseNotes(NOTES, "fr"), [{ title: "Fixes", items: ["A fix."] }]);
 });

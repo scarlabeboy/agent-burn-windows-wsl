@@ -207,6 +207,7 @@ button { cursor: pointer; }
 .modal:focus { outline: none; }
 .modal h2 { margin: 0; font-size: 17px; }
 .modal p { margin: 0; }
+.modal .skipped-note { color: var(--accent); line-height: 1.4; }
 .notes { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 4px 14px 10px; }
 .notes h3 { margin: 10px 0 4px; font-size: 13px; color: var(--accent); }
 .notes ul { margin: 0; padding-left: 18px; }

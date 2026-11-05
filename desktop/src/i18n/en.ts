@@ -120,7 +120,11 @@ export const en: Strings = {
     dialogTitle: "Update available",
     dialogVersion: (version: string, day: string | undefined, current: string) =>
       `Version ${version}${day ? ` · released ${day}` : ""} · you have ${current}`,
-    fullNotes: "See the full notes on GitHub ↗",
+    skipped: (versions: string[]) =>
+      versions.length === 1
+        ? `You skipped update ${versions[0]}: what it brought is not listed here.`
+        : `You skipped ${versions.length} updates (${versions[0]} to ${versions[versions.length - 1]}): what they brought is not listed here.`,
+    allNotes: "See all the notes on GitHub ↗",
     offlineInstall: "Offline mode: go back online (Settings › Data) to install it.",
     restartNote: "The app will close during the installation, then restart.",
     cannotInstall: (message: string) => `Installation failed: ${message}`,

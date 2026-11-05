@@ -122,7 +122,11 @@ export const fr = {
     dialogTitle: "Mise à jour disponible",
     dialogVersion: (version: string, day: string | undefined, current: string) =>
       `Version ${version}${day ? ` · publiée le ${day}` : ""} · vous avez la ${current}`,
-    fullNotes: "Voir les notes complètes sur GitHub ↗",
+    skipped: (versions: string[]) =>
+      versions.length === 1
+        ? `Vous avez sauté la mise à jour ${versions[0]} : ses nouveautés ne sont pas listées ici.`
+        : `Vous avez sauté ${versions.length} mises à jour (${versions[0]} à ${versions[versions.length - 1]}) : leurs nouveautés ne sont pas listées ici.`,
+    allNotes: "Voir toutes les notes sur GitHub ↗",
     offlineInstall: "Mode hors ligne : repassez en ligne (Réglages › Données) pour l'installer.",
     restartNote: "L'application se fermera pendant l'installation, puis redémarrera.",
     cannotInstall: (message: string) => `Installation impossible : ${message}`,

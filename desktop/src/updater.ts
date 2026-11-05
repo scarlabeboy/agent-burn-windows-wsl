@@ -8,7 +8,8 @@ const FIRST_CHECK_MS = 20_000;
 const CHECK_EVERY_MS = 6 * 3600_000;
 export const REPO_URL ="https://github.com/scarlabeboy/agent-burn-windows-wsl";
 
-export const releaseUrl = (version: string) => `${REPO_URL}/releases/tag/v${version}`;
+/** The notes of every version, to read back through them, skipped updates included. */
+export const CHANGELOG_URL = `${REPO_URL}/blob/main/desktop/CHANGELOG.md`;
 
 export interface AvailableUpdate {
   version: string;
