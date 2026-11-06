@@ -6,6 +6,30 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.6.2
+
+#### English
+
+### Improvements
+- The tooltips of the bar charts (spend and tokens, weekly Codex and Claude limits per day) no longer list the parts at zero.
+- For the notification area icon, "Tightest" is now "Lowest", with a plainer description: the lower of the 5-hour session and the week, switching between them by itself.
+- The subtitle of the settings page lists its cards as they now are.
+
+### Fixes
+- A Codex 5-hour session not started yet no longer records a new quota cycle every two minutes. The empty cycles already recorded are removed from the history at launch, so the past windows only offer real ones.
+- A past quota window being looked at no longer goes back to the current one at each reading, on the Computer tab.
+
+#### Français
+
+### Améliorations
+- Les infobulles des graphiques en barres (dépenses et tokens, limites hebdomadaires Codex et Claude par jour) ne listent plus les parts à zéro.
+- Pour l'icône de la zone de notification, « Le plus serré » devient « Le plus bas », avec une description plus simple : le plus bas de la session 5 h et de la semaine, qui passe de l'un à l'autre tout seul.
+- Le sous-titre de la page Réglages liste ses cartes telles qu'elles sont maintenant.
+
+### Corrections
+- Une session Codex de 5 h pas encore commencée n'enregistre plus un nouveau cycle de quota toutes les deux minutes. Les cycles vides déjà enregistrés sont retirés de l'historique au lancement : les fenêtres passées ne proposent plus que les vraies.
+- Une fenêtre de quota passée qu'on regarde ne revient plus à l'actuelle à chaque relevé, dans l'onglet Ordinateur.
+
 ## 0.6.1
 
 #### English
