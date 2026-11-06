@@ -306,6 +306,12 @@ export const en: Strings = {
     hint: (where: string) =>
       `Each bar is the share of one weekly limit used that day, all devices included, from the ChatGPT dashboard · read from ${where}. The last day is often incomplete: the dashboard counts with a delay.`,
     other: "Other",
+    measured: "Read during the day",
+    approx: "Approximate (app closed)",
+    unread: "no reading",
+    noneRead: "Not enough readings yet to count a day's use.",
+    readingHint:
+      "Worked out from the app's readings, for the whole Claude account, without a split. While the app is closed, usage counts on the day of the next reading.",
     surfaces: {
       desktop_app: "Desktop app",
       work_desktop: "Desktop app (Work)",

@@ -312,6 +312,12 @@ export const fr = {
     hint: (where: string) =>
       `Chaque barre est la part d'une limite hebdomadaire consommée ce jour-là, tous les appareils confondus, d'après le tableau de bord ChatGPT · lu ${where}. Le dernier jour est souvent incomplet : le tableau de bord compte avec du retard.`,
     other: "Autres",
+    measured: "Relevé dans la journée",
+    approx: "Approximatif (application fermée)",
+    unread: "aucun relevé",
+    noneRead: "Pas encore assez de relevés pour compter l'usage d'une journée.",
+    readingHint:
+      "Calculé depuis les relevés de l'application, pour tout le compte Claude, sans répartition. Quand elle est fermée, l'usage compte au jour du relevé suivant.",
     surfaces: {
       desktop_app: "Application de bureau",
       work_desktop: "Application de bureau (Work)",

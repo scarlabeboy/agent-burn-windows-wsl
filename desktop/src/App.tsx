@@ -1,5 +1,5 @@
 import { listen } from "@tauri-apps/api/event";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   backfillCodex,
   detectSources,
@@ -33,7 +33,8 @@ import { Tooltip } from "./Tooltip";
 import { UpdateDialog } from "./UpdateDialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { REPO_URL, useUpdater, type UpdateState } from "./updater";
-import { LimitUsageChart } from "./LimitUsageChart";
+import { LimitUsageChart, ReadingLimitChart } from "./LimitUsageChart";
+import { limitDays } from "./limitDays";
 import type { LimitUsageDay } from "./limitUsage";
 import { SUPPORTED_HARNESSES, disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
 import { formatUsd, mergeReports, totalBreakdown, withoutHarnesses } from "./aggregate";
@@ -44,9 +45,12 @@ import {
   cacheReport,
   cachedReports,
   flush,
+  getVersion,
   loadArchive,
   mergeBackfill,
   recordReading,
+  subscribe,
+  weeklyCycles,
 } from "./archive";
 import { LANG_NAMES, locale, percent, setLang, systemLang, t, type Lang } from "./i18n";
 import {
@@ -103,6 +107,7 @@ import {
   SubscriptionCard,
   Stats,
   TokenBreakdownCard,
+  agentColor,
   agentLabel,
   asReport,
 } from "./views";
@@ -129,6 +134,16 @@ function loadedAtOf(state: SourceState | undefined): number {
   if (state?.status === "ready") return state.loadedAt;
   if (state?.status === "loading" || state?.status === "error") return state.previousAt ?? 0;
   return 0;
+}
+
+/** The weekly Claude limit per day from the app's own readings, or the reason there is none. */
+function ReadingLimitSection({ offReason }: { offReason?: string }) {
+  const archiveVersion = useSyncExternalStore(subscribe, getVersion);
+  const nowMs = useNow(60_000);
+  const today = isoDate(new Date(nowMs));
+  const days = useMemo(() => limitDays(weeklyCycles("claude"), nowMs), [archiveVersion, today]);
+  if (offReason) return <div className="notice">{offReason}</div>;
+  return <ReadingLimitChart days={days} color={agentColor("claude")} />;
 }
 
 /** The weekly Codex limit per day, or the reason there is none to show. */
@@ -1381,6 +1396,7 @@ export default function App({ initialSettings, onThemeChange }: {
                       label={label}
                     />
                   )}
+                  {page === "claude" && <ReadingLimitSection offReason={limitUsageOffReason(settings)} />}
                   {range && (!selected || noUsage(selected.totalTokens, selected.totalCost)) ? (
                     <EmptyPeriod period={periodLabel(effectivePeriod)} harness={agentLabel(page)} />
                   ) : selected ? (

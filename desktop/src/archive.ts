@@ -245,6 +245,43 @@ export function pastCycles(harness: string, windowMinutes: number, beforeMs: num
   return ends.filter((end, index) => index === 0 || ends[index - 1] - end > SAME_CYCLE_MS);
 }
 
+export interface Cycle {
+  startMs: number;
+  endMs: number;
+  samples: Sample[];
+}
+
+/** Windows this long or longer are weekly ones. */
+const WEEKLY_MIN_MINUTES = 2 * 1440;
+
+/**
+ * Every recorded cycle of a harness's weekly window, as the charts read them, oldest first. Two
+ * series of the same cycle (a reset rounded a minute apart) become one.
+ */
+export function weeklyCycles(harness: string): Cycle[] {
+  const cycles = Object.keys(quota.series)
+    .map((key) => key.split("|"))
+    .filter(([name, minutes]) => name === harness && Number(minutes) >= WEEKLY_MIN_MINUTES)
+    .map(([, minutes, endMinute]) => {
+      const windowMinutes = Number(minutes);
+      const endMs = Number(endMinute) * 60_000;
+      const startMs = endMs - windowMinutes * 60_000;
+      return { startMs, endMs, samples: consistentSamples(quota.series[keyOf(harness, windowMinutes, Number(endMinute))], windowMinutes) };
+    })
+    .filter((cycle) => cycle.samples.length > 0)
+    .sort((a, b) => a.endMs - b.endMs);
+  const merged: Cycle[] = [];
+  for (const cycle of cycles) {
+    const last = merged[merged.length - 1];
+    if (last && cycle.endMs - last.endMs <= SAME_CYCLE_MS) {
+      last.samples = mergeSamples(last.samples, cycle.samples);
+    } else {
+      merged.push(cycle);
+    }
+  }
+  return merged;
+}
+
 /**
  * Keep one point per change, and a heartbeat every few minutes. The reading is stored as
  * measured; the one returned is what to show: an over-count that nothing has confirmed yet is
