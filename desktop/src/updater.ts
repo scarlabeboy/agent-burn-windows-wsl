@@ -34,6 +34,10 @@ export type UpdateState =
  */
 export function useUpdater(auto: boolean, offline: boolean) {
   const [state, setState] = useState<UpdateState>({ status: "idle" });
+  /** The last check that got an answer, whether it found a version or not. */
+  const [checkedAt, setCheckedAt] = useState<number | null>(null);
+  /** When the next automatic check is due; null while they are off. */
+  const [nextAt, setNextAt] = useState<number | null>(null);
   const update = useRef<Update | null>(null);
   // Once an install starts, no check may replace its progress or the update it downloads: a
   // timer can fire meanwhile, and a check already under way can answer after it began.
@@ -46,6 +50,7 @@ export function useUpdater(auto: boolean, offline: boolean) {
       const found = await check();
       if (installing.current) return;
       update.current = found;
+      setCheckedAt(Date.now());
       setState(
         found
           ? {
@@ -62,15 +67,23 @@ export function useUpdater(auto: boolean, offline: boolean) {
     }
   }, []);
 
-  // Offline mode means no network call at all, so no automatic check either.
+  // Offline mode means no network call at all, so no automatic check either. Each automatic
+  // check books the next one, whose time is shown; a manual check does not move it.
   useEffect(() => {
-    if (!auto || offline) return;
-    const first = setTimeout(() => void checkNow(), FIRST_CHECK_MS);
-    const timer = setInterval(() => void checkNow(), CHECK_EVERY_MS);
-    return () => {
-      clearTimeout(first);
-      clearInterval(timer);
+    if (!auto || offline) {
+      setNextAt(null);
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = (delay: number) => {
+      setNextAt(Date.now() + delay);
+      timer = setTimeout(() => {
+        void checkNow();
+        schedule(CHECK_EVERY_MS);
+      }, delay);
     };
+    schedule(FIRST_CHECK_MS);
+    return () => clearTimeout(timer);
   }, [auto, offline, checkNow]);
 
   const install = useCallback(async () => {
@@ -115,5 +128,5 @@ export function useUpdater(auto: boolean, offline: boolean) {
     }
   }, []);
 
-  return { state, checkNow, install };
+  return { state, checkedAt, nextAt, checkNow, install };
 }

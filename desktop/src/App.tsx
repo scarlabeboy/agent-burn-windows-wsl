@@ -180,26 +180,30 @@ function EmptyPeriod({ period, harness }: { period: string; harness?: string }) 
   return <div className="notice">{t().app.emptyPeriod(period, harness)}</div>;
 }
 
-/** What the settings say about updates, after the last check. */
-function updateHint(state: UpdateState, offline: boolean): string {
+const clockOf = (ms: number) => new Date(ms).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
+
+/**
+ * The installed version's line: the last check and the next automatic one. It stays the same
+ * when a version is found, which gets a line of its own (`foundHint`).
+ */
+function checkHint(state: UpdateState, checkedAt: number | null, nextAt: number | null): string {
   const text = t().update;
-  if (offline && state.status === "available") return text.foundOffline(state.version);
-  switch (state.status) {
-    case "checking":
-      return text.checking;
-    case "none":
-      return text.upToDate(
-        new Date(state.checkedAt).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" }),
-      );
-    case "available":
-      return text.available(state.version);
-    case "installing":
-      return state.percent !== undefined ? text.downloading(state.percent) : text.installing;
-    case "error":
-      return text.checkFailed(updateError(state.message));
-    default:
-      return text.notChecked;
+  if (state.status === "checking") return text.checking;
+  if (state.status === "error") return text.checkFailed(updateError(state.message));
+  const next = nextAt !== null ? ` · ${text.nextCheck(clockOf(nextAt))}` : "";
+  if (checkedAt === null) return `${text.notChecked}${next}`;
+  const last = state.status === "none" ? text.upToDate(clockOf(checkedAt)) : text.checkedAt(clockOf(checkedAt));
+  return `${last}${next}`;
+}
+
+/** The found version's line: what to do with it, or how its install goes. */
+function foundHint(state: UpdateState, offline: boolean): string {
+  const text = t().update;
+  if (state.status === "installing") {
+    return state.percent !== undefined ? text.downloading(state.percent) : text.installing;
   }
+  if (offline && state.status === "available") return text.foundOffline(state.version);
+  return text.available;
 }
 
 /** A source's read error, with the app's own errors said in the interface language. */
@@ -1274,24 +1278,29 @@ export default function App({ initialSettings, onThemeChange }: {
                     onChange={(next) => updateSettings({ ...settings, autoUpdate: next })}
                   />
                 </SettingRow>
+                {/* Checking stays at hand when a version is found: a newer one may follow. */}
                 <SettingRow
                   title={text.settings.installedVersion(appVersion)}
-                  description={updateHint(updater.state, settings.offline)}
+                  description={checkHint(updater.state, updater.checkedAt, updater.nextAt)}
                 >
-                  {updater.state.status === "available" ? (
+                  <button
+                    className="btn"
+                    disabled={settings.offline || updater.state.status === "checking" || updater.state.status === "installing"}
+                    onClick={() => void updater.checkNow()}
+                  >
+                    {text.settings.checkNow}
+                  </button>
+                </SettingRow>
+                {(updater.state.status === "available" || updater.state.status === "installing") && (
+                  <SettingRow
+                    title={t().update.availableTitle(updater.state.version)}
+                    description={foundHint(updater.state, settings.offline)}
+                  >
                     <button className="btn primary" onClick={() => setShowUpdate(true)}>
                       {text.settings.seeVersion(updater.state.version)}
                     </button>
-                  ) : (
-                    <button
-                      className="btn"
-                      disabled={settings.offline || updater.state.status === "checking" || updater.state.status === "installing"}
-                      onClick={() => void updater.checkNow()}
-                    >
-                      {text.settings.checkNow}
-                    </button>
-                  )}
-                </SettingRow>
+                  </SettingRow>
+                )}
               </SettingsCard>
 
               <SettingsCard title={text.settings.about} icon={<Glyph kind="about" size={16} />}>
