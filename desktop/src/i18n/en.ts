@@ -252,7 +252,7 @@ export const en: Strings = {
     claudeHistory: "Readings are recorded while the app is open; the curve starts at the first reading.",
     subscription: "Subscription",
     planNotRead: "plan not read",
-    quotaWaiting: "Figures are hidden while the quota is not read: they come back with the next reading.",
+    quotaWaiting: "Figures are hidden while the quota is not read.",
     planUnknown: "unknown plan",
     perMonth: "/month",
     claudePlanUnknown:

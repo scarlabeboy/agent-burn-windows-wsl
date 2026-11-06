@@ -12,14 +12,14 @@ import { formatTokens, formatUsd, sortModels, tokensPerDollar, type ModelSort, t
 import { IdleChart, QuotaChart } from "./QuotaChart";
 import { budget, cycleEnded, formatDay, formatDuration, freshness, type GaugeModel, type QuotaCard } from "./quota";
 import { formatNumber, getLang, locale, percent, t } from "./i18n";
-
-/** "$12.50" in English, "12,50 $" in French. */
-const usd = (amount: string): string => (getLang() === "fr" ? `${amount}\u00a0$` : `$${amount}`);
 import { pricingTip } from "./pricingFormat";
 import { Glyph, TitleIcon, type GlyphKind } from "./TitleIcons";
 import { ChartLabel } from "./ChartLabel";
 import { Tooltip as InfoTooltip } from "./Tooltip";
 import { useNow } from "./useNow";
+
+/** "$12.50" in English, "12,50 $" in French. */
+const usd = (amount: string): string => (getLang() === "fr" ? `${amount} $` : `$${amount}`);
 import type { AgentReport, ClaudeAccount, ModelPricing, SubscriptionAgent, TokenBreakdown, UsageReport } from "./types";
 import amp from "./assets/brands/amp.png";
 import claude from "./assets/brands/claude.png";
@@ -525,8 +525,8 @@ function GaugeCard({
       <div className="gauge-main">
         <span className="gauge-value">{percent(model.remaining.toFixed(0))}</span>
         <span className="muted">{text.remaining}</span>
-        {/* Nothing used yet (right after a reset): a lead that only counts elapsed time says nothing. */}
-        {model.remaining < 100 && (
+        {/* Right after a reset, nothing used and almost no time elapsed: a lead of a few tenths says nothing. */}
+        {(model.remaining < 100 || model.pace >= 1) && (
           <span className={ahead ? "pace ok" : "pace bad"}>
             {ahead ? "+" : "−"}
             {text.pace(formatNumber(Math.abs(model.pace), 1), ahead)}

@@ -550,8 +550,8 @@ export default function App({ initialSettings, onThemeChange }: {
     .filter((entry) => !entry.running && activeIds.includes(`wsl:${entry.name}`))
     .map((entry) => entry.name);
   // A stopped distribution with a saved report shows old figures; one never read shows none.
-  const staleNames = stoppedNames.filter((name) => states[`wsl:${name}`]);
-  const unreadNames = stoppedNames.filter((name) => !states[`wsl:${name}`]);
+  const staleNames = stoppedNames.filter((name) => reportOf(states[`wsl:${name}`]));
+  const unreadNames = stoppedNames.filter((name) => !reportOf(states[`wsl:${name}`]));
   const pendingState = states[activeIds[0] ?? "windows"];
   // A failed read keeps the previous figures on screen; the status bar says it failed.
   const failedId = readableIds.find((id) => states[id]?.status === "error");
@@ -715,6 +715,8 @@ export default function App({ initialSettings, onThemeChange }: {
 
   const detailReads = useRef(new Set<string>());
   const [detailRetry, setDetailRetry] = useState(0);
+  // The detail waits for a scan to end, failed or not: a failed scan still lets it be asked.
+  const scanningKey = activeIds.filter((id) => states[id]?.status === "loading").join(",");
   useEffect(() => {
     if (!rangeSince || !archiveReady) return;
     let cancelled = false;
@@ -753,7 +755,7 @@ export default function App({ initialSettings, onThemeChange }: {
     return () => {
       cancelled = true;
     };
-  }, [rangeSince, rangeUntil, detailScope, activeKey, readableKey, detected, archiveReady, lastScan, settings.offline, agentsToScan, detailRetry]);
+  }, [rangeSince, rangeUntil, detailScope, activeKey, readableKey, detected, archiveReady, lastScan, scanningKey, settings.offline, agentsToScan, detailRetry]);
 
   // The weekly Codex limit per day belongs to the account, so any source that can read it gives
   // the whole picture: the open tab shows the freshest answer among its own sources.

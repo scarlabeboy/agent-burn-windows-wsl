@@ -139,13 +139,14 @@ fn apply_source(
 /// Variables of the Windows session the CLI reads to find a harness, its cache or a token. Set
 /// on Windows, they point at Windows data, which the Windows source already counts: a WSL
 /// source inherits none of them, and finds everything under the distribution's home instead.
-const WINDOWS_ONLY: [&str; 17] = [
+const WINDOWS_ONLY: [&str; 18] = [
     "CLAUDE_CONFIG_DIR",
     "XDG_CONFIG_HOME",
     "XDG_CACHE_HOME",
     "AGENT_BURN_CACHE_DIR",
     "OPENCODE_DATA_DIR",
     "CURSOR_ACCESS_TOKEN",
+    "GOOSE_PATH_ROOT",
     "AMP_DATA_DIR",
     "COPILOT_OTEL_FILE_EXPORTER_PATH",
     "KIMI_DATA_DIR",
@@ -861,7 +862,7 @@ mod tests {
                 .find(|(key, _)| *key == name)
                 .map(|(_, value)| value.map(|value| value.to_string_lossy().into_owned()))
         };
-        for name in ["CLAUDE_CONFIG_DIR", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "AMP_DATA_DIR"] {
+        for name in WINDOWS_ONLY.into_iter().filter(|name| *name != "CLAUDE_CONFIG_DIR") {
             assert_eq!(value_of(false, name), Some(None), "{name} is removed");
         }
         assert_eq!(
