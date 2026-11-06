@@ -3,7 +3,7 @@ import { isLang } from "./i18n";
 import type { LimitUsageDay } from "./limitUsage";
 import { PERIODS, type Period } from "./periods";
 import { wslSettings } from "./settingsHints";
-import type { Detected, QuotaReading, Settings, TabId, UsageReport } from "./types";
+import { QUOTA_HARNESSES, type Detected, type QuotaReading, type Settings, type TabId, type UsageReport } from "./types";
 
 /** Starts the error of a read when agent-burn.exe is missing; the page words it in its language. */
 export const CLI_MISSING = "cli-missing";
@@ -81,6 +81,8 @@ const defaults: Settings = {
   autoUpdate: true,
   harnessStates: {},
   theme: "system",
+  trayIcon: "logo",
+  trayWindow: "tightest",
 };
 
 const SEEN_KEY = "abf.seen-harnesses";
@@ -114,7 +116,9 @@ export function readSettings(): Settings {
     // An unknown language is dropped, so Windows' own language decides again.
     const language = isLang(stored.language) ? stored.language : undefined;
     const theme = stored.theme === "dark" || stored.theme === "light" ? stored.theme : "system";
-    return { ...defaults, ...rest, ...wslSettings(stored), refreshMinutes, language, theme };
+    const trayIcon = (QUOTA_HARNESSES as string[]).includes(stored.trayIcon) ? stored.trayIcon : "logo";
+    const trayWindow = ["session", "weekly"].includes(stored.trayWindow) ? stored.trayWindow : "tightest";
+    return { ...defaults, ...rest, ...wslSettings(stored), refreshMinutes, language, theme, trayIcon, trayWindow };
   } catch {
     return defaults;
   }
@@ -172,5 +176,8 @@ export const setRestartOnCrash = (enabled: boolean) => invoke<void>("set_restart
 export const getAutostart = () => invoke<boolean>("get_autostart");
 export const setAutostart = (enabled: boolean) => invoke<void>("set_autostart", { enabled });
 export const setTrayTooltip = (text: string) => invoke<void>("set_tray_tooltip", { text });
-export const setTrayLabels = (labels: { open: string; refresh: string; quit: string }) =>
+/** A square RGBA picture for the notification-area icon; null puts the logo back. */
+export const setTrayIcon = (rgba: number[] | null, size: number) =>
+  invoke<void>("set_tray_icon", { rgba, size });
+export const setTrayLabels =(labels: { open: string; refresh: string; quit: string }) =>
   invoke<void>("set_tray_labels", labels);

@@ -14,6 +14,7 @@ import {
   setCloseToTray,
   setClaudeRenew,
   setRestartOnCrash,
+  setTrayIcon,
   setTrayLabels,
   setTrayTooltip,
   setWslKeepalive,
@@ -61,7 +62,8 @@ import {
 } from "./periods";
 import { updateError } from "./releaseNotes";
 import { errorText } from "./errors";
-import { formatAge, freshness, quotaCards, quotaFailure, type QuotaCard } from "./quota";
+import { formatAge, freshness, quotaCards, quotaFailure, trayPercent, trayTone, type QuotaCard } from "./quota";
+import { TRAY_ICON_SIZE, drawTrayIcon, type TrayIconTone } from "./trayIcon";
 import { useNow } from "./useNow";
 import {
   autoUpdateActive,
@@ -75,16 +77,18 @@ import {
   subscriptionOffReason,
 } from "./settingsHints";
 import { pickClaudeAccount, pickSubscription, withAccountSpend } from "./subscription";
-import type {
-  Detected,
-  ModelPricing,
-  QuotaReading,
-  Settings,
-  SourceId,
-  SourceState,
-  TabId,
-  UsageReport,
-  WslMode,
+import {
+  QUOTA_HARNESSES,
+  type Detected,
+  type ModelPricing,
+  type QuotaReading,
+  type Settings,
+  type SourceId,
+  type SourceState,
+  type TabId,
+  type TrayWindow,
+  type UsageReport,
+  type WslMode,
 } from "./types";
 import {
   BrandIcon,
@@ -438,7 +442,7 @@ export default function App({ initialSettings, onThemeChange }: {
     (force: boolean) => {
       for (const id of readableIds) {
         const name = id === "windows" ? null : id.slice(4);
-        for (const harness of ["claude", "codex"].filter((entry) => !disabled.includes(entry))) {
+        for (const harness of QUOTA_HARNESSES.filter((entry) => !disabled.includes(entry))) {
           const key = `${id}|${harness}`;
           if (quotaReads.current.has(key)) continue;
           quotaReads.current.add(key);
@@ -616,6 +620,18 @@ export default function App({ initialSettings, onThemeChange }: {
     // Without any quota the summary goes too, rather than keep percentages that no longer hold.
     void setTrayTooltip(tooltip ? `Agent Burn Windows\n${tooltip}` : "Agent Burn Windows").catch(() => undefined);
   }, [tooltip]);
+  // The remaining quota on the notification-area icon, when one is chosen: the logo otherwise,
+  // when nothing is read and when all of it is left. An old reading turns the figure grey.
+  const trayCards = settings.trayIcon === "logo" ? [] : accountCards.filter((card) => card.harness === settings.trayIcon);
+  const trayValue = trayPercent(trayCards, settings.trayWindow, nowMs);
+  const trayFresh =
+    trayCards.length > 0 && freshness(Math.max(...trayCards.map((card) => card.observedAt)), nowMs).fresh;
+  const trayKey = trayValue === null ? "logo" : `${trayValue}|${trayFresh ? trayTone(trayValue) : "stale"}`;
+  useEffect(() => {
+    const [value, tone] = trayKey.split("|");
+    const rgba = trayKey === "logo" ? null : drawTrayIcon(Number(value), tone as TrayIconTone);
+    void setTrayIcon(rgba, TRAY_ICON_SIZE).catch(() => undefined);
+  }, [trayKey]);
   // The notification-area menu is built by the Rust side: it gets its words from here. Its
   // refresh entry reads the usage instead when quotas are not read, and says so.
   useEffect(() => {
@@ -1103,6 +1119,40 @@ export default function App({ initialSettings, onThemeChange }: {
                     onChange={(next) => updateSettings({ ...settings, closeToTray: next })}
                   />
                 </SettingRow>
+                <SettingRow
+                  title={text.settings.trayIcon}
+                  description={quotasOn ? text.settings.trayIconHint : text.settings.trayIconIdle}
+                >
+                  <select
+                    aria-label={text.settings.trayIcon}
+                    value={settings.trayIcon}
+                    disabled={!quotasOn}
+                    onChange={(event) => updateSettings({ ...settings, trayIcon: event.target.value as Settings["trayIcon"] })}
+                  >
+                    <option value="logo">{text.settings.trayLogo}</option>
+                    {QUOTA_HARNESSES.map((harness) => (
+                      <option key={harness} value={harness}>
+                        {agentLabel(harness)}
+                      </option>
+                    ))}
+                  </select>
+                </SettingRow>
+                {settings.trayIcon !== "logo" && (
+                  <SettingRow title={text.settings.trayWindow} description={text.settings.trayWindowHints[settings.trayWindow]}>
+                    <select
+                      aria-label={text.settings.trayWindow}
+                      value={settings.trayWindow}
+                      disabled={!quotasOn}
+                      onChange={(event) => updateSettings({ ...settings, trayWindow: event.target.value as TrayWindow })}
+                    >
+                      {(["tightest", "session", "weekly"] as TrayWindow[]).map((window) => (
+                        <option key={window} value={window}>
+                          {text.settings.trayWindows[window]}
+                        </option>
+                      ))}
+                    </select>
+                  </SettingRow>
+                )}
                 <SettingRow title={text.settings.restartOnCrash} description={text.settings.restartOnCrashHint}>
                   <Switch
                     checked={settings.restartOnCrash}

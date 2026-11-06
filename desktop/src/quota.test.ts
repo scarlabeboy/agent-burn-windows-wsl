@@ -1,7 +1,18 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { budget, formatAxis, FRESH_MS, freshness, gauge, idleSession, quotaFailure } from "./quota";
+import {
+  budget,
+  formatAxis,
+  FRESH_MS,
+  freshness,
+  gauge,
+  idleSession,
+  quotaFailure,
+  trayPercent,
+  trayTone,
+  type QuotaCard,
+} from "./quota";
 
 test("a weekly axis dates both ends, which share a weekday; a 5-hour axis shows the time only", () => {
   const start = new Date(2026, 10, 1, 20, 0).getTime();
@@ -60,4 +71,51 @@ test("a quota read failure names its cause only when the app knows it", () => {
   assert.equal(quotaFailure(["agent-burn exited with exit code: 1", "agent-burn timed out"]), "agent-burn timed out");
   assert.match(quotaFailure(["cli-missing: agent-burn.exe is missing from the app folder."]) ?? "", /^cli-missing/);
   assert.equal(quotaFailure([]), undefined);
+});
+
+const NOW = new Date(2026, 10, 6, 12, 0).getTime();
+const trayCard = (weeklyUsed: number, sessionUsed?: number): QuotaCard => ({
+  harness: "claude",
+  sources: ["Windows"],
+  observedAt: NOW,
+  weekly: gauge({ usedPercent: weeklyUsed, windowMinutes: WEEK, elapsedPercent: 50 }, NOW),
+  session:
+    sessionUsed === undefined
+      ? undefined
+      : gauge({ usedPercent: sessionUsed, windowMinutes: 300, elapsedPercent: 50 }, NOW),
+});
+
+test("the tray icon shows the chosen quota, or the tighter of the two", () => {
+  const card = trayCard(30, 80);
+  assert.equal(trayPercent([card], "weekly", NOW), 70);
+  assert.equal(trayPercent([card], "session", NOW), 20);
+  assert.equal(trayPercent([card], "tightest", NOW), 20);
+  assert.equal(trayPercent([trayCard(90, 10)], "tightest", NOW), 10);
+});
+
+test("the tray icon shows the logo when nothing is read or all of it is left", () => {
+  assert.equal(trayPercent([], "tightest", NOW), null);
+  assert.equal(trayPercent([trayCard(0)], "weekly", NOW), null);
+  // An idle session has all of it left, whatever the weekly quota says.
+  assert.equal(trayPercent([trayCard(60)], "session", NOW), null);
+  assert.equal(trayPercent([trayCard(60)], "tightest", NOW), 40);
+  // Under half a point used rounds to the full quota, as the cards show it.
+  assert.equal(trayPercent([trayCard(0.4)], "weekly", NOW), null);
+});
+
+test("a session whose cycle has ended counts as reset", () => {
+  const card = trayCard(30, 80);
+  assert.equal(trayPercent([card], "session", NOW + 3 * 60 * 60_000), null);
+  assert.equal(trayPercent([card], "tightest", NOW + 3 * 60 * 60_000), 70);
+});
+
+test("with two accounts, the one with less left counts", () => {
+  assert.equal(trayPercent([trayCard(30), trayCard(55)], "weekly", NOW), 45);
+});
+
+test("the tray colour follows what is left", () => {
+  assert.equal(trayTone(80), "ok");
+  assert.equal(trayTone(50), "warn");
+  assert.equal(trayTone(21), "warn");
+  assert.equal(trayTone(20), "danger");
 });

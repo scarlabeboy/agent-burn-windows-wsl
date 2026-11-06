@@ -28,6 +28,8 @@ const base: Settings = {
   autoUpdate: true,
   harnessStates: {},
   theme: "system",
+  trayIcon: "logo",
+  trayWindow: "tightest",
 };
 
 test("offline mode turns quotas and updates off without changing their own setting", () => {

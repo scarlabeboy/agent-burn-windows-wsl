@@ -72,6 +72,18 @@ export const fr = {
     restartOnCrash: "Relancer après un arrêt imprévu",
     restartOnCrashHint:
       "Windows rouvre l'application dans la zone de notification après un plantage, une mise à jour Windows ou un installeur qui l'a fermée. « Quitter » reste un vrai arrêt.",
+    trayIcon: "Icône de la zone de notification",
+    trayIconHint:
+      "Affiche le reste du quota d'un harness, en vert, orange puis rouge. Le logo revient quand tout le quota reste, et le chiffre passe en gris quand la lecture est ancienne.",
+    trayIconIdle: "Affiche le logo tant que les quotas ne sont pas lus.",
+    trayLogo: "Logo",
+    trayWindow: "Quota affiché",
+    trayWindows: { session: "Session 5 h", weekly: "Semaine 7 j", tightest: "Le plus serré" },
+    trayWindowHints: {
+      session: "Une session pas encore commencée a tout son quota : l'icône montre alors le logo.",
+      weekly: "Le quota de la semaine, quelle que soit la session.",
+      tightest: "Celui de la session ou de la semaine qui a le moins de reste.",
+    },
     data: "Données",
     offline: "Mode hors ligne",
     quotas: "Lecture des quotas",

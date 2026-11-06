@@ -1,6 +1,6 @@
 import { CLI_FAILED } from "./api";
 import { locale, t } from "./i18n";
-import type { QuotaReading, QuotaWindow } from "./types";
+import type { QuotaReading, QuotaWindow, TrayWindow } from "./types";
 
 const MINUTE_MS = 60_000;
 
@@ -84,6 +84,30 @@ export function quotaCards(readings: { source: string; reading: QuotaReading }[]
   }
   return [...cards.values()].sort((a, b) => a.harness.localeCompare(b.harness));
 }
+
+/**
+ * The remaining percentage the notification-area icon shows for the cards of one harness (two
+ * accounts give two cards: the one with less left counts), or null for the logo: nothing read,
+ * or all of it left. An idle session has all of it left, and so does a window whose cycle has
+ * ended, reset since its reading.
+ */
+export function trayPercent(cards: QuotaCard[], window: TrayWindow, nowMs: number): number | null {
+  const left = (model: GaugeModel | undefined) => (!model || cycleEnded(model, nowMs) ? 100 : model.remaining);
+  const values = cards.map((card) => {
+    const session = left(card.session);
+    const weekly = left(card.weekly);
+    if (window === "session") return session;
+    if (window === "weekly") return weekly;
+    return Math.min(session, weekly);
+  });
+  if (values.length === 0) return null;
+  const shown = Math.round(Math.min(...values));
+  return shown >= 100 ? null : shown;
+}
+
+/** The icon's colour for what is left. */
+export const trayTone = (remaining: number): "ok" | "warn" | "danger" =>
+  remaining <= 20 ? "danger" : remaining <= 50 ? "warn" : "ok";
 
 /**
  * The cause to give for a quota that could not be read in these sources, when the app knows it

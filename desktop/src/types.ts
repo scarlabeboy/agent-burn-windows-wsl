@@ -157,5 +157,17 @@ export interface Settings {
   language?: Lang;
   /** Follow Windows unless a light or dark appearance is explicitly chosen. */
   theme: "system" | "dark" | "light";
+  /** The notification-area icon: the logo, or the remaining quota of this harness. */
+  trayIcon: "logo" | QuotaHarness;
+  /** Which quota of that harness the icon shows. */
+  trayWindow: TrayWindow;
 }
+
+export type QuotaHarness = "claude" | "codex";
+
+/** The harnesses whose subscription quota the app reads. */
+export const QUOTA_HARNESSES: QuotaHarness[] = ["claude", "codex"];
+
+/** The 5-hour session, the weekly quota, or whichever of the two has less left. */
+export type TrayWindow = "session" | "weekly" | "tightest";
 

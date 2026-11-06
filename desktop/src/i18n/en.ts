@@ -70,6 +70,18 @@ export const en: Strings = {
     restartOnCrash: "Restart after an unexpected stop",
     restartOnCrashHint:
       "Windows reopens the app in the notification area after a crash, a Windows update or an installer that closed it. “Quit” still stops it for good.",
+    trayIcon: "Notification area icon",
+    trayIconHint:
+      "Shows what is left of a harness quota, in green, orange then red. The logo comes back when all of it is left, and the figure turns grey when the reading is old.",
+    trayIconIdle: "Shows the logo while quotas are not read.",
+    trayLogo: "Logo",
+    trayWindow: "Quota shown",
+    trayWindows: { session: "5-hour session", weekly: "Weekly", tightest: "Tightest" },
+    trayWindowHints: {
+      session: "A session not started yet has all of its quota: the icon then shows the logo.",
+      weekly: "The weekly quota, whatever the session.",
+      tightest: "Whichever of the session and the week has less left.",
+    },
     data: "Data",
     offline: "Offline mode",
     quotas: "Read quotas",

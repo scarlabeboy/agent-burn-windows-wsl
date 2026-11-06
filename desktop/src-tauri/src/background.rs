@@ -4,6 +4,7 @@ use std::{
 };
 
 use tauri::{
+    image::Image,
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager, WebviewWindow, WindowEvent,
@@ -174,6 +175,20 @@ pub fn set_tray_tooltip(app: AppHandle, text: String) {
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         let _ = tray.set_tooltip(Some(text));
     }
+}
+
+/// The remaining quota drawn by the page, as square RGBA bytes; none puts the logo back.
+#[tauri::command]
+pub fn set_tray_icon(app: AppHandle, rgba: Option<Vec<u8>>, size: u32) -> Result<(), String> {
+    let Some(tray) = app.tray_by_id(TRAY_ID) else {
+        return Ok(());
+    };
+    let icon = match rgba {
+        Some(bytes) if bytes.len() == (size * size * 4) as usize => Some(Image::new_owned(bytes, size, size)),
+        Some(_) => return Err("The tray picture does not match its size.".into()),
+        None => app.default_window_icon().map(|icon| icon.clone().to_owned()),
+    };
+    tray.set_icon(icon).map_err(|error| error.to_string())
 }
 
 /// The words of the tray menu, sent by the page in its language.

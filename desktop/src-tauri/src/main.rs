@@ -189,6 +189,7 @@ fn main() {
             background::get_autostart,
             background::set_autostart,
             background::set_tray_tooltip,
+            background::set_tray_icon,
             background::set_tray_labels
         ])
         .run(tauri::generate_context!())
