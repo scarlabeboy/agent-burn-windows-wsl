@@ -55,6 +55,8 @@ export const fr = {
   },
   settings: {
     general: "Général",
+    background: "Arrière-plan",
+    quotasCard: "Quotas",
     language: "Langue",
     languageHint: "Langue de l'interface, des montants, des dates et des notes de mise à jour.",
     theme: "Thème",
@@ -155,7 +157,8 @@ export const fr = {
     quotaOffline: "Désactivé en mode hors ligne : les quotas viennent des serveurs de Claude et Codex.",
     quotaOn: "Les jauges de Claude Code et Codex sont relues en ligne chaque minute.",
     quotaOff: "Les quotas ne sont plus relus ni affichés ; leur historique est gardé pour la reprise.",
-    refreshEvery: (minutes: number) => `Relit les journaux des harness toutes les ${minutes} minutes.`,
+    refreshEvery: (minutes: number) =>
+      `Relit les journaux des harness toutes les ${minutes} minutes, sur cet ordinateur : continue aussi en mode hors ligne.`,
     refreshNever: "Pas de relecture régulière : seulement au démarrage, avec ⟳ ou quand WSL change.",
     autoUpdateOffline: "Désactivé en mode hors ligne : aucune recherche sur GitHub.",
     autoUpdateOn: "Au démarrage puis toutes les 6 heures, sur GitHub. Rien n'est installé sans votre accord.",

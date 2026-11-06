@@ -1118,6 +1118,9 @@ export default function App({ initialSettings, onThemeChange }: {
                     <option value="light">{text.settings.themes.light}</option>
                   </select>
                 </SettingRow>
+              </SettingsCard>
+
+              <SettingsCard title={text.settings.background} icon={<Glyph kind="monitor" size={16} />}>
                 <SettingRow title={text.settings.autostart} description={text.settings.autostartHint}>
                   <Switch
                     checked={autostart ?? false}
@@ -1125,6 +1128,13 @@ export default function App({ initialSettings, onThemeChange }: {
                     tip={autostartBusy ? text.settings.autostartBusy : undefined}
                     label={text.settings.autostart}
                     onChange={toggleAutostart}
+                  />
+                </SettingRow>
+                <SettingRow title={text.settings.restartOnCrash} description={text.settings.restartOnCrashHint}>
+                  <Switch
+                    checked={settings.restartOnCrash}
+                    label={text.settings.restartOnCrash}
+                    onChange={(next) => updateSettings({ ...settings, restartOnCrash: next })}
                   />
                 </SettingRow>
                 <SettingRow title={text.settings.tray} description={text.settings.trayHint}>
@@ -1168,11 +1178,54 @@ export default function App({ initialSettings, onThemeChange }: {
                     </select>
                   </SettingRow>
                 )}
-                <SettingRow title={text.settings.restartOnCrash} description={text.settings.restartOnCrashHint}>
+              </SettingsCard>
+
+              {/* The refresh comes first: under the offline switch it would look governed by it, as
+                  the WSL mode is by its switch, while it keeps going offline. */}
+              <SettingsCard title={text.settings.data} icon={<Glyph kind="data" size={16} />}>
+                <SettingRow title={text.settings.refresh} description={refreshHint(settings.refreshMinutes)}>
+                  <select
+                    value={settings.refreshMinutes}
+                    onChange={(event) => updateSettings({ ...settings, refreshMinutes: Number(event.target.value) })}
+                  >
+                    <option value={0}>{text.settings.never}</option>
+                    {/* A WSL scan with OpenCode takes about 30 s: every minute would read almost
+                        nonstop. 1 can come back here if scans get faster. */}
+                    {[5, 10, 30].map((minutes) => (
+                      <option key={minutes} value={minutes}>
+                        {text.settings.everyMinutes(minutes)}
+                      </option>
+                    ))}
+                  </select>
+                </SettingRow>
+                <SettingRow title={text.settings.offline} description={offlineHint(settings.offline)}>
                   <Switch
-                    checked={settings.restartOnCrash}
-                    label={text.settings.restartOnCrash}
-                    onChange={(next) => updateSettings({ ...settings, restartOnCrash: next })}
+                    checked={settings.offline}
+                    label={text.settings.offline}
+                    onChange={(next) => updateSettings({ ...settings, offline: next })}
+                  />
+                </SettingRow>
+              </SettingsCard>
+
+              <SettingsCard title={text.settings.quotasCard} icon={<Glyph kind="subscription" size={16} />}>
+                <SettingRow title={text.settings.quotas} description={quotaHint(settings)}>
+                  <Switch
+                    checked={quotasOn}
+                    disabled={settings.offline}
+                    label={text.settings.quotas}
+                    onChange={(next) => updateSettings({ ...settings, quotas: next })}
+                  />
+                </SettingRow>
+                {/* Renewal only happens on an online quota reading: without one the switch has no effect. */}
+                <SettingRow
+                  title={text.settings.claudeRenew}
+                  description={quotasOn ? text.settings.claudeRenewHint : text.settings.claudeRenewIdle}
+                >
+                  <Switch
+                    checked={settings.claudeRenew}
+                    disabled={!quotasOn}
+                    label={text.settings.claudeRenew}
+                    onChange={(next) => updateSettings({ ...settings, claudeRenew: next })}
                   />
                 </SettingRow>
               </SettingsCard>
@@ -1207,49 +1260,9 @@ export default function App({ initialSettings, onThemeChange }: {
                 </SettingsCard>
               )}
 
-              <SettingsCard title={text.settings.data} icon={<Glyph kind="data" size={16} />}>
-                <SettingRow title={text.settings.offline} description={offlineHint(settings.offline)}>
-                  <Switch
-                    checked={settings.offline}
-                    label={text.settings.offline}
-                    onChange={(next) => updateSettings({ ...settings, offline: next })}
-                  />
-                </SettingRow>
-                <SettingRow title={text.settings.quotas} description={quotaHint(settings)}>
-                  <Switch
-                    checked={quotasOn}
-                    disabled={settings.offline}
-                    label={text.settings.quotas}
-                    onChange={(next) => updateSettings({ ...settings, quotas: next })}
-                  />
-                </SettingRow>
-                {/* Renewal only happens on an online quota reading: without one the switch has no effect. */}
-                <SettingRow
-                  title={text.settings.claudeRenew}
-                  description={quotasOn ? text.settings.claudeRenewHint : text.settings.claudeRenewIdle}
-                >
-                  <Switch
-                    checked={settings.claudeRenew}
-                    disabled={!quotasOn}
-                    label={text.settings.claudeRenew}
-                    onChange={(next) => updateSettings({ ...settings, claudeRenew: next })}
-                  />
-                </SettingRow>
-                <SettingRow title={text.settings.refresh} description={refreshHint(settings.refreshMinutes)}>
-                  <select
-                    value={settings.refreshMinutes}
-                    onChange={(event) => updateSettings({ ...settings, refreshMinutes: Number(event.target.value) })}
-                  >
-                    <option value={0}>{text.settings.never}</option>
-                    {/* A WSL scan with OpenCode takes about 30 s: every minute would read almost
-                        nonstop. 1 can come back here if scans get faster. */}
-                    {[5, 10, 30].map((minutes) => (
-                      <option key={minutes} value={minutes}>
-                        {text.settings.everyMinutes(minutes)}
-                      </option>
-                    ))}
-                  </select>
-                </SettingRow>
+              <SettingsCard title={text.app.harness} icon={<Glyph kind="flame" size={16} />}>
+                <HarnessSettings groups={harnessGroups} onToggle={toggleHarness} />
+                <p className="muted small set-note">{text.settings.harnessNote}</p>
               </SettingsCard>
 
               <SettingsCard title={text.settings.updates} icon={<Glyph kind="updates" size={16} />}>
@@ -1279,11 +1292,6 @@ export default function App({ initialSettings, onThemeChange }: {
                     </button>
                   )}
                 </SettingRow>
-              </SettingsCard>
-
-              <SettingsCard title={text.app.harness} icon={<Glyph kind="flame" size={16} />}>
-                <HarnessSettings groups={harnessGroups} onToggle={toggleHarness} />
-                <p className="muted small set-note">{text.settings.harnessNote}</p>
               </SettingsCard>
 
               <SettingsCard title={text.settings.about} icon={<Glyph kind="about" size={16} />}>

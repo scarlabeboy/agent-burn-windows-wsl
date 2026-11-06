@@ -53,6 +53,8 @@ export const en: Strings = {
   },
   settings: {
     general: "General",
+    background: "Background",
+    quotasCard: "Quotas",
     language: "Language",
     languageHint: "Language of the interface, amounts, dates and update notes.",
     theme: "Theme",
@@ -153,7 +155,8 @@ export const en: Strings = {
     quotaOffline: "Off in offline mode: quotas come from the Claude and Codex servers.",
     quotaOn: "Claude Code and Codex gauges are read online every minute.",
     quotaOff: "Quotas are no longer read or shown; their history is kept for when they come back.",
-    refreshEvery: (minutes: number) => `Reads the harness logs again every ${minutes} minutes.`,
+    refreshEvery: (minutes: number) =>
+      `Reads the harness logs again every ${minutes} minutes, on this computer: keeps going in offline mode too.`,
     refreshNever: "No regular reading: only at startup, with ⟳ or when WSL changes.",
     autoUpdateOffline: "Off in offline mode: no check on GitHub.",
     autoUpdateOn: "At startup then every 6 hours, on GitHub. Nothing is installed without your consent.",
