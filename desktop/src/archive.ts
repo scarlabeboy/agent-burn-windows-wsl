@@ -226,6 +226,25 @@ export function readSeries(harness: string, windowMinutes: number, startMs: numb
   return consistentSamples(raw, windowMinutes);
 }
 
+/** A cycle ending within this of another one is the same cycle (see resolveKey). */
+const SAME_CYCLE_MS = 2 * 60_000;
+
+/**
+ * The end times of the recorded cycles of one window that ended before `beforeMs` (the end of
+ * the current cycle, or now when none is under way), newest first. A cycle without any sample
+ * left to show is skipped.
+ */
+export function pastCycles(harness: string, windowMinutes: number, beforeMs: number): number[] {
+  const ends = Object.keys(quota.series)
+    .map((key) => key.split("|"))
+    .filter(([name, minutes]) => name === harness && Number(minutes) === windowMinutes)
+    .map(([, , endMinute]) => Number(endMinute) * 60_000)
+    .filter((end) => end < beforeMs - SAME_CYCLE_MS)
+    .filter((end) => readSeries(harness, windowMinutes, end - windowMinutes * 60_000).length > 0)
+    .sort((a, b) => b - a);
+  return ends.filter((end, index) => index === 0 || ends[index - 1] - end > SAME_CYCLE_MS);
+}
+
 /**
  * Keep one point per change, and a heartbeat every few minutes. The reading is stored as
  * measured; the one returned is what to show: an over-count that nothing has confirmed yet is

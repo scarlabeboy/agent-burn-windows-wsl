@@ -9,6 +9,7 @@ import {
   gauge,
   idleSession,
   quotaFailure,
+  pastGauge,
   trayPercent,
   trayTone,
   type QuotaCard,
@@ -118,4 +119,12 @@ test("the tray colour follows what is left", () => {
   assert.equal(trayTone(50), "warn");
   assert.equal(trayTone(21), "warn");
   assert.equal(trayTone(20), "danger");
+});
+
+test("a closed cycle is charted from its own start to its own end, as its last reading left it", () => {
+  const end = NOW;
+  const model = pastGauge(300, end, { t: end - 60 * 60_000, used: 35 });
+  assert.equal(Math.round(model.startMs), end - 300 * 60_000);
+  assert.equal(Math.round(model.endMs), end);
+  assert.equal(model.remaining, 65);
 });

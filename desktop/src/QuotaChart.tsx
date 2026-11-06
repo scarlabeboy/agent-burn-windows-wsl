@@ -13,10 +13,12 @@ interface Props {
   observedAt: number;
   color: string;
   weekly: boolean;
+  /** A closed cycle: what was recorded and the even pace, without "now" or a forecast. */
+  past?: boolean;
 }
 
 /** Remaining quota over one window: recorded steps, even pace, and the forecast to the reset. */
-export function QuotaChart({ harness, model, observedAt, color, weekly }: Props) {
+export function QuotaChart({ harness, model, observedAt, color, weekly, past = false }: Props) {
   const { startMs, endMs } = model;
   const x = (t: number) =>
     PAD.left + ((Math.min(Math.max(t, startMs), endMs) - startMs) / (endMs - startMs)) * (W - PAD.left - PAD.right);
@@ -48,7 +50,7 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
     `${recorded} L ${x(observedAt)} ${y(pace(observedAt))} ` +
     `L ${x(points[0].t)} ${y(pace(points[0].t))} Z`;
 
-  const projection = forecast(model);
+  const projection = past ? null : forecast(model);
   const nowX = x(observedAt);
   const nowY = y(model.remaining);
   const emptyAt = projection?.emptyAtMs ?? null;
@@ -154,11 +156,15 @@ export function QuotaChart({ harness, model, observedAt, color, weekly }: Props)
       )}
 
       <path d={recorded} fill="none" stroke={color} strokeWidth="2" />
-      <line x1={nowX} x2={nowX} y1={PAD.top} y2={H - PAD.bottom} stroke={color} strokeOpacity="0.5" />
+      {!past && (
+        <>
+          <line x1={nowX} x2={nowX} y1={PAD.top} y2={H - PAD.bottom} stroke={color} strokeOpacity="0.5" />
+          <text x={nowX} y={PAD.top - 8} textAnchor={nowAnchor} className="qnote" fill={color}>
+            {t().chart.now}
+          </text>
+        </>
+      )}
       <circle cx={nowX} cy={nowY} r="4" fill={color} />
-      <text x={nowX} y={PAD.top - 8} textAnchor={nowAnchor} className="qnote" fill={color}>
-        {t().chart.now}
-      </text>
 
       <text x={PAD.left} y={H - 8} className="qaxis">
         {formatAxis(startMs, weekly)}

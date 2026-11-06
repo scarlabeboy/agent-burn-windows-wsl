@@ -356,6 +356,16 @@ th .sort:hover, th .sort.on { color: var(--text); }
 .gauge-card.ended .gauge-value { opacity: 0.55; }
 .gauge-card.idle .gauge-value { opacity: 0.55; }
 .late { color: var(--warn); }
+/* Arrows that browse the closed cycles of one window, next to its title. */
+.win-title { display: inline-flex; align-items: center; gap: 8px; }
+.win-nav { display: inline-flex; align-items: center; gap: 3px; }
+.win-nav button {
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; color: var(--text);
+  min-width: 22px; height: 20px; padding: 0 5px; line-height: 1; font-size: 13px; cursor: pointer;
+}
+.win-nav button:disabled { opacity: 0.35; cursor: default; }
+.win-nav .win-current { font-size: 11px; padding: 0 7px; color: var(--accent); }
+.gauge-card.past .gauge-value { opacity: 0.8; }
 .gauge-main { display: flex; align-items: baseline; gap: 6px; }
 .gauge-value { font-size: 40px; font-weight: 700; line-height: 1; }
 .pace { margin-left: auto; font-size: 12px; padding: 3px 9px; border-radius: 6px; }

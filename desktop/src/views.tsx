@@ -1,4 +1,5 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { getVersion, pastCycles, readSeries, subscribe } from "./archive";
 import {
   Bar,
   BarChart,
@@ -10,7 +11,19 @@ import {
 } from "recharts";
 import { formatTokens, formatUsd, sortModels, tokensPerDollar, type ModelSort, type ModelSortKey } from "./aggregate";
 import { IdleChart, QuotaChart } from "./QuotaChart";
-import { budget, cycleEnded, formatDay, formatDuration, freshness, type GaugeModel, type QuotaCard } from "./quota";
+import {
+  SESSION_MINUTES,
+  budget,
+  cycleEnded,
+  formatAxis,
+  formatClock,
+  formatDay,
+  formatDuration,
+  freshness,
+  pastGauge,
+  type GaugeModel,
+  type QuotaCard,
+} from "./quota";
 import { formatNumber, getLang, locale, percent, t } from "./i18n";
 import { pricingTip } from "./pricingFormat";
 import { Glyph, TitleIcon, type GlyphKind } from "./TitleIcons";
@@ -494,7 +507,11 @@ export function EnvironmentSplit({ parts }: { parts: { label: string; report: Us
   );
 }
 
-function GaugeCard({
+/**
+ * One quota window of a harness: the cycle under way, or a closed one picked with the arrows.
+ * The 5-hour and the weekly cards each browse their own cycles.
+ */
+function WindowCard({
   title,
   model,
   card,
@@ -502,10 +519,127 @@ function GaugeCard({
   nowMs,
 }: {
   title: string;
+  /** Absent for a session not under way. */
+  model?: GaugeModel;
+  card: QuotaCard;
+  weekly: boolean;
+  nowMs: number;
+}) {
+  const windowMinutes = model?.window.windowMinutes ?? SESSION_MINUTES;
+  // Null for the cycle under way, otherwise the end of the closed cycle shown.
+  const [shownEnd, setShownEnd] = useState<number | null>(null);
+  const archiveVersion = useSyncExternalStore(subscribe, getVersion);
+  // Without a session under way, every recorded one ended before now.
+  const currentEnd = model?.endMs ?? nowMs;
+  const currentMinute = Math.floor(currentEnd / 60_000);
+  const ends = useMemo(
+    () => pastCycles(card.harness, windowMinutes, currentEnd),
+    [card.harness, windowMinutes, currentMinute, archiveVersion],
+  );
+  const selected = shownEnd !== null && ends.includes(shownEnd) ? shownEnd : null;
+  const older = ends.find((end) => selected === null || end < selected);
+  const newer = selected === null ? undefined : [...ends].reverse().find((end) => end > selected);
+  const text = t().views;
+  const nav = ends.length > 0 && (
+    <span className="win-nav">
+      <button
+        disabled={older === undefined}
+        title={text.olderWindow}
+        aria-label={text.olderWindow}
+        onClick={() => setShownEnd(older ?? null)}
+      >
+        ‹
+      </button>
+      <button
+        disabled={selected === null}
+        title={text.newerWindow}
+        aria-label={text.newerWindow}
+        onClick={() => setShownEnd(newer ?? null)}
+      >
+        ›
+      </button>
+      {selected !== null && (
+        <button className="win-current" onClick={() => setShownEnd(null)}>
+          {text.currentWindow}
+        </button>
+      )}
+    </span>
+  );
+  if (selected !== null) {
+    return <PastCard title={title} card={card} windowMinutes={windowMinutes} endMs={selected} weekly={weekly} nav={nav} />;
+  }
+  return model ? (
+    <GaugeCard title={title} model={model} card={card} weekly={weekly} nowMs={nowMs} nav={nav} />
+  ) : (
+    <IdleSessionCard nav={nav} />
+  );
+}
+
+/** A closed cycle as recorded: its dates, what was left at its last reading, and its curve. */
+function PastCard({
+  title,
+  card,
+  windowMinutes,
+  endMs,
+  weekly,
+  nav,
+}: {
+  title: string;
+  card: QuotaCard;
+  windowMinutes: number;
+  endMs: number;
+  weekly: boolean;
+  nav: ReactNode;
+}) {
+  const startMs = endMs - windowMinutes * 60_000;
+  // Never empty: a cycle without samples is not offered.
+  const samples = readSeries(card.harness, windowMinutes, startMs);
+  const last = samples[samples.length - 1];
+  const model = pastGauge(windowMinutes, endMs, last);
+  // A weekly range shows both dates; a session shows its day once.
+  const range = weekly
+    ? `${formatAxis(startMs, true)} → ${formatAxis(endMs, true)}`
+    : `${formatDay(startMs)} → ${formatClock(endMs, false)}`;
+  const text = t().views;
+  return (
+    <div className="gauge-card past">
+      <div className="row small muted">
+        <span className="win-title">
+          <span className="caps">{title}</span>
+          {nav}
+        </span>
+        <span>{range}</span>
+      </div>
+      <div className="gauge-main">
+        <span className="gauge-value">{percent(model.remaining.toFixed(0))}</span>
+        <span className="muted">{text.remainingAtLast}</span>
+      </div>
+      <QuotaChart
+        harness={card.harness}
+        model={model}
+        observedAt={last.t}
+        color={agentColor(card.harness)}
+        weekly={weekly}
+        past
+      />
+    </div>
+  );
+}
+
+function GaugeCard({
+  title,
+  model,
+  card,
+  weekly,
+  nowMs,
+  nav,
+}: {
+  title: string;
   model: GaugeModel;
   card: QuotaCard;
   weekly: boolean;
   nowMs: number;
+  nav: ReactNode;
 }) {
   const ahead = model.pace >= 0;
   const color = agentColor(card.harness);
@@ -515,7 +649,10 @@ function GaugeCard({
   return (
     <div className={`gauge-card${weekly && model.minutesToEmpty !== null ? " danger" : ""}${ended ? " ended" : ""}`}>
       <div className="row small muted">
-        <span className="caps">{title}</span>
+        <span className="win-title">
+          <span className="caps">{title}</span>
+          {nav}
+        </span>
         {ended ? (
           <span className="late">{text.cycleEnded}</span>
         ) : (
@@ -543,12 +680,15 @@ function GaugeCard({
  * Codex gives an untouched window whose reset keeps moving, so there is nothing to chart. The
  * card keeps its place so the layout does not jump.
  */
-function IdleSessionCard() {
+function IdleSessionCard({ nav }: { nav: ReactNode }) {
   const text = t().views;
   return (
     <div className="gauge-card idle">
       <div className="row small muted">
-        <span className="caps">{text.session}</span>
+        <span className="win-title">
+          <span className="caps">{text.session}</span>
+          {nav}
+        </span>
         <span>{text.noSession}</span>
       </div>
       <div className="gauge-main">
@@ -596,12 +736,8 @@ export function QuotaSection({ card, resetCredits }: { card: QuotaCard; resetCre
         </div>
       )}
       <div className="gauge-grid">
-        {card.session ? (
-          <GaugeCard title={text.session} model={card.session} card={card} weekly={false} nowMs={nowMs} />
-        ) : (
-          <IdleSessionCard />
-        )}
-        <GaugeCard title={text.weekly} model={weekly} card={card} weekly nowMs={nowMs} />
+        <WindowCard title={text.session} model={card.session} card={card} weekly={false} nowMs={nowMs} />
+        <WindowCard title={text.weekly} model={weekly} card={card} weekly nowMs={nowMs} />
       </div>
       <p className="muted small hint">{card.harness === "codex" ? text.codexHistory : text.claudeHistory}</p>
     </section>

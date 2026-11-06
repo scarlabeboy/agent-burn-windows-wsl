@@ -44,6 +44,16 @@ export function gauge(window: QuotaWindow, observedAt: number): GaugeModel {
   };
 }
 
+/** A closed cycle as its last recorded sample left it, to chart it again. */
+export function pastGauge(windowMinutes: number, endMs: number, last: { t: number; used: number }): GaugeModel {
+  const windowMs = windowMinutes * MINUTE_MS;
+  const elapsedPercent = (100 * (last.t - (endMs - windowMs))) / windowMs;
+  return gauge({ windowMinutes, usedPercent: last.used, elapsedPercent }, last.t);
+}
+
+/** The length of the session window of both harnesses, for a session that has not started. */
+export const SESSION_MINUTES = 300;
+
 /**
  * A session window nobody has used: Codex reports one even without a session, untouched and
  * resetting a full window from now, a reset that moves with every reading. A session that
