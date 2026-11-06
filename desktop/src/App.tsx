@@ -549,6 +549,9 @@ export default function App({ initialSettings, onThemeChange }: {
   const stoppedNames = distros
     .filter((entry) => !entry.running && activeIds.includes(`wsl:${entry.name}`))
     .map((entry) => entry.name);
+  // A stopped distribution with a saved report shows old figures; one never read shows none.
+  const staleNames = stoppedNames.filter((name) => states[`wsl:${name}`]);
+  const unreadNames = stoppedNames.filter((name) => !states[`wsl:${name}`]);
   const pendingState = states[activeIds[0] ?? "windows"];
   // A failed read keeps the previous figures on screen; the status bar says it failed.
   const failedId = readableIds.find((id) => states[id]?.status === "error");
@@ -938,6 +941,7 @@ export default function App({ initialSettings, onThemeChange }: {
                 <select
                   className="nav-select"
                   value={activeDistro?.name}
+                  title={activeDistro?.name}
                   onChange={(event) => setDistro(event.target.value)}
                   aria-label={text.app.wslDistro}
                 >
@@ -1247,7 +1251,8 @@ export default function App({ initialSettings, onThemeChange }: {
             )
           ) : (
             <Page>
-              {stoppedNames.length > 0 && <div className="notice">{text.app.wslOffStale(stoppedNames.join(", "))}</div>}
+              {staleNames.length > 0 && <div className="notice">{text.app.wslOffStale(staleNames.join(", "))}</div>}
+              {unreadNames.length > 0 && <div className="notice">{text.app.wslOffNoData(unreadNames.join(", "))}</div>}
               {tab === "computer" && localParts.length < sourceIds.length - stoppedNames.length && (
                 <div className="notice error">{text.app.partial}</div>
               )}

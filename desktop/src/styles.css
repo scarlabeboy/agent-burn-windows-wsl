@@ -146,8 +146,8 @@ button { cursor: pointer; }
 /* Environments read as a block of buttons, apart from the lists below: icon and name centred. */
 .nav.env { justify-content: center; }
 .nav.env .nav-label { flex: none; }
-/* The distribution list sits under WSL, the right half of the pair. */
-.nav-pair + .nav-select { margin-left: calc(50% + 3px); width: calc(50% - 3px); }
+/* The distribution list spans the pair under it, so a long distribution name fits. */
+.nav-pair + .nav-select { margin-left: 0; width: 100%; }
 .nav-label { flex: 1; white-space: nowrap; }
 .nav-value { color: var(--muted); font-variant-numeric: tabular-nums; }
 .nav.on .nav-value { color: #fff; }
