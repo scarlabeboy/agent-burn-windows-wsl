@@ -6,6 +6,32 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.6.0
+
+#### English
+
+### Improvements
+- With several WSL distributions, their list spans the side bar, so a long name shows in full; it also shows on hover.
+- The ahead/behind pill of a quota is hidden only right after a reset, when its lead says nothing yet.
+- When the quota is not read, the subscription card says its figures are hidden, without promising they come back with the next reading.
+
+### Fixes
+- A WSL distribution no longer picks up the Windows locations of a harness set by environment variables (Claude, caches, Goose and others), which could count Windows usage a second time on the Computer tab.
+- At launch, the per-model detail of a period is read once instead of up to four times, and asked again after a failed scan.
+- On the Computer tab, a stopped distribution never read says it has no data yet, instead of showing figures from a last reading it never had.
+
+#### Français
+
+### Améliorations
+- Avec plusieurs distributions WSL, leur liste prend toute la largeur du menu latéral : un nom long s'affiche en entier, et aussi au survol.
+- La pastille d'avance ou de retard d'un quota n'est cachée que juste après un reset, quand elle ne dit encore rien.
+- Quand le quota n'est pas lu, la carte d'abonnement indique que ses chiffres sont masqués, sans promettre qu'ils reviennent à la prochaine lecture.
+
+### Corrections
+- Une distribution WSL ne reprend plus les emplacements Windows d'un harness définis par des variables d'environnement (Claude, caches, Goose et d'autres), qui pouvaient compter deux fois l'usage de Windows dans l'onglet Ordinateur.
+- Au lancement, le détail par modèle d'une période est lu une seule fois au lieu de jusqu'à quatre, et redemandé après un scan raté.
+- Dans l'onglet Ordinateur, une distribution arrêtée jamais lue indique qu'elle n'a pas encore de données, au lieu d'afficher des chiffres d'une dernière lecture qu'elle n'a jamais eue.
+
 ## 0.5.9
 
 #### English
