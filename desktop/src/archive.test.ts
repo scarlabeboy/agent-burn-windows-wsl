@@ -93,3 +93,12 @@ test("a cycle stored under two ends two minutes apart is read as one", () => {
   assert.deepEqual(readSeries("codex", SESSION, startMs).map((sample) => sample.used), [10, 30]);
   assert.deepEqual(readSeries("codex", SESSION, startMs + 60_000).map((sample) => sample.used), [10, 30]);
 });
+
+test("two series of one cycle are filtered together, without a zigzag", () => {
+  const SESSION = 300;
+  const end = Date.UTC(2026, 10, 8, 12, 0) / 60_000;
+  const at = (minutes: number) => (end - minutes) * 60_000;
+  mergeBackfill("codex", "test", [{ windowMinutes: SESSION, endMinute: end - 1, samples: [[at(250), 30], [at(50), 31]] }], 0);
+  mergeBackfill("codex", "other", [{ windowMinutes: SESSION, endMinute: end + 1, samples: [[at(150), 25]] }], 0);
+  assert.deepEqual(readSeries("codex", SESSION, (end - SESSION) * 60_000).map((sample) => sample.used), [25, 31]);
+});

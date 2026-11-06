@@ -47,9 +47,12 @@ export function useUpdater(auto: boolean, offline: boolean) {
   // Once an install starts, no check may replace its progress or the update it downloads: a
   // timer can fire meanwhile, and a check already under way can answer after it began.
   const installing = useRef(false);
+  // One check at a time: an automatic and a manual one together would answer in any order.
+  const busy = useRef(false);
 
   const checkNow = useCallback(async () => {
-    if (installing.current) return;
+    if (installing.current || busy.current) return;
+    busy.current = true;
     setChecking(true);
     setCheckError(null);
     try {
@@ -71,6 +74,7 @@ export function useUpdater(auto: boolean, offline: boolean) {
     } catch (error) {
       if (!installing.current) setCheckError(String(error));
     } finally {
+      busy.current = false;
       setChecking(false);
     }
   }, []);
@@ -80,6 +84,8 @@ export function useUpdater(auto: boolean, offline: boolean) {
   useEffect(() => {
     if (!auto || offline) {
       setNextAt(null);
+      // No check runs offline: an old failure would stay on screen for nothing.
+      if (offline) setCheckError(null);
       return;
     }
     let timer: ReturnType<typeof setTimeout>;

@@ -40,11 +40,16 @@ export function UpdateDialog({
     return () => before?.focus();
   }, [open]);
 
+  // A failed install brings the focus back into the dialog, where Install can be tried again.
+  const installError = state.status === "available" ? state.installError : undefined;
+  useEffect(() => {
+    if (installError !== undefined) dialog.current?.focus();
+  }, [installError]);
+
   if (!open) return null;
   const day = releaseDay(state.date);
   const sections = parseNotes(state.notes, getLang());
   const skipped = skippedVersions(state.notes, state.currentVersion, state.version);
-  const installError = state.status === "available" ? state.installError : undefined;
   const text = t().update;
 
   return (
@@ -80,7 +85,7 @@ export function UpdateDialog({
         </button>
         <p className="muted small">{offline ? text.offlineInstall : text.restartNote}</p>
         {/* A failed install can be tried again from here. */}
-        {installError !== undefined && <p className="notice error">{text.cannotInstall(updateError(installError))}</p>}
+        {installError !== undefined && <p className="notice error" role="alert">{text.cannotInstall(updateError(installError))}</p>}
         <div className="modal-actions">
           {state.status === "installing" ? (
             <span className="muted">

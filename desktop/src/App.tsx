@@ -210,8 +210,8 @@ function foundHint(state: UpdateState, offline: boolean): string {
     return state.percent !== undefined ? text.downloading(state.percent) : text.installing;
   }
   if (state.status !== "available") return text.available;
-  if (state.installError !== undefined) return text.cannotInstall(updateError(state.installError));
   if (offline) return text.foundOffline(state.version);
+  if (state.installError !== undefined) return text.cannotInstall(updateError(state.installError));
   return text.available;
 }
 
@@ -555,8 +555,14 @@ export default function App({ initialSettings, onThemeChange }: {
     };
   }, [refreshQuotas, refresh, quotasOn]);
 
-  const updater =useUpdater(settings.autoUpdate, settings.offline);
+  const updater = useUpdater(settings.autoUpdate, settings.offline);
   const [showUpdate, setShowUpdate] = useState(false);
+  // The dialog closes for good when no version is offered any more: it must not come back by
+  // itself with the next one found.
+  const offered = updater.state.status === "available" || updater.state.status === "installing";
+  useEffect(() => {
+    if (!offered) setShowUpdate(false);
+  }, [offered]);
   const appVersion = useAppVersion();
   const updateSettings = (next: Settings) => {
     if (next.theme !== settings.theme) onThemeChange(next.theme);

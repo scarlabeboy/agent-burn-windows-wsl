@@ -234,9 +234,10 @@ export function readSeries(harness: string, windowMinutes: number, startMs: numb
   const series: Sample[][] = [];
   for (let offset = -spread; offset <= spread; offset++) {
     const raw = quota.series[keyOf(harness, windowMinutes, endMinute + offset)];
-    if (raw) series.push(consistentSamples(raw, windowMinutes));
+    if (raw) series.push(raw);
   }
-  return series.length > 1 ? series.reduce(mergeSamples) : (series[0] ?? []);
+  // Merged first, filtered once: two sources apart by more than a point must not zigzag.
+  return consistentSamples(series.length > 1 ? series.reduce(mergeSamples) : (series[0] ?? []), windowMinutes);
 }
 
 /**
@@ -276,20 +277,26 @@ export function weeklyCycles(harness: string): Cycle[] {
       const windowMinutes = Number(minutes);
       const endMs = Number(endMinute) * 60_000;
       const startMs = endMs - windowMinutes * 60_000;
-      return { startMs, endMs, samples: consistentSamples(quota.series[keyOf(harness, windowMinutes, Number(endMinute))], windowMinutes) };
+      return { windowMinutes, startMs, endMs, samples: quota.series[keyOf(harness, windowMinutes, Number(endMinute))] };
     })
-    .filter((cycle) => cycle.samples.length > 0)
     .sort((a, b) => a.endMs - b.endMs);
-  const merged: Cycle[] = [];
+  // Merged first, filtered once (as readSeries does).
+  const merged: (Cycle & { windowMinutes: number })[] = [];
   for (const cycle of cycles) {
     const last = merged[merged.length - 1];
     if (last && cycle.endMs - last.endMs <= SAME_CYCLE_MS) {
       last.samples = mergeSamples(last.samples, cycle.samples);
     } else {
-      merged.push(cycle);
+      merged.push({ ...cycle });
     }
   }
-  return merged;
+  return merged
+    .map(({ windowMinutes, startMs, endMs, samples }) => ({
+      startMs,
+      endMs,
+      samples: consistentSamples(samples, windowMinutes),
+    }))
+    .filter((cycle) => cycle.samples.length > 0);
 }
 
 /**
