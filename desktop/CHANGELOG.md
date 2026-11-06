@@ -6,6 +6,50 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.6.1
+
+#### English
+
+### New
+- The notification area icon can show the remaining quota of Claude or Codex, as a number in a green, orange or red square (Settings › Background): the 5-hour session, the weekly quota or the tightest of the two. It goes back to the logo when the whole quota is left, and turns grey when the reading is old.
+- The quota cards can go back through past windows with the ‹ › arrows: the curve of each past session or week and what was left at its last reading. "Current" comes back to the window under way.
+- The Claude page charts how much of the weekly limit each day used, worked out from the app's own readings. What was used while the app was closed counts on the next day read, marked as approximate.
+
+### Improvements
+- The settings page is organized by subject: General, Background, Data, Quotas, WSL, Harnesses, Updates and About.
+- In Updates, the installed version keeps its check button and says when the last check ran and when the next automatic one is due. A version found gets a line of its own, so a newer one can still be looked for before installing it.
+- The automatic refresh says it keeps going in offline mode: it only reads files on this computer.
+- The weekly Claude limit per day stays shown in offline mode, from the readings kept on this computer.
+
+### Fixes
+- A failed check no longer hides a version already found, and a failed install says so on that version's line, where it can be tried again.
+- The update window no longer opens again by itself when a version is found after a check that found none.
+- An automatic and a manual check no longer answer over each other.
+- A quota cycle recorded twice a minute apart is read as one curve, without a zigzag, and its readings going down then back up by a point are no longer counted twice.
+- A past session that ran past midnight shows the day it ended.
+- The hints about quota reading being off point to Settings › Quotas, where the switch now is.
+
+#### Français
+
+### Nouveautés
+- L'icône de la zone de notification peut afficher le quota restant de Claude ou de Codex, en chiffre dans un carré vert, orange ou rouge (Réglages › Arrière-plan) : la session de 5 h, le quota hebdomadaire ou le plus serré des deux. Elle revient au logo quand tout le quota reste, et passe au gris quand le relevé est ancien.
+- Les cartes de quota peuvent remonter les fenêtres passées avec les flèches ‹ › : la courbe de chaque session ou semaine passée et ce qui restait au dernier relevé. « Actuelle » revient à la fenêtre en cours.
+- La page Claude affiche la part de la limite hebdomadaire utilisée chaque jour, calculée à partir des relevés de l'application. Ce qui a été utilisé pendant que l'application était fermée compte pour le jour du relevé suivant, marqué comme approximatif.
+
+### Améliorations
+- La page Réglages est organisée par sujet : Général, Arrière-plan, Données, Quotas, WSL, Harness, Mises à jour et À propos.
+- Dans Mises à jour, la version installée garde son bouton de recherche et indique quand a eu lieu la dernière vérification et quand vient la prochaine. Une version trouvée a sa propre ligne : on peut donc encore en chercher une plus récente avant de l'installer.
+- Le rafraîchissement automatique précise qu'il continue en mode hors ligne : il ne lit que des fichiers de cet ordinateur.
+- La limite hebdomadaire Claude par jour reste affichée en mode hors ligne, à partir des relevés gardés sur cet ordinateur.
+
+### Corrections
+- Une recherche qui échoue ne cache plus une version déjà trouvée, et une installation qui échoue l'indique sur la ligne de cette version, d'où on peut réessayer.
+- La fenêtre de mise à jour ne se rouvre plus d'elle-même quand une version est trouvée après une recherche qui n'en trouvait pas.
+- Une recherche automatique et une recherche manuelle ne se répondent plus par-dessus.
+- Un cycle de quota enregistré deux fois à une minute d'écart est lu comme une seule courbe, sans dents de scie, et ses relevés qui baissent puis remontent d'un point ne sont plus comptés deux fois.
+- Une session passée qui a traversé minuit affiche le jour où elle s'est terminée.
+- Les messages sur la lecture des quotas désactivée renvoient à Réglages › Quotas, où se trouve maintenant l'option.
+
 ## 0.6.0
 
 #### English
