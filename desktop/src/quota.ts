@@ -102,10 +102,9 @@ export function quotaCards(readings: { source: string; reading: QuotaReading }[]
  * ended, reset since its reading.
  */
 export function trayPercent(cards: QuotaCard[], window: TrayWindow, nowMs: number): number | null {
-  const left = (model: GaugeModel | undefined) => (!model || cycleEnded(model, nowMs) ? 100 : model.remaining);
   const values = cards.map((card) => {
-    const session = left(card.session);
-    const weekly = left(card.weekly);
+    const session = leftOf(card.session, nowMs);
+    const weekly = leftOf(card.weekly, nowMs);
     if (window === "session") return session;
     if (window === "weekly") return weekly;
     return Math.min(session, weekly);
@@ -114,6 +113,10 @@ export function trayPercent(cards: QuotaCard[], window: TrayWindow, nowMs: numbe
   const shown = Math.round(Math.min(...values));
   return shown >= 100 ? null : shown;
 }
+
+/** What is left of a window for the icon: all of it for a session not under way or a cycle over. */
+const leftOf = (model: GaugeModel | undefined, nowMs: number): number =>
+  !model || cycleEnded(model, nowMs) ? 100 : model.remaining;
 
 /** The icon's colour for what is left. */
 export const trayTone = (remaining: number): "ok" | "warn" | "danger" =>

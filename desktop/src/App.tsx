@@ -1406,7 +1406,7 @@ export default function App({ initialSettings, onThemeChange }: {
                     ))}
                   {pageCards.map((card) => (
                     <QuotaSection
-                      key={`${card.harness}-${card.sources.join()}`}
+                      key={card.harness}
                       card={card}
                       resetCredits={pickSubscription(sourceReports, card.harness)?.resetCreditsAvailable ?? undefined}
                     />

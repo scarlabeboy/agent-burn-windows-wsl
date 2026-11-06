@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatNumber, getLang, percent, t } from "./i18n";
-import { ChartLabel } from "./ChartLabel";
+import { ChartLabel, withoutZeros } from "./ChartLabel";
 import { TitleIcon } from "./TitleIcons";
 import { buildChart, otherLabel, totalUsed, type Grouping, type LimitUsageDay } from "./limitUsage";
 import type { LimitDay } from "./limitDays";
@@ -37,7 +37,7 @@ export function ReadingLimitChart({ days, color }: { days: LimitDay[]; color: st
         <>
           <div className="chart">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={days} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <BarChart data={withoutZeros(days, ["measured", "approx"])} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                 <CartesianGrid stroke="var(--grid)" vertical={false} />
                 <XAxis dataKey="date" stroke="var(--muted)" tickLine={false} minTickGap={24} tickFormatter={shortDay} />
                 <YAxis
@@ -120,7 +120,7 @@ export function LimitUsageChart({ days, where }: { days: LimitUsageDay[]; where:
         <>
           <div className="chart">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chart.rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <BarChart data={withoutZeros(chart.rows, chart.series.map((entry) => entry.name))} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                 <CartesianGrid stroke="var(--grid)" vertical={false} />
                 <XAxis dataKey="date" stroke="var(--muted)" tickLine={false} minTickGap={24} tickFormatter={shortDay} />
                 <YAxis

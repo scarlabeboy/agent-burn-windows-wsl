@@ -27,7 +27,7 @@ import {
 import { formatNumber, getLang, locale, percent, t } from "./i18n";
 import { pricingTip } from "./pricingFormat";
 import { Glyph, TitleIcon, type GlyphKind } from "./TitleIcons";
-import { ChartLabel } from "./ChartLabel";
+import { ChartLabel, withoutZeros } from "./ChartLabel";
 import { Tooltip as InfoTooltip } from "./Tooltip";
 import { useNow } from "./useNow";
 
@@ -247,7 +247,7 @@ export function SpendChart({
       </header>
       <div className="chart">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <BarChart data={withoutZeros(rows, report.agents.map((agent) => agent.agent))} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="var(--grid)" vertical={false} />
             <XAxis
               dataKey="bucket"

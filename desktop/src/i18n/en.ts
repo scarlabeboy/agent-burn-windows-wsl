@@ -4,7 +4,7 @@ import type { Strings } from "./fr";
 export const en: Strings = {
   app: {
     settings: "Settings",
-    settingsSub: "Startup, data, WSL, updates and harnesses",
+    settingsSub: "General, background, data, quotas, WSL, harnesses and updates",
     closeSettings: "Close settings",
     overview: "Overview",
     computer: "Computer",
@@ -78,11 +78,11 @@ export const en: Strings = {
     trayIconIdle: "Shows the logo while quotas are not read.",
     trayLogo: "Logo",
     trayWindow: "Quota shown",
-    trayWindows: { session: "5-hour session", weekly: "Weekly", tightest: "Tightest" },
+    trayWindows: { session: "5-hour session", weekly: "Weekly", tightest: "Lowest" },
     trayWindowHints: {
       session: "A session not started yet has all of its quota: the icon then shows the logo.",
       weekly: "The weekly quota, whatever the session.",
-      tightest: "Whichever of the session and the week has less left.",
+      tightest: "The lower of the two, 5-hour session or week: the icon switches between them by itself.",
     },
     data: "Data",
     offline: "Offline mode",

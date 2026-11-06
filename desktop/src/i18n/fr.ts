@@ -5,7 +5,7 @@
 export const fr = {
   app: {
     settings: "Réglages",
-    settingsSub: "Démarrage, données, WSL, mises à jour et harness",
+    settingsSub: "Général, arrière-plan, données, quotas, WSL, harness et mises à jour",
     closeSettings: "Fermer les réglages",
     overview: "Vue d'ensemble",
     computer: "Ordinateur",
@@ -80,11 +80,11 @@ export const fr = {
     trayIconIdle: "Affiche le logo tant que les quotas ne sont pas lus.",
     trayLogo: "Logo",
     trayWindow: "Quota affiché",
-    trayWindows: { session: "Session 5 h", weekly: "Semaine 7 j", tightest: "Le plus serré" },
+    trayWindows: { session: "Session 5 h", weekly: "Semaine 7 j", tightest: "Le plus bas" },
     trayWindowHints: {
       session: "Une session pas encore commencée a tout son quota : l'icône montre alors le logo.",
       weekly: "Le quota de la semaine, quelle que soit la session.",
-      tightest: "Celui de la session ou de la semaine qui a le moins de reste.",
+      tightest: "Le plus bas des deux, session 5 h ou semaine : l'icône passe de l'un à l'autre toute seule.",
     },
     data: "Données",
     offline: "Mode hors ligne",

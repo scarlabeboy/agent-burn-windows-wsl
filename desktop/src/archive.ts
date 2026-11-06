@@ -159,6 +159,13 @@ async function loadStore<T>(name: StoreName, valid: (value: T) => boolean): Prom
   return null;
 }
 
+/**
+ * A series that never left 0 %. Codex reports a session window even when no session has
+ * started, resetting a full window from each reading: up to 0.6.1 each one was stored as a cycle
+ * of its own, every two minutes. Such a series is no cycle to show, and is dropped.
+ */
+const unused = (samples: Sample[]): boolean => samples.every((sample) => sample.used === 0);
+
 /** Load saved quota history, report cache and daily metrics, so the app opens with data. */
 export async function loadArchive(): Promise<void> {
   const [savedQuota, savedReports, savedDaily] = await Promise.all([
@@ -168,6 +175,9 @@ export async function loadArchive(): Promise<void> {
   ]);
   if (savedQuota) {
     quota = { version: 1, series: savedQuota.series, backfilled: savedQuota.backfilled ?? {} };
+    const empty = Object.keys(quota.series).filter((key) => unused(quota.series[key]));
+    for (const key of empty) delete quota.series[key];
+    if (empty.length > 0) save("quota-history");
   }
   if (savedReports) reports = savedReports;
   if (savedDaily) daily = savedDaily;
@@ -242,7 +252,7 @@ export function readSeries(harness: string, windowMinutes: number, startMs: numb
 
 /**
  * The end times of the recorded cycles of one window that ended before `beforeMs` (the end of
- * the current cycle, or now when none is under way), newest first. A cycle without any sample
+ * the current cycle, or now when none is under way), newest first. A cycle without any usage
  * left to show is skipped.
  */
 export function pastCycles(harness: string, windowMinutes: number, beforeMs: number): number[] {
@@ -251,7 +261,7 @@ export function pastCycles(harness: string, windowMinutes: number, beforeMs: num
     .filter(([name, minutes]) => name === harness && Number(minutes) === windowMinutes)
     .map(([, , endMinute]) => Number(endMinute) * 60_000)
     .filter((end) => end < beforeMs - SAME_CYCLE_MS)
-    .filter((end) => readSeries(harness, windowMinutes, end - windowMinutes * 60_000).length > 0)
+    .filter((end) => !unused(readSeries(harness, windowMinutes, end - windowMinutes * 60_000)))
     .sort((a, b) => b - a);
   return ends.filter((end, index) => index === 0 || ends[index - 1] - end > SAME_CYCLE_MS);
 }
@@ -315,6 +325,9 @@ export function recordReading(reading: QuotaReading): QuotaReading {
   let dirty = false;
   const shown = new Map<QuotaWindow, QuotaWindow>();
   for (const window of windows) {
+    // An untouched window resetting a full window from now: an idle Codex session, whose reset
+    // moves with every reading (see `unused`). Nothing to record until it is used.
+    if (window.usedPercent === 0 && window.elapsedPercent < 1) continue;
     const start = now - (window.elapsedPercent / 100) * window.windowMinutes * 60_000;
     const end = endMinuteOf(window.windowMinutes, start);
     const key = resolveKey(reading.agent, window.windowMinutes, end);

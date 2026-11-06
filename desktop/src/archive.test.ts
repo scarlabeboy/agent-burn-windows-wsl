@@ -102,3 +102,14 @@ test("two series of one cycle are filtered together, without a zigzag", () => {
   mergeBackfill("codex", "other", [{ windowMinutes: SESSION, endMinute: end + 1, samples: [[at(150), 25]] }], 0);
   assert.deepEqual(readSeries("codex", SESSION, (end - SESSION) * 60_000).map((sample) => sample.used), [25, 31]);
 });
+
+test("an idle Codex session is not recorded, and a cycle that stayed at 0 % is not offered", () => {
+  const SESSION = 300;
+  const observedAt = Date.UTC(2026, 10, 9, 12, 0);
+  // Untouched, resetting a full window from now: no session has started.
+  recordReading({ agent: "codex", observedAt, window: { windowMinutes: SESSION, usedPercent: 0, elapsedPercent: 0 } });
+  const end = observedAt / 60_000 + SESSION;
+  assert.deepEqual(readSeries("codex", SESSION, observedAt), []);
+  mergeBackfill("codex", "test", [{ windowMinutes: SESSION, endMinute: end - 600, samples: [[(end - 800) * 60_000, 0]] }], 0);
+  assert.ok(!pastCycles("codex", SESSION, end * 60_000).includes((end - 600) * 60_000));
+});
