@@ -31,6 +31,8 @@ export function limitDays(cycles: Cycle[], nowMs: number, days = 30): LimitDay[]
     }
     return day;
   };
+  // `used` is the highest reading of the cycle so far: the filter lets a reading dip by a point
+  // (two sources a point apart), and climbing back to that peak is no new use.
   let previous: { t: number; used: number; cycle: number } | null = null;
   cycles.forEach((cycle, index) => {
     for (const sample of cycle.samples) {
@@ -45,7 +47,7 @@ export function limitDays(cycles: Cycle[], nowMs: number, days = 30): LimitDay[]
         if (dayOf(from) === day.date) day.measured += used;
         else day.approx += used;
       }
-      previous = { t: sample.t, used: sample.used, cycle: index };
+      previous = { t: sample.t, used: sameCycle && previous ? Math.max(previous.used, sample.used) : sample.used, cycle: index };
     }
   });
   const readDays = [...byDay.keys()].sort();

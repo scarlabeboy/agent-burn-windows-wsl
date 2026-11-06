@@ -596,10 +596,11 @@ function PastCard({
   const samples = readSeries(card.harness, windowMinutes, startMs);
   const last = samples[samples.length - 1];
   const model = pastGauge(windowMinutes, endMs, last);
-  // A weekly range shows both dates; a session shows its day once.
+  // A weekly range shows both dates; a session shows its day once, twice if it ran past midnight.
+  const sameDay = new Date(startMs).toDateString() === new Date(endMs).toDateString();
   const range = weekly
     ? `${formatAxis(startMs, true)} → ${formatAxis(endMs, true)}`
-    : `${formatDay(startMs)} → ${formatClock(endMs, false)}`;
+    : `${formatDay(startMs)} → ${sameDay ? formatClock(endMs, false) : formatDay(endMs)}`;
   const text = t().views;
   return (
     <div className="gauge-card past">

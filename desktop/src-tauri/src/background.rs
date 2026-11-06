@@ -183,8 +183,11 @@ pub fn set_tray_icon(app: AppHandle, rgba: Option<Vec<u8>>, size: u32) -> Result
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
         return Ok(());
     };
+    // The page draws 32 pixels; anything past this bound is not a tray picture.
+    const MAX_SIZE: u32 = 256;
+    let expected = (size <= MAX_SIZE).then(|| size as usize * size as usize * 4);
     let icon = match rgba {
-        Some(bytes) if bytes.len() == (size * size * 4) as usize => Some(Image::new_owned(bytes, size, size)),
+        Some(bytes) if Some(bytes.len()) == expected => Some(Image::new_owned(bytes, size, size)),
         Some(_) => return Err("The tray picture does not match its size.".into()),
         None => app.default_window_icon().map(|icon| icon.clone().to_owned()),
     };

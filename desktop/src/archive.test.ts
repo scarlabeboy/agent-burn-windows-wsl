@@ -82,3 +82,14 @@ test("past cycles of a window are listed newest first, one per cycle", () => {
   assert.deepEqual(pastCycles("codex", SESSION, (end - 300) * 60_000), [(end - 600) * 60_000]);
   assert.deepEqual(pastCycles("codex", SESSION, (end - 600) * 60_000), []);
 });
+
+test("a cycle stored under two ends two minutes apart is read as one", () => {
+  const SESSION = 300;
+  const end = Date.UTC(2026, 10, 7, 12, 0) / 60_000;
+  const at = (minutes: number) => (end - minutes) * 60_000;
+  mergeBackfill("codex", "test", [{ windowMinutes: SESSION, endMinute: end - 1, samples: [[at(250), 10]] }], 0);
+  mergeBackfill("codex", "other", [{ windowMinutes: SESSION, endMinute: end + 1, samples: [[at(100), 30]] }], 0);
+  const startMs = (end - SESSION) * 60_000;
+  assert.deepEqual(readSeries("codex", SESSION, startMs).map((sample) => sample.used), [10, 30]);
+  assert.deepEqual(readSeries("codex", SESSION, startMs + 60_000).map((sample) => sample.used), [10, 30]);
+});

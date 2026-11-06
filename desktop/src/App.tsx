@@ -75,6 +75,7 @@ import {
   offlineHint,
   quotaHint,
   limitUsageOffReason,
+  readingLimitOffReason,
   quotaOffReason,
   quotasActive,
   refreshHint,
@@ -186,10 +187,16 @@ const clockOf = (ms: number) => new Date(ms).toLocaleTimeString(locale(), { hour
  * The installed version's line: the last check and the next automatic one. It stays the same
  * when a version is found, which gets a line of its own (`foundHint`).
  */
-function checkHint(state: UpdateState, checkedAt: number | null, nextAt: number | null): string {
+function checkHint(
+  state: UpdateState,
+  checking: boolean,
+  checkError: string | null,
+  checkedAt: number | null,
+  nextAt: number | null,
+): string {
   const text = t().update;
-  if (state.status === "checking") return text.checking;
-  if (state.status === "error") return text.checkFailed(updateError(state.message));
+  if (checking) return text.checking;
+  if (checkError !== null) return text.checkFailed(updateError(checkError));
   const next = nextAt !== null ? ` · ${text.nextCheck(clockOf(nextAt))}` : "";
   if (checkedAt === null) return `${text.notChecked}${next}`;
   const last = state.status === "none" ? text.upToDate(clockOf(checkedAt)) : text.checkedAt(clockOf(checkedAt));
@@ -202,7 +209,9 @@ function foundHint(state: UpdateState, offline: boolean): string {
   if (state.status === "installing") {
     return state.percent !== undefined ? text.downloading(state.percent) : text.installing;
   }
-  if (offline && state.status === "available") return text.foundOffline(state.version);
+  if (state.status !== "available") return text.available;
+  if (state.installError !== undefined) return text.cannotInstall(updateError(state.installError));
+  if (offline) return text.foundOffline(state.version);
   return text.available;
 }
 
@@ -1281,11 +1290,11 @@ export default function App({ initialSettings, onThemeChange }: {
                 {/* Checking stays at hand when a version is found: a newer one may follow. */}
                 <SettingRow
                   title={text.settings.installedVersion(appVersion)}
-                  description={checkHint(updater.state, updater.checkedAt, updater.nextAt)}
+                  description={checkHint(updater.state, updater.checking, updater.checkError, updater.checkedAt, updater.nextAt)}
                 >
                   <button
                     className="btn"
-                    disabled={settings.offline || updater.state.status === "checking" || updater.state.status === "installing"}
+                    disabled={settings.offline || updater.checking || updater.state.status === "installing"}
                     onClick={() => void updater.checkNow()}
                   >
                     {text.settings.checkNow}
@@ -1413,7 +1422,7 @@ export default function App({ initialSettings, onThemeChange }: {
                       label={label}
                     />
                   )}
-                  {page === "claude" && <ReadingLimitSection offReason={limitUsageOffReason(settings)} />}
+                  {page === "claude" && <ReadingLimitSection offReason={readingLimitOffReason(settings)} />}
                   {range && (!selected || noUsage(selected.totalTokens, selected.totalCost)) ? (
                     <EmptyPeriod period={periodLabel(effectivePeriod)} harness={agentLabel(page)} />
                   ) : selected ? (

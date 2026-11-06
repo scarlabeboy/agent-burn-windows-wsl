@@ -58,6 +58,14 @@ export function subscriptionOffReason(settings: Settings): string | undefined {
   return undefined;
 }
 
+/**
+ * Why the weekly Claude limit per day is not shown. It is worked out from the readings archived
+ * on this computer, so offline mode still shows what was read before.
+ */
+export function readingLimitOffReason(settings: Settings): string | undefined {
+  return settings.quotas ? undefined : t().hints.limitUsageOffSwitch;
+}
+
 /** Why the weekly Codex limit per day is not read: it comes from the ChatGPT dashboard. */
 export function limitUsageOffReason(settings: Settings): string | undefined {
   if (settings.offline) return t().hints.limitUsageOffOffline;

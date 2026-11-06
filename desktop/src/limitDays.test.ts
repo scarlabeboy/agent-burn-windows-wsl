@@ -55,3 +55,8 @@ test("only the last days are kept, and nothing without any reading", () => {
     ["2026-11-03", "2026-11-04", "2026-11-05"],
   );
 });
+
+test("a reading a point below the cycle's peak, then back to it, adds nothing", () => {
+  const [day] = limitDays([cycle(at(2, 8), [[at(2, 9), 10], [at(2, 10), 11], [at(2, 11), 10], [at(2, 12), 11]])], at(2, 13));
+  assert.equal(day.measured, 11);
+});

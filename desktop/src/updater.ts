@@ -6,7 +6,7 @@ import { flush } from "./archive";
 /** First automatic check after startup, then this often. */
 const FIRST_CHECK_MS = 20_000;
 const CHECK_EVERY_MS = 6 * 3600_000;
-export const REPO_URL ="https://github.com/scarlabeboy/agent-burn-windows-wsl";
+export const REPO_URL = "https://github.com/scarlabeboy/agent-burn-windows-wsl";
 
 /** The notes of every version, to read back through them, skipped updates included. */
 export const CHANGELOG_URL = `${REPO_URL}/blob/main/desktop/CHANGELOG.md`;
@@ -18,14 +18,16 @@ export interface AvailableUpdate {
   notes?: string;
 }
 
+/**
+ * What is known of a newer version. A check under way or failed does not change it (see
+ * `checking` and `checkError`): a version found stays offered whatever the next check does.
+ */
 export type UpdateState =
   | { status: "idle" }
-  | { status: "checking" }
   | { status: "none"; checkedAt: number }
-  | ({ status: "available" } & AvailableUpdate)
-  | ({ status: "installing"; percent?: number } & AvailableUpdate)
-  /** The updater's own message, said in the interface language when shown (`updateError`). */
-  | { status: "error"; message: string };
+  /** `installError`: the updater's own message, said in the interface language when shown (`updateError`). */
+  | ({ status: "available"; installError?: string } & AvailableUpdate)
+  | ({ status: "installing"; percent?: number } & AvailableUpdate);
 
 /**
  * New releases come from the GitHub releases, signed: the updater refuses a file whose signature
@@ -38,6 +40,9 @@ export function useUpdater(auto: boolean, offline: boolean) {
   const [checkedAt, setCheckedAt] = useState<number | null>(null);
   /** When the next automatic check is due; null while they are off. */
   const [nextAt, setNextAt] = useState<number | null>(null);
+  const [checking, setChecking] = useState(false);
+  /** The last check's failure, cleared by the next check; said like `installError`. */
+  const [checkError, setCheckError] = useState<string | null>(null);
   const update = useRef<Update | null>(null);
   // Once an install starts, no check may replace its progress or the update it downloads: a
   // timer can fire meanwhile, and a check already under way can answer after it began.
@@ -45,7 +50,8 @@ export function useUpdater(auto: boolean, offline: boolean) {
 
   const checkNow = useCallback(async () => {
     if (installing.current) return;
-    setState({ status: "checking" });
+    setChecking(true);
+    setCheckError(null);
     try {
       const found = await check();
       if (installing.current) return;
@@ -63,7 +69,9 @@ export function useUpdater(auto: boolean, offline: boolean) {
           : { status: "none", checkedAt: Date.now() },
       );
     } catch (error) {
-      if (!installing.current) setState({ status: "error", message: String(error) });
+      if (!installing.current) setCheckError(String(error));
+    } finally {
+      setChecking(false);
     }
   }, []);
 
@@ -124,9 +132,9 @@ export function useUpdater(auto: boolean, offline: boolean) {
       await relaunch();
     } catch (error) {
       installing.current = false;
-      setState({ status: "error", message: String(error) });
+      setState({ status: "available", ...release, installError: String(error) });
     }
   }, []);
 
-  return { state, checkedAt, nextAt, checkNow, install };
+  return { state, checking, checkError, checkedAt, nextAt, checkNow, install };
 }

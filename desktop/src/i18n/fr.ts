@@ -149,7 +149,6 @@ export const fr = {
     cannotInstall: (message: string) => `Installation impossible : ${message}`,
     preparing: "Préparation…",
     later: "Plus tard",
-    close: "Fermer",
     install: "Installer",
   },
   hints: {
@@ -166,13 +165,13 @@ export const fr = {
     autoUpdateOffline: "Désactivé en mode hors ligne : aucune recherche sur GitHub.",
     autoUpdateOn: "Au démarrage puis toutes les 6 heures, sur GitHub. Rien n'est installé sans votre accord.",
     quotaOffOffline: "Quota non lu : mode hors ligne activé (Réglages › Données).",
-    quotaOffSwitch: "Quota non lu : la lecture des quotas est désactivée (Réglages › Données).",
+    quotaOffSwitch: "Quota non lu : la lecture des quotas est désactivée (Réglages › Quotas).",
     subscriptionOffOffline:
       "Valeur et rythme indisponibles en mode hors ligne : ils demandent les tarifs et le quota en direct.",
-    subscriptionOffSwitch: "Valeur et rythme indisponibles : la lecture des quotas est désactivée (Réglages › Données).",
+    subscriptionOffSwitch: "Valeur et rythme indisponibles : la lecture des quotas est désactivée (Réglages › Quotas).",
     limitUsageOffOffline: "Limite hebdomadaire par jour indisponible en mode hors ligne : elle vient du réseau.",
     limitUsageOffSwitch:
-      "Limite hebdomadaire par jour non lue : la lecture des quotas est désactivée (Réglages › Données).",
+      "Limite hebdomadaire par jour non lue : la lecture des quotas est désactivée (Réglages › Quotas).",
   },
   periods: {
     all: "Toute la période",

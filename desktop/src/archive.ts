@@ -220,14 +220,24 @@ function resolveKey(harness: string, windowMinutes: number, endMinute: number): 
   );
 }
 
-/** The samples of one cycle for a chart, without the provider's over-counts (see quotaFilter). */
-export function readSeries(harness: string, windowMinutes: number, startMs: number): Sample[] {
-  const raw = quota.series[resolveKey(harness, windowMinutes, endMinuteOf(windowMinutes, startMs))] ?? [];
-  return consistentSamples(raw, windowMinutes);
-}
-
 /** A cycle ending within this of another one is the same cycle (see resolveKey). */
 const SAME_CYCLE_MS = 2 * 60_000;
+
+/**
+ * The samples of one cycle for a chart, without the provider's over-counts (see quotaFilter).
+ * Every series of that cycle is read: a reset can be rounded a minute either way, so one cycle
+ * may have been stored under two ends two minutes apart (as weeklyCycles merges them).
+ */
+export function readSeries(harness: string, windowMinutes: number, startMs: number): Sample[] {
+  const endMinute = endMinuteOf(windowMinutes, startMs);
+  const spread = SAME_CYCLE_MS / 60_000;
+  const series: Sample[][] = [];
+  for (let offset = -spread; offset <= spread; offset++) {
+    const raw = quota.series[keyOf(harness, windowMinutes, endMinute + offset)];
+    if (raw) series.push(consistentSamples(raw, windowMinutes));
+  }
+  return series.length > 1 ? series.reduce(mergeSamples) : (series[0] ?? []);
+}
 
 /**
  * The end times of the recorded cycles of one window that ended before `beforeMs` (the end of

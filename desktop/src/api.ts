@@ -179,5 +179,5 @@ export const setTrayTooltip = (text: string) => invoke<void>("set_tray_tooltip",
 /** A square RGBA picture for the notification-area icon; null puts the logo back. */
 export const setTrayIcon = (rgba: number[] | null, size: number) =>
   invoke<void>("set_tray_icon", { rgba, size });
-export const setTrayLabels =(labels: { open: string; refresh: string; quit: string }) =>
+export const setTrayLabels = (labels: { open: string; refresh: string; quit: string }) =>
   invoke<void>("set_tray_labels", labels);

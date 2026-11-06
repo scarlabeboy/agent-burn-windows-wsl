@@ -147,7 +147,6 @@ export const en: Strings = {
     cannotInstall: (message: string) => `Installation failed: ${message}`,
     preparing: "Preparing…",
     later: "Later",
-    close: "Close",
     install: "Install",
   },
   hints: {
@@ -164,11 +163,11 @@ export const en: Strings = {
     autoUpdateOffline: "Off in offline mode: no check on GitHub.",
     autoUpdateOn: "At startup then every 6 hours, on GitHub. Nothing is installed without your consent.",
     quotaOffOffline: "Quota not read: offline mode is on (Settings › Data).",
-    quotaOffSwitch: "Quota not read: quota reading is off (Settings › Data).",
+    quotaOffSwitch: "Quota not read: quota reading is off (Settings › Quotas).",
     subscriptionOffOffline: "Value and pace unavailable in offline mode: they need live prices and the live quota.",
-    subscriptionOffSwitch: "Value and pace unavailable: quota reading is off (Settings › Data).",
+    subscriptionOffSwitch: "Value and pace unavailable: quota reading is off (Settings › Quotas).",
     limitUsageOffOffline: "Weekly limit per day unavailable in offline mode: it comes from the network.",
-    limitUsageOffSwitch: "Weekly limit per day not read: quota reading is off (Settings › Data).",
+    limitUsageOffSwitch: "Weekly limit per day not read: quota reading is off (Settings › Quotas).",
   },
   periods: {
     all: "All time",

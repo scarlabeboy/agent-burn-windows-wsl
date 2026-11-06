@@ -21,7 +21,7 @@ export function UpdateDialog({
   onClose: () => void;
 }) {
   const installing = state.status === "installing";
-  const open = state.status === "available" || state.status === "installing" || state.status === "error";
+  const open = state.status === "available" || state.status === "installing";
   const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -41,10 +41,10 @@ export function UpdateDialog({
   }, [open]);
 
   if (!open) return null;
-  const release = state.status === "error" ? undefined : state;
-  const day = releaseDay(release?.date);
-  const sections = parseNotes(release?.notes, getLang());
-  const skipped = release ? skippedVersions(release.notes, release.currentVersion, release.version) : [];
+  const day = releaseDay(state.date);
+  const sections = parseNotes(state.notes, getLang());
+  const skipped = skippedVersions(state.notes, state.currentVersion, state.version);
+  const installError = state.status === "available" ? state.installError : undefined;
   const text = t().update;
 
   return (
@@ -59,47 +59,41 @@ export function UpdateDialog({
         onClick={(event) => event.stopPropagation()}
       >
         <h2 id="update-title">{text.dialogTitle}</h2>
-        {release ? (
-          <>
-            <p className="muted small">{text.dialogVersion(release.version, day, release.currentVersion)}</p>
-            {sections.length > 0 && (
-              <div className="notes">
-                {sections.map((section, index) => (
-                  <section key={index}>
-                    {section.title && <h3>{section.title}</h3>}
-                    <ul>
-                      {section.items.map((item, line) => (
-                        <li key={line}>{item}</li>
-                      ))}
-                    </ul>
-                  </section>
-                ))}
-              </div>
-            )}
-            {skipped.length > 0 && <p className="small skipped-note">{text.skipped(skipped)}</p>}
-            <button className="link" onClick={() => void openUrl(CHANGELOG_URL)}>
-              {text.allNotes}
-            </button>
-            <p className="muted small">{offline ? text.offlineInstall : text.restartNote}</p>
-          </>
-        ) : (
-          <p className="notice error">{text.cannotInstall(state.status === "error" ? updateError(state.message) : "")}</p>
+        <p className="muted small">{text.dialogVersion(state.version, day, state.currentVersion)}</p>
+        {sections.length > 0 && (
+          <div className="notes">
+            {sections.map((section, index) => (
+              <section key={index}>
+                {section.title && <h3>{section.title}</h3>}
+                <ul>
+                  {section.items.map((item, line) => (
+                    <li key={line}>{item}</li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
         )}
+        {skipped.length > 0 && <p className="small skipped-note">{text.skipped(skipped)}</p>}
+        <button className="link" onClick={() => void openUrl(CHANGELOG_URL)}>
+          {text.allNotes}
+        </button>
+        <p className="muted small">{offline ? text.offlineInstall : text.restartNote}</p>
+        {/* A failed install can be tried again from here. */}
+        {installError !== undefined && <p className="notice error">{text.cannotInstall(updateError(installError))}</p>}
         <div className="modal-actions">
-          {installing ? (
+          {state.status === "installing" ? (
             <span className="muted">
               {state.percent !== undefined ? text.downloading(state.percent) : text.preparing}
             </span>
           ) : (
             <>
               <button className="btn" onClick={onClose}>
-                {release ? text.later : text.close}
+                {text.later}
               </button>
-              {release && (
-                <button className="btn primary" onClick={onInstall} disabled={offline}>
-                  {text.install}
-                </button>
-              )}
+              <button className="btn primary" onClick={onInstall} disabled={offline}>
+                {text.install}
+              </button>
             </>
           )}
         </div>
