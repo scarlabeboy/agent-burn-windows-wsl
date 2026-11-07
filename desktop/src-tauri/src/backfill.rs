@@ -1,10 +1,12 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     env,
     fs::{self, File},
     io::{self, BufRead, BufReader, Read},
     path::{Path, PathBuf},
-    time::UNIX_EPOCH,
+    sync::{mpsc, Mutex},
+    thread,
+    time::{Duration, UNIX_EPOCH},
 };
 
 use memchr::memmem;
@@ -25,20 +27,51 @@ pub struct BackfillSeries {
     pub samples: Vec<(i64, f64)>,
 }
 
-fn codex_sessions(distro: Option<&str>) -> Result<PathBuf, String> {
-    let home = match distro {
-        None => {
-            if let Some(codex_home) = env::var_os("CODEX_HOME") {
-                return Ok(PathBuf::from(codex_home).join("sessions"));
-            }
-            PathBuf::from(env::var_os("USERPROFILE").ok_or("USERPROFILE is not set")?)
-        }
+/// A frozen WSL share can block a read forever: past this, the backfill gives up for this run.
+const BACKFILL_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// Sources with a backfill under way, until its reads really end (even after a timeout).
+static RUNNING: Mutex<BTreeSet<String>> = Mutex::new(BTreeSet::new());
+
+fn codex_home(distro: Option<&str>) -> Result<PathBuf, String> {
+    Ok(match distro {
+        None => match env::var_os("CODEX_HOME") {
+            Some(codex_home) => PathBuf::from(codex_home),
+            None => PathBuf::from(env::var_os("USERPROFILE").ok_or("USERPROFILE is not set")?)
+                .join(".codex"),
+        },
         Some(distro) => {
             let user = sources::running_user(distro)?;
-            PathBuf::from(sources::wsl_home_unc(distro, &user))
+            PathBuf::from(sources::wsl_home_unc(distro, &user)).join(".codex")
         }
-    };
-    Ok(home.join(".codex").join("sessions"))
+    })
+}
+
+/// `codex_rate_limits` bounded in time, one run per source at a time. The reads go on in their
+/// own thread after a timeout (a blocked read cannot be interrupted), and the source stays busy
+/// until they end, so a frozen share never piles up reads.
+pub fn codex_rate_limits_bounded(
+    distro: Option<String>,
+    since_ms: i64,
+) -> Result<Vec<BackfillSeries>, String> {
+    let source = distro.clone().unwrap_or_default();
+    {
+        let mut running = RUNNING.lock().map_err(|error| error.to_string())?;
+        if !running.insert(source.clone()) {
+            return Err("a backfill of this source is already running".into());
+        }
+    }
+    let (sender, receiver) = mpsc::channel();
+    thread::spawn(move || {
+        let result = codex_rate_limits(distro.as_deref(), since_ms);
+        if let Ok(mut running) = RUNNING.lock() {
+            running.remove(&source);
+        }
+        let _ = sender.send(result);
+    });
+    receiver
+        .recv_timeout(BACKFILL_TIMEOUT)
+        .unwrap_or_else(|_| Err("the backfill took too long".into()))
 }
 
 fn collect(dir: &Path, cutoff_ms: i64, files: &mut Vec<PathBuf>) {
@@ -149,9 +182,11 @@ pub fn codex_rate_limits(
     distro: Option<&str>,
     since_ms: i64,
 ) -> Result<Vec<BackfillSeries>, String> {
-    let root = codex_sessions(distro)?;
+    let home = codex_home(distro)?;
     let mut files = Vec::new();
-    collect(&root, since_ms, &mut files);
+    // Codex moves the sessions archived from its interface to their own folder.
+    collect(&home.join("sessions"), since_ms, &mut files);
+    collect(&home.join("archived_sessions"), since_ms, &mut files);
 
     let finder = memmem::Finder::new(b"\"rate_limits\"");
     let mut found: BTreeMap<Key, Vec<(i64, f64)>> = BTreeMap::new();

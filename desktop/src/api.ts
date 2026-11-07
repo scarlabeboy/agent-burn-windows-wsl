@@ -110,15 +110,26 @@ export function readSettings(): Settings {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return defaults;
     const stored = JSON.parse(raw);
+    if (typeof stored !== "object" || stored === null || Array.isArray(stored)) return defaults;
     const { wslEnabled: _old, ...rest } = stored;
     // "Every minute" is no longer offered: a scan can take half a minute.
-    const refreshMinutes = stored.refreshMinutes === 1 ? 5 : (stored.refreshMinutes ?? defaults.refreshMinutes);
+    const refreshMinutes =
+      stored.refreshMinutes === 1
+        ? 5
+        : typeof stored.refreshMinutes === "number" && Number.isFinite(stored.refreshMinutes)
+          ? stored.refreshMinutes
+          : defaults.refreshMinutes;
+    // A damaged value here would break the first render (`Object.keys(null)`).
+    const harnessStates =
+      typeof stored.harnessStates === "object" && stored.harnessStates !== null && !Array.isArray(stored.harnessStates)
+        ? stored.harnessStates
+        : defaults.harnessStates;
     // An unknown language is dropped, so Windows' own language decides again.
     const language = isLang(stored.language) ? stored.language : undefined;
     const theme = stored.theme === "dark" || stored.theme === "light" ? stored.theme : "system";
     const trayIcon = (QUOTA_HARNESSES as string[]).includes(stored.trayIcon) ? stored.trayIcon : "logo";
     const trayWindow = ["session", "weekly"].includes(stored.trayWindow) ? stored.trayWindow : "tightest";
-    return { ...defaults, ...rest, ...wslSettings(stored), refreshMinutes, language, theme, trayIcon, trayWindow };
+    return { ...defaults, ...rest, ...wslSettings(stored), refreshMinutes, harnessStates, language, theme, trayIcon, trayWindow };
   } catch {
     return defaults;
   }
@@ -181,3 +192,5 @@ export const setTrayIcon = (rgba: number[] | null, size: number) =>
   invoke<void>("set_tray_icon", { rgba, size });
 export const setTrayLabels = (labels: { open: string; refresh: string; quit: string }) =>
   invoke<void>("set_tray_labels", labels);
+/** Ends the process, once the archive is saved after `quit-requested`. */
+export const quitApp = () => invoke<void>("quit_app");

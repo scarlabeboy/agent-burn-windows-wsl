@@ -6,6 +6,9 @@ import { flush } from "./archive";
 /** First automatic check after startup, then this often. */
 const FIRST_CHECK_MS = 20_000;
 const CHECK_EVERY_MS = 6 * 3600_000;
+/** A request that never answers fails after this, so a later check or install can run. */
+const CHECK_TIMEOUT_MS = 30_000;
+const DOWNLOAD_TIMEOUT_MS = 10 * 60_000;
 export const REPO_URL = "https://github.com/scarlabeboy/agent-burn-windows-wsl";
 
 /** The notes of every version, to read back through them, skipped updates included. */
@@ -56,7 +59,7 @@ export function useUpdater(auto: boolean, offline: boolean) {
     setChecking(true);
     setCheckError(null);
     try {
-      const found = await check();
+      const found = await check({ timeout: CHECK_TIMEOUT_MS });
       if (installing.current) return;
       update.current = found;
       setCheckedAt(Date.now());
@@ -114,7 +117,22 @@ export function useUpdater(auto: boolean, offline: boolean) {
     let received = 0;
     setState({ status: "installing", ...release });
     try {
-      // Give pending history saves up to three seconds before the installer can exit the app.
+      await pending.download(
+        (event) => {
+          if (event.event === "Started") total = event.data.contentLength ?? 0;
+          if (event.event === "Progress") {
+            received += event.data.chunkLength;
+            setState({
+              status: "installing",
+              ...release,
+              percent: total > 0 ? Math.round((received / total) * 100) : undefined,
+            });
+          }
+        },
+        { timeout: DOWNLOAD_TIMEOUT_MS },
+      );
+      // Saved right before installing, as the installer exits the app: readings that came in
+      // during the download are kept too. Up to three seconds, so a stuck save cannot block it.
       let saveTimeout: ReturnType<typeof setTimeout> | undefined;
       try {
         await Promise.race([
@@ -124,17 +142,7 @@ export function useUpdater(auto: boolean, offline: boolean) {
       } finally {
         clearTimeout(saveTimeout);
       }
-      await pending.downloadAndInstall((event) => {
-        if (event.event === "Started") total = event.data.contentLength ?? 0;
-        if (event.event === "Progress") {
-          received += event.data.chunkLength;
-          setState({
-            status: "installing",
-            ...release,
-            percent: total > 0 ? Math.round((received / total) * 100) : undefined,
-          });
-        }
-      });
+      await pending.install();
       await relaunch();
     } catch (error) {
       installing.current = false;

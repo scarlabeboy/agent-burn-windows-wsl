@@ -14,8 +14,9 @@ use tauri_plugin_autostart::ManagerExt;
 const TRAY_ID: &str = "main";
 /// Passed by the Windows startup entry so the app opens in the notification area only.
 pub const BACKGROUND_FLAG: &str = "--background";
-/// How long the page gets to save its data before a tray "Quit" ends the process.
-const QUIT_GRACE: Duration = Duration::from_millis(1500);
+/// How long the page gets to save its data and confirm (`quit_app`) before the process ends anyway.
+const QUIT_GRACE: Duration = Duration::from_secs(5);
+static QUITTING: AtomicBool = AtomicBool::new(false);
 /// Windows truncates longer tooltips.
 const MAX_TOOLTIP_CHARS: usize = 120;
 
@@ -57,15 +58,7 @@ pub fn build_tray(app: &AppHandle) -> tauri::Result<()> {
             "refresh" => {
                 let _ = app.emit("tray-refresh", ());
             }
-            "quit" => {
-                // The page saves its archive, then the process ends.
-                let _ = app.emit("quit-requested", ());
-                let handle = app.clone();
-                std::thread::spawn(move || {
-                    std::thread::sleep(QUIT_GRACE);
-                    handle.exit(0);
-                });
-            }
+            "quit" => request_quit(app),
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
@@ -93,11 +86,33 @@ pub fn on_window_event(window: &tauri::Window, event: &WindowEvent) {
             .state::<CloseToTray>()
             .0
             .load(Ordering::SeqCst);
+        api.prevent_close();
         if keep_running {
-            api.prevent_close();
             let _ = window.hide();
+        } else {
+            request_quit(window.app_handle());
         }
     }
+}
+
+/// Asks the page to save its archive; it answers with `quit_app` once saved. Should the page not
+/// answer (stuck or crashed), the process ends after `QUIT_GRACE`.
+fn request_quit(app: &AppHandle) {
+    if QUITTING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let _ = app.emit("quit-requested", ());
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(QUIT_GRACE);
+        handle.exit(0);
+    });
+}
+
+/// The page saved its archive after `quit-requested`: the process can end.
+#[tauri::command]
+pub fn quit_app(app: AppHandle) {
+    app.exit(0);
 }
 
 pub fn started_in_background() -> bool {

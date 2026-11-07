@@ -54,3 +54,28 @@ for (const { raw, icon, window } of trayCases) {
     assert.equal(settings.trayWindow, window);
   });
 }
+
+const damagedCases = [
+  { raw: '{"harnessStates":null,"refreshMinutes":"x"}', states: {}, minutes: 10 },
+  { raw: '{"harnessStates":["codex"],"refreshMinutes":null}', states: {}, minutes: 10 },
+  { raw: '{"harnessStates":{"pi":"off"},"refreshMinutes":0}', states: { pi: "off" }, minutes: 0 },
+  { raw: "null", states: {}, minutes: 10 },
+] as const;
+
+for (const { raw, states, minutes } of damagedCases) {
+  test(`readSettings repairs damaged values: ${raw}`, (context) => {
+    const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    context.after(() => {
+      if (original) Object.defineProperty(globalThis, "localStorage", original);
+      else Reflect.deleteProperty(globalThis, "localStorage");
+    });
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: { getItem: (key: string) => (key === "abf.settings" ? raw : null) },
+    });
+
+    const settings = readSettings();
+    assert.deepEqual(settings.harnessStates, states);
+    assert.equal(settings.refreshMinutes, minutes);
+  });
+}

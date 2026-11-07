@@ -16,6 +16,7 @@ import {
   setRestartOnCrash,
   setTrayIcon,
   setTrayLabels,
+  quitApp,
   setTrayTooltip,
   setWslKeepalive,
   writePeriod,
@@ -543,12 +544,13 @@ export default function App({ initialSettings, onThemeChange }: {
     return () => clearInterval(timer);
   }, [detected, refreshQuotas, quotasOn]);
 
-  // Tray menu actions, and a last save of the archive before the tray "Quit" ends the process.
-  // "Refresh quotas" reads the quotas; with quotas off it reads the usage instead.
+  // Tray menu actions, and a last save of the archive before the app quits (tray "Quit", or
+  // closing the window when it does not stay in the notification area): the process ends once
+  // saved. "Refresh quotas" reads the quotas; with quotas off it reads the usage instead.
   useEffect(() => {
     const unlisten = [
       listen("tray-refresh", () => (quotasOn ? refreshQuotas(true) : refresh())),
-      listen("quit-requested", () => flush()),
+      listen("quit-requested", () => void flush().finally(() => void quitApp())),
     ];
     return () => {
       unlisten.forEach((pending) => void pending.then((stop) => stop()));

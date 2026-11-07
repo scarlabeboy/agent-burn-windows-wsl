@@ -4,6 +4,8 @@ $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 Push-Location (Join-Path $root "rust")
 try { cargo build --release -p agent-burn --bin agent-burn } finally { Pop-Location }
+# A failing native command does not stop the script: never stage an old binary as ready.
+if ($LASTEXITCODE -ne 0) { throw "cargo build failed (exit code $LASTEXITCODE)" }
 $target = Join-Path $root "desktop\src-tauri\binaries"
 New-Item -ItemType Directory -Force $target | Out-Null
 Copy-Item (Join-Path $root "rust\target\release\agent-burn.exe") `

@@ -84,7 +84,7 @@ async fn backfill_codex(
     since_ms: i64,
 ) -> Result<Vec<backfill::BackfillSeries>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        backfill::codex_rate_limits(distro.as_deref(), since_ms)
+        backfill::codex_rate_limits_bounded(distro, since_ms)
     })
     .await
     .map_err(|error| error.to_string())?
@@ -190,7 +190,8 @@ fn main() {
             background::set_autostart,
             background::set_tray_tooltip,
             background::set_tray_icon,
-            background::set_tray_labels
+            background::set_tray_labels,
+            background::quit_app
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|error| {
