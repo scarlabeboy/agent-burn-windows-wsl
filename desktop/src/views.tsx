@@ -34,7 +34,7 @@ import { useNow } from "./useNow";
 
 /** "$12.50" in English, "12,50 $" in French. */
 const usd = (amount: string): string => (getLang() === "fr" ? `${amount} $` : `$${amount}`);
-import type { AgentReport, ClaudeAccount, ModelPricing, SubscriptionAgent, TokenBreakdown, UsageReport } from "./types";
+import type { AgentReport, ClaudeAccount, ModelPricing, ScopedWindow, SubscriptionAgent, TokenBreakdown, UsageReport } from "./types";
 import amp from "./assets/brands/amp.png";
 import claude from "./assets/brands/claude.png";
 import codex from "./assets/brands/codex.png";
@@ -710,7 +710,16 @@ function IdleSessionCard({ nav }: { nav: ReactNode }) {
 }
 
 /** Subscription quota of one harness: warning banner plus the 5-hour and weekly charts. */
-export function QuotaSection({ card, resetCredits }: { card: QuotaCard; resetCredits?: number }) {
+export function QuotaSection({
+  card,
+  resetCredits,
+  scoped = [],
+}: {
+  card: QuotaCard;
+  resetCredits?: number;
+  /** Weekly limits of one model (Claude Max and Ultra: Fable), part of the same quota. */
+  scoped?: ScopedWindow[];
+}) {
   const weekly = card.weekly;
   const monthly = isMonthly(weekly.window.windowMinutes);
   const spend = budget(weekly);
@@ -752,6 +761,24 @@ export function QuotaSection({ card, resetCredits }: { card: QuotaCard; resetCre
         )}
         <WindowCard title={monthly ? text.monthly : text.weekly} model={weekly} card={card} weekly nowMs={nowMs} wide={card.sessionless} />
       </div>
+      {scoped.length > 0 && (
+        <div className="scoped">
+          {scoped.map((window) => {
+            const left = Math.max(0, 100 - window.usedPercent);
+            return (
+              <div key={window.name}>
+                <div className="row small">
+                  <span>{text.scopedWeekly(window.name)}</span>
+                  <span>{text.percentLeft(left.toFixed(0))}</span>
+                </div>
+                <div className="bar">
+                  <div style={{ width: `${left}%`, background: agentColor(card.harness) }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
       <p className="muted small hint">{card.harness === "codex" ? text.codexHistory : text.claudeHistory}</p>
     </section>
   );
@@ -778,11 +805,10 @@ export function SubscriptionCard({
   offReason?: string;
 }) {
   const estimate = sub?.estimate ?? null;
-  const scoped = harness === "claude" ? (account?.scoped ?? []) : [];
   const extra = harness === "claude" && account?.extraEnabled ? account : undefined;
   // Without a quota the block still says the plan is not read, whether or not the CLI named one
   // (Codex has no entry at all without live limits).
-  if (!offReason && card && !sub && scoped.length === 0 && !extra) return null;
+  if (!offReason && card && !sub && !extra) return null;
   const known = sub?.plan && sub.plan !== "";
   const spend = card ? budget(card.weekly) : null;
   const text = t().views;
@@ -815,7 +841,8 @@ export function SubscriptionCard({
         </h2>
         <span className="chip">
           {agentLabel(harness)} · {known ? sub?.plan : text.planUnknown}
-          {sub?.pricePerMonth != null && ` · ${formatUsd(sub.pricePerMonth)}${text.perMonth}`}
+          {/* A free plan says so by its name, without a price of 0. */}
+          {sub?.pricePerMonth ? ` · ${formatUsd(sub.pricePerMonth)}${text.perMonth}` : null}
         </span>
       </header>
       {!known && harness === "claude" && <p className="muted small hint-top">{text.claudePlanUnknown}</p>}
@@ -830,7 +857,7 @@ export function SubscriptionCard({
                 value={
                   estimate.valueMultiple != null
                     ? `${decimal(estimate.valueMultiple)}×`
-                    : sub?.plan?.toLowerCase() === "free"
+                    : sub?.pricePerMonth === 0
                       ? text.free
                       : text.unknownPrice
                 }
@@ -859,21 +886,6 @@ export function SubscriptionCard({
                 : text.toLast
             }
           />
-        </div>
-      )}
-      {scoped.length > 0 && (
-        <div className="scoped">
-          {scoped.map((window) => (
-            <div key={window.name}>
-              <div className="row small">
-                <span>{text.scopedWeekly(window.name)}</span>
-                <span>{text.percentLeft(Math.max(0, 100 - window.usedPercent).toFixed(0))}</span>
-              </div>
-              <div className="bar">
-                <div style={{ width: `${Math.max(0, 100 - window.usedPercent)}%`, background: agentColor(harness) }} />
-              </div>
-            </div>
-          ))}
         </div>
       )}
       {extra && (

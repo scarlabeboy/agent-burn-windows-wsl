@@ -8,6 +8,7 @@ import { EmptyState } from "./EmptyState";
 import { errorText } from "./errors";
 import { SUBSCRIPTIONS, SUPPORTED_HARNESSES, disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
 import { setLang, systemLang, t } from "./i18n";
+import { planProfile, withPlanProfile } from "./plans";
 import { PERIODS, defaultGranularity, periodLabel, type Period } from "./periods";
 import { isMonthly, quotaCards, quotaFailure, type QuotaCard } from "./quota";
 import { SettingsPage } from "./SettingsPage";
@@ -23,7 +24,7 @@ import { loadedAtOf, reportOf } from "./sourceState";
 import { StatusBar, useAppVersion } from "./StatusBar";
 import { pickClaudeAccount, pickSubscription, withAccountSpend } from "./subscription";
 import { Tooltip } from "./Tooltip";
-import type { ModelPricing, QuotaReading, Settings, SourceId, TabId, UsageReport } from "./types";
+import { QUOTA_HARNESSES, type ModelPricing, type QuotaReading, type Settings, type SourceId, type TabId, type UsageReport } from "./types";
 import { UpdateDialog } from "./UpdateDialog";
 import { useUpdater } from "./updater";
 import { useCodexBackfill, useCodexLimitUsage } from "./useCodexHistory";
@@ -183,6 +184,14 @@ export default function App({ initialSettings, onThemeChange }: {
   // A quota is read in one environment: a tab shows only its own readings, and a source that
   // cannot be read now (WSL stopped) shows none rather than an old value. When several sources
   // are shown together (Computer), only the freshest reading of each harness is kept.
+  // A plan known to have no 5-hour session (Claude Ultra) shows none, from any source's scan.
+  const noSessionKey = QUOTA_HARNESSES.filter((harness) => {
+    const reports = sourceIds
+      .map((id) => reportOf(states[id]))
+      .filter((entry): entry is UsageReport => entry !== undefined);
+    const sub = pickSubscription(reports, harness);
+    return sub ? (planProfile(harness, sub.plan, sub.pricePerMonth)?.noSession ?? false) : false;
+  }).join(",");
   const quotaCardsFor = (ids: string[]): QuotaCard[] => {
     const freshest = new Map<string, { source: string; reading: QuotaReading }>();
     for (const id of ids.filter((entry) => readableIds.includes(entry as SourceId))) {
@@ -194,17 +203,17 @@ export default function App({ initialSettings, onThemeChange }: {
         }
       }
     }
-    return quotaCards([...freshest.values()]);
+    return quotaCards([...freshest.values()], noSessionKey ? noSessionKey.split(",") : []);
   };
   // Quotas that are no longer read are not shown anywhere: a stale reading looks live. Their
   // history stays in the archive and comes back with the next reading.
   const cards: QuotaCard[] = useMemo(
     () => (quotasOn ? quotaCardsFor(activeIds) : []),
-    [quotas, activeKey, readableKey, disabledKey, quotasOn],
+    [quotas, activeKey, readableKey, disabledKey, quotasOn, noSessionKey],
   );
   const accountCards: QuotaCard[] = useMemo(
     () => (quotasOn ? quotaCardsFor(sourceIds) : []),
-    [quotas, sourceIds, readableKey, disabledKey, quotasOn],
+    [quotas, sourceIds, readableKey, disabledKey, quotasOn, noSessionKey],
   );
   const pageCards = cards.filter((card) => card.harness === page);
 
@@ -541,12 +550,13 @@ export default function App({ initialSettings, onThemeChange }: {
                       key={card.harness}
                       card={card}
                       resetCredits={pickSubscription(sourceReports, card.harness)?.resetCreditsAvailable ?? undefined}
+                      scoped={card.harness === "claude" ? pickClaudeAccount(sourceReports)?.scoped : undefined}
                     />
                   ))}
                   {(page === "claude" || page === "codex") && (
                     <SubscriptionCard
                       harness={page}
-                      sub={withAccountSpend(pickSubscription(sourceReports, page), accountReadings)}
+                      sub={withPlanProfile(withAccountSpend(pickSubscription(sourceReports, page), accountReadings))}
                       account={pickClaudeAccount(sourceReports)}
                       card={pageCards[0]}
                       offReason={subscriptionOffReason(settings)}

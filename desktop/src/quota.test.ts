@@ -106,6 +106,31 @@ test("only a monthly quota without a session hides the session card", () => {
   assert.equal(isMonthly(WEEK), false);
 });
 
+test("a plan without a session (Claude Ultra) hides its card only when no session is read", () => {
+  const reading = (session: boolean): QuotaReading => ({
+    agent: "claude",
+    observedAt: NOW,
+    window: { usedPercent: 7, elapsedPercent: 20, windowMinutes: WEEK },
+    ...(session ? { sessionWindow: { usedPercent: 12, elapsedPercent: 30, windowMinutes: 300 } } : {}),
+  });
+  const sessionless = (session: boolean, noSession: string[]) =>
+    quotaCards([{ source: "Windows", reading: reading(session) }], noSession)[0].sessionless;
+  assert.equal(sessionless(false, ["claude"]), true, "Ultra on a verified account");
+  assert.equal(sessionless(true, ["claude"]), false, "Ultra not verified yet keeps its session");
+  assert.equal(sessionless(false, []), false, "Pro before the first message keeps its card");
+});
+
+test("the limit is not projected right after a reset", () => {
+  const week = (usedPercent: number, elapsedPercent: number) =>
+    gauge({ usedPercent, elapsedPercent, windowMinutes: WEEK }, NOW);
+  // 4 % used an hour and a half into the week would announce the limit for Wednesday.
+  assert.equal(week(4, 0.9).minutesToEmpty, null);
+  // A tenth of the quota used, or a tenth of the week gone, and the pace counts.
+  assert.notEqual(week(12, 2).minutesToEmpty, null);
+  assert.notEqual(week(30, 15).minutesToEmpty, null);
+  assert.equal(week(5, 15).minutesToEmpty, null, "on pace for 33 %");
+});
+
 test("the tray icon shows the chosen quota, or the tighter of the two", () => {
   const card = trayCard(30, 80);
   assert.equal(trayPercent([card], "weekly", NOW), 70);
