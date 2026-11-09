@@ -287,6 +287,10 @@ export const fr = {
     free: "Gratuit",
     unknownPrice: "prix inconnu",
     noEstimate: "Valeur et projection calculées dès que le quota commence à être utilisé.",
+    estimateUnavailable: "Valeur et projection indisponibles pour l'instant : elles reviennent au prochain scan.",
+    tooEarly: "trop tôt",
+    tooEarlyHint: "Projetée dès 10 % de la fenêtre écoulés ou du quota utilisés",
+    scopedAge: (age: string) => `relevé il y a ${age}`,
     claudePlanUnknown:
       "Le plan n'a pas pu être détecté : il est lu dans la connexion de Claude Code (commande claude) de cet environnement.",
     value: "Valeur / prix du forfait",

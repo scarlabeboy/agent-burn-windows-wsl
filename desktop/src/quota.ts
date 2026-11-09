@@ -87,12 +87,11 @@ export const idleSession = (window: QuotaWindow): boolean =>
  * the same account, so they collapse into a single card that lists every source.
  */
 export function quotaCards(
-  readings: { source: string; reading: QuotaReading }[],
-  /** Harnesses whose plan has no 5-hour session: without a session window, none is shown. */
-  noSession: string[] = [],
+  /** `noSession`: the plan of the reading's own source has no 5-hour session (Claude Ultra). */
+  readings: { source: string; reading: QuotaReading; noSession?: boolean }[],
 ): QuotaCard[] {
   const cards = new Map<string, QuotaCard>();
-  for (const { source, reading } of readings) {
+  for (const { source, reading, noSession } of readings) {
     const key = [
       reading.agent,
       reading.window.usedPercent,
@@ -114,7 +113,7 @@ export function quotaCards(
             : undefined,
         weekly: gauge(reading.window, reading.observedAt),
         sessionless:
-          !reading.sessionWindow && (isMonthly(reading.window.windowMinutes) || noSession.includes(reading.agent)),
+          !reading.sessionWindow && (isMonthly(reading.window.windowMinutes) || noSession === true),
       });
     }
   }
@@ -225,7 +224,8 @@ export interface Forecast {
 
 export function forecast(model: GaugeModel): Forecast | null {
   const { usedPercent, elapsedPercent } = model.window;
-  if (!projectable(model.window)) return { remainingAtReset: model.remaining, emptyAtMs: null };
+  // Too early to tell: no line to the reset rather than one that says nothing more will be used.
+  if (!projectable(model.window)) return null;
   const projectedUsed = (usedPercent / elapsedPercent) * 100;
   const remainingAtReset = Math.max(0, 100 - projectedUsed);
   const emptyAtMs =

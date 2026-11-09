@@ -184,26 +184,30 @@ export default function App({ initialSettings, onThemeChange }: {
   // A quota is read in one environment: a tab shows only its own readings, and a source that
   // cannot be read now (WSL stopped) shows none rather than an old value. When several sources
   // are shown together (Computer), only the freshest reading of each harness is kept.
-  // A plan known to have no 5-hour session (Claude Ultra) shows none, from any source's scan.
-  const noSessionKey = QUOTA_HARNESSES.filter((harness) => {
-    const reports = sourceIds
-      .map((id) => reportOf(states[id]))
-      .filter((entry): entry is UsageReport => entry !== undefined);
-    const sub = pickSubscription(reports, harness);
-    return sub ? (planProfile(harness, sub.plan, sub.pricePerMonth)?.noSession ?? false) : false;
-  }).join(",");
+  // A plan known to have no 5-hour session (Claude Ultra) shows none. Each source follows its own
+  // plan: Windows and WSL can be signed in to different accounts.
+  const noSessionKey = sourceIds
+    .flatMap((id) => {
+      const report = reportOf(states[id]);
+      return QUOTA_HARNESSES.filter((harness) => {
+        const sub = report && pickSubscription([report], harness);
+        return sub ? (planProfile(harness, sub.plan, sub.pricePerMonth)?.noSession ?? false) : false;
+      }).map((harness) => `${id}|${harness}`);
+    })
+    .join(",");
   const quotaCardsFor = (ids: string[]): QuotaCard[] => {
-    const freshest = new Map<string, { source: string; reading: QuotaReading }>();
+    const noSession = noSessionKey.split(",");
+    const freshest = new Map<string, { source: string; reading: QuotaReading; noSession: boolean }>();
     for (const id of ids.filter((entry) => readableIds.includes(entry as SourceId))) {
       for (const reading of Object.values(quotas[id] ?? {})) {
         if (disabled.includes(reading.agent)) continue;
         const best = freshest.get(reading.agent);
         if (!best || reading.observedAt > best.reading.observedAt) {
-          freshest.set(reading.agent, { source: label(id), reading });
+          freshest.set(reading.agent, { source: label(id), reading, noSession: noSession.includes(`${id}|${reading.agent}`) });
         }
       }
     }
-    return quotaCards([...freshest.values()], noSessionKey ? noSessionKey.split(",") : []);
+    return quotaCards([...freshest.values()]);
   };
   // Quotas that are no longer read are not shown anywhere: a stale reading looks live. Their
   // history stays in the archive and comes back with the next reading.
@@ -551,6 +555,7 @@ export default function App({ initialSettings, onThemeChange }: {
                       card={card}
                       resetCredits={pickSubscription(sourceReports, card.harness)?.resetCreditsAvailable ?? undefined}
                       scoped={card.harness === "claude" ? pickClaudeAccount(sourceReports)?.scoped : undefined}
+                      scopedAt={card.harness === "claude" ? pickClaudeAccount(sourceReports)?.observedAtMs : undefined}
                     />
                   ))}
                   {(page === "claude" || page === "codex") && (

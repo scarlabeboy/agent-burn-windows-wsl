@@ -282,6 +282,10 @@ export const en: Strings = {
     free: "Free",
     unknownPrice: "unknown price",
     noEstimate: "Value and projection are worked out once the quota starts being used.",
+    estimateUnavailable: "Value and projection are unavailable for now: they come back with the next scan.",
+    tooEarly: "too early",
+    tooEarlyHint: "Projected once 10 % of the window has passed or of the quota is used",
+    scopedAge: (age: string) => `read ${age} ago`,
     claudePlanUnknown:
       "The plan could not be detected: it is read from the Claude Code sign-in (claude command) of this environment.",
     value: "Value / plan price",

@@ -39,9 +39,12 @@ export function useQuotaReadings({
   const [quotaErrors, setQuotaErrors] = useState<Record<string, string>>({});
   // The shape of each source and harness's windows (lengths, session or not). A change means the
   // plan changed (Codex Free taken back to Plus): the plan and price come from the next usage scan.
-  const quotaShapes = useRef(new Map<string, string>());
+  const quotaShapes = useRef(new Map<string, { shape: string; at: number }>());
   const refreshQuotas = useCallback(
     (force: boolean) => {
+      // A reading recorded before the archive loads would be replaced by it, whatever asked for
+      // it (the timer, the tray menu, Ctrl+Shift+R): the timer reads as soon as it has loaded.
+      if (!archiveReady) return;
       for (const id of readableIds) {
         const name = id === "windows" ? null : id.slice(4);
         for (const harness of QUOTA_HARNESSES.filter((entry) => !disabled.includes(entry))) {
@@ -52,10 +55,13 @@ export function useQuotaReadings({
             .then((reading) => {
               // Stored as measured; what is shown has an unconfirmed over-count held back.
               const shown = recordReading(reading);
+              // A reading older than the last one (a slow read) says nothing about the plan now.
               const shape = `${reading.window.windowMinutes}|${reading.sessionWindow?.windowMinutes ?? "-"}`;
               const known = quotaShapes.current.get(key);
-              quotaShapes.current.set(key, shape);
-              if (known !== undefined && known !== shape) refreshRef.current(true);
+              if (!known || reading.observedAt >= known.at) {
+                quotaShapes.current.set(key, { shape, at: reading.observedAt });
+                if (known && known.shape !== shape) refreshRef.current(true);
+              }
               setQuotaErrors(({ [key]: _cleared, ...rest }) => rest);
               setQuotas((current) => {
                 // A reading older than the one shown arrived late: it is not the latest state.
@@ -80,7 +86,7 @@ export function useQuotaReadings({
         }
       }
     },
-    [readableIds, disabledKey],
+    [readableIds, disabledKey, archiveReady],
   );
 
   // Quotas off, or offline: no read at all; the readings already shown stay with their time.

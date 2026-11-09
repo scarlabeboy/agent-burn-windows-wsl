@@ -18,9 +18,11 @@ import {
   formatAxis,
   formatClock,
   formatDay,
+  formatAge,
   formatDuration,
   freshness,
   isMonthly,
+  projectable,
   pastGauge,
   type GaugeModel,
   type QuotaCard,
@@ -709,16 +711,22 @@ function IdleSessionCard({ nav }: { nav: ReactNode }) {
   );
 }
 
+/** Model-scoped limits read this recently go without their age, like the gauges beside them. */
+const SCOPED_RECENT_MS = 5 * 60_000;
+
 /** Subscription quota of one harness: warning banner plus the 5-hour and weekly charts. */
 export function QuotaSection({
   card,
   resetCredits,
   scoped = [],
+  scopedAt,
 }: {
   card: QuotaCard;
   resetCredits?: number;
   /** Weekly limits of one model (Claude Max and Ultra: Fable), part of the same quota. */
   scoped?: ScopedWindow[];
+  /** When those limits were read: by the full scan, not with the gauges every minute. */
+  scopedAt?: number;
 }) {
   const weekly = card.weekly;
   const monthly = isMonthly(weekly.window.windowMinutes);
@@ -768,7 +776,12 @@ export function QuotaSection({
             return (
               <div key={window.name}>
                 <div className="row small">
-                  <span>{text.scopedWeekly(window.name)}</span>
+                  <span>
+                    {text.scopedWeekly(window.name)}
+                    {scopedAt !== undefined && nowMs - scopedAt > SCOPED_RECENT_MS && (
+                      <span className="muted"> · {text.scopedAge(formatAge(nowMs - scopedAt))}</span>
+                    )}
+                  </span>
                   <span>{text.percentLeft(left.toFixed(0))}</span>
                 </div>
                 <div className="bar">
@@ -846,7 +859,11 @@ export function SubscriptionCard({
         </span>
       </header>
       {!known && harness === "claude" && <p className="muted small hint-top">{text.claudePlanUnknown}</p>}
-      {sub && !estimate && <p className="muted small hint-top">{text.noEstimate}</p>}
+      {sub && !estimate && (
+        <p className="muted small hint-top">
+          {card && card.weekly.window.usedPercent > 0 ? text.estimateUnavailable : text.noEstimate}
+        </p>
+      )}
       {(estimate || sub) && (
         <div className="stats">
           {/* The CLI works out no estimate while nothing is used: the advised pace still shows. */}
@@ -864,11 +881,15 @@ export function SubscriptionCard({
                 hint={text.valueHint}
               />
               <Stat title={text.monthlyValue} value={formatUsd(estimate.monthlyValue)} hint={text.monthlyValueHint} />
-              <Stat
-                title={text.projected}
-                value={percent(whole(estimate.projectedUsePercent))}
-                hint={text.projectedHint}
-              />
+              {card && !projectable(card.weekly.window) ? (
+                <Stat title={text.projected} value={text.tooEarly} hint={text.tooEarlyHint} />
+              ) : (
+                <Stat
+                  title={text.projected}
+                  value={percent(whole(estimate.projectedUsePercent))}
+                  hint={text.projectedHint}
+                />
+              )}
             </>
           )}
           <Stat

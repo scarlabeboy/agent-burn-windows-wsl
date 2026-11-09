@@ -15,6 +15,7 @@ import {
   trayPercent,
   trayTone,
   type QuotaCard,
+  forecast,
 } from "./quota";
 import type { QuotaReading } from "./types";
 
@@ -113,11 +114,11 @@ test("a plan without a session (Claude Ultra) hides its card only when no sessio
     window: { usedPercent: 7, elapsedPercent: 20, windowMinutes: WEEK },
     ...(session ? { sessionWindow: { usedPercent: 12, elapsedPercent: 30, windowMinutes: 300 } } : {}),
   });
-  const sessionless = (session: boolean, noSession: string[]) =>
-    quotaCards([{ source: "Windows", reading: reading(session) }], noSession)[0].sessionless;
-  assert.equal(sessionless(false, ["claude"]), true, "Ultra on a verified account");
-  assert.equal(sessionless(true, ["claude"]), false, "Ultra not verified yet keeps its session");
-  assert.equal(sessionless(false, []), false, "Pro before the first message keeps its card");
+  const sessionless = (session: boolean, noSession: boolean) =>
+    quotaCards([{ source: "Windows", reading: reading(session), noSession }])[0].sessionless;
+  assert.equal(sessionless(false, true), true, "Ultra on a verified account");
+  assert.equal(sessionless(true, true), false, "Ultra not verified yet keeps its session");
+  assert.equal(sessionless(false, false), false, "Pro before the first message keeps its card");
 });
 
 test("the limit is not projected right after a reset", () => {
@@ -125,6 +126,9 @@ test("the limit is not projected right after a reset", () => {
     gauge({ usedPercent, elapsedPercent, windowMinutes: WEEK }, NOW);
   // 4 % used an hour and a half into the week would announce the limit for Wednesday.
   assert.equal(week(4, 0.9).minutesToEmpty, null);
+  // Nor any line to the reset: it would say nothing more will be used.
+  assert.equal(forecast(week(4, 0.9)), null);
+  assert.notEqual(forecast(week(30, 15)), null);
   // A tenth of the quota used, or a tenth of the week gone, and the pace counts.
   assert.notEqual(week(12, 2).minutesToEmpty, null);
   assert.notEqual(week(30, 15).minutesToEmpty, null);
