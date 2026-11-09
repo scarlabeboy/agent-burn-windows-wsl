@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { isLang } from "./i18n";
 import type { LimitUsageDay } from "./limitUsage";
+import { readMultiAccount } from "./multiAccount";
 import { PERIODS, type Period } from "./periods";
 import { wslSettings } from "./settingsHints";
 import { QUOTA_HARNESSES, type Detected, type QuotaReading, type Settings, type TabId, type UsageReport } from "./types";
@@ -129,7 +130,20 @@ export function readSettings(): Settings {
     const theme = stored.theme === "dark" || stored.theme === "light" ? stored.theme : "system";
     const trayIcon = (QUOTA_HARNESSES as string[]).includes(stored.trayIcon) ? stored.trayIcon : "logo";
     const trayWindow = ["session", "weekly"].includes(stored.trayWindow) ? stored.trayWindow : "tightest";
-    return { ...defaults, ...rest, ...wslSettings(stored), refreshMinutes, harnessStates, language, theme, trayIcon, trayWindow };
+    // Checked line by line: a damaged value would break the settings page or the plan total.
+    const multiAccount = readMultiAccount(stored.multiAccount);
+    return {
+      ...defaults,
+      ...rest,
+      ...wslSettings(stored),
+      refreshMinutes,
+      harnessStates,
+      language,
+      theme,
+      trayIcon,
+      trayWindow,
+      multiAccount,
+    };
   } catch {
     return defaults;
   }

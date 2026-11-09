@@ -319,7 +319,12 @@ export function weeklyCycles(harness: string): Cycle[] {
  * measured; the one returned is what to show: an over-count that nothing has confirmed yet is
  * replaced by the last plausible usage.
  */
-export function recordReading(reading: QuotaReading): QuotaReading {
+/**
+ * `raw`: show the reading as measured, without holding back a jump. With several Claude Code
+ * accounts, whose weekly resets fall at the same time, the readings of both share one series and
+ * a switch to the busier account would otherwise show the other's value for half an hour.
+ */
+export function recordReading(reading: QuotaReading, raw = false): QuotaReading {
   const now = reading.observedAt;
   for (const key of Object.keys(quota.series)) {
     if (Number(key.split("|")[2]) * 60_000 < now - KEEP_MS) delete quota.series[key];
@@ -347,7 +352,7 @@ export function recordReading(reading: QuotaReading): QuotaReading {
       quota.series[key] = [...samples, { t: now, used: window.usedPercent }];
       dirty = true;
     }
-    const held = currentUsed(quota.series[key] ?? [], window.windowMinutes);
+    const held = raw ? undefined : currentUsed(quota.series[key] ?? [], window.windowMinutes);
     if (held !== undefined && held !== window.usedPercent) {
       shown.set(window, { ...window, usedPercent: held });
     }

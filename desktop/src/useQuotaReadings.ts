@@ -18,6 +18,7 @@ export function useQuotaReadings({
   archiveReady,
   detected,
   refreshRef,
+  rawHarnesses,
 }: {
   readableIds: SourceId[];
   disabled: string[];
@@ -26,6 +27,8 @@ export function useQuotaReadings({
   archiveReady: boolean;
   detected: Detected | null;
   refreshRef: MutableRefObject<(queue?: boolean) => void>;
+  /** Harnesses whose readings show as measured: Claude Code with several accounts declared. */
+  rawHarnesses: string[];
 }): {
   quotas: Record<string, Record<string, QuotaReading>>;
   quotaErrors: Record<string, string>;
@@ -39,6 +42,9 @@ export function useQuotaReadings({
   const [quotaErrors, setQuotaErrors] = useState<Record<string, string>>({});
   // The shape of each source and harness's windows (lengths, session or not). A change means the
   // plan changed (Codex Free taken back to Plus): the plan and price come from the next usage scan.
+  // Read at each reading, so turning the setting on or off needs no new timer.
+  const rawRef = useRef(rawHarnesses);
+  rawRef.current = rawHarnesses;
   const quotaShapes = useRef(new Map<string, { shape: string; at: number }>());
   const refreshQuotas = useCallback(
     (force: boolean) => {
@@ -54,7 +60,7 @@ export function useQuotaReadings({
           loadQuota(harness, name, force)
             .then((reading) => {
               // Stored as measured; what is shown has an unconfirmed over-count held back.
-              const shown = recordReading(reading);
+              const shown = recordReading(reading, rawRef.current.includes(reading.agent));
               // A reading older than the last one (a slow read) says nothing about the plan now.
               const shape = `${reading.window.windowMinutes}|${reading.sessionWindow?.windowMinutes ?? "-"}`;
               const known = quotaShapes.current.get(key);

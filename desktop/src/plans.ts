@@ -1,4 +1,4 @@
-import type { SubscriptionAgent } from "./types";
+import type { QuotaHarness, SubscriptionAgent } from "./types";
 
 /** What the app knows of a plan, whatever name the CLI gives it. */
 export interface PlanProfile {
@@ -70,4 +70,38 @@ export function withPlanProfile(sub: SubscriptionAgent | undefined): Subscriptio
       valueMultiple: price ? sub.estimate.monthlyValue / price : null,
     },
   };
+}
+
+/** A plan offered when accounts are declared by hand: one entry per real plan, no aliases. */
+export interface CatalogPlan {
+  id: string;
+  label: string;
+  price: number;
+}
+
+/** The plans offered in the multi-account settings. Claude Free is left out: it has no Claude Code. */
+export const PLAN_CATALOG: Record<QuotaHarness, CatalogPlan[]> = {
+  codex: [
+    { id: "free", label: "Free", price: 0 },
+    { id: "go", label: "Go", price: 8 },
+    { id: "plus", label: "Plus", price: 20 },
+    { id: "pro100", label: "Pro 100", price: 100 },
+    { id: "pro200", label: "Pro 200", price: 200 },
+    { id: "pro500", label: "Pro 500", price: 500 },
+  ],
+  claude: [
+    { id: "pro", label: "Pro", price: 20 },
+    { id: "max", label: "Max", price: 100 },
+    { id: "ultra", label: "Ultra", price: 200 },
+  ],
+};
+
+export const catalogPlan = (harness: QuotaHarness, id: string | null): CatalogPlan | undefined =>
+  id === null ? undefined : PLAN_CATALOG[harness].find((plan) => plan.id === id);
+
+/** The catalog entry of a detected plan, through the same names as `planProfile`. */
+export function catalogIdOf(harness: QuotaHarness, plan: string | null, price: number | null): string | null {
+  const profile = planProfile(harness, plan, price);
+  if (!profile) return null;
+  return PLAN_CATALOG[harness].find((entry) => entry.label === profile.label && entry.price === profile.price)?.id ?? null;
 }

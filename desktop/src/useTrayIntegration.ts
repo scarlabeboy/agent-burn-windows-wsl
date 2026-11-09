@@ -21,6 +21,7 @@ export function useTrayIntegration({
   lang,
   refresh,
   refreshQuotas,
+  multiHarnesses,
 }: {
   accountCards: QuotaCard[];
   nowMs: number;
@@ -30,6 +31,8 @@ export function useTrayIntegration({
   lang: Lang;
   refresh: () => void;
   refreshQuotas: (force: boolean) => void;
+  /** Harnesses with accounts declared by hand: their line says which environment it was read in. */
+  multiHarnesses: string[];
 }) {
   // Tray menu actions, and a last save of the archive before the app quits (tray "Quit", or
   // closing the window when it does not stay in the notification area): the process ends once
@@ -55,9 +58,10 @@ export function useTrayIntegration({
         card.weekly.remaining.toFixed(0),
         isMonthly(card.weekly.window.windowMinutes),
       );
+      const withSource = multiHarnesses.includes(card.harness) ? `${line} · ${card.sources.join(" · ")}` : line;
       return freshness(card.observedAt, nowMs).fresh
-        ? line
-        : `${line} · ${text.app.tooltipAge(formatAge(nowMs - card.observedAt))}`;
+        ? withSource
+        : `${withSource} · ${text.app.tooltipAge(formatAge(nowMs - card.observedAt))}`;
     })
     .join("\n");
   useEffect(() => {

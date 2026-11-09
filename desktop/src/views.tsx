@@ -33,6 +33,7 @@ import { Glyph, TitleIcon, type GlyphKind } from "./TitleIcons";
 import { ChartLabel, withoutZeros } from "./ChartLabel";
 import { Tooltip as InfoTooltip } from "./Tooltip";
 import { useNow } from "./useNow";
+import type { MultiSummary } from "./multiAccount";
 
 /** "$12.50" in English, "12,50 $" in French. */
 const usd = (amount: string): string => (getLang() === "fr" ? `${amount} $` : `$${amount}`);
@@ -720,6 +721,7 @@ export function QuotaSection({
   resetCredits,
   scoped = [],
   scopedAt,
+  multi = false,
 }: {
   card: QuotaCard;
   resetCredits?: number;
@@ -727,6 +729,8 @@ export function QuotaSection({
   scoped?: ScopedWindow[];
   /** When those limits were read: by the full scan, not with the gauges every minute. */
   scopedAt?: number;
+  /** Accounts declared by hand: the gauges and their history may belong to any of them. */
+  multi?: boolean;
 }) {
   const weekly = card.weekly;
   const monthly = isMonthly(weekly.window.windowMinutes);
@@ -793,6 +797,7 @@ export function QuotaSection({
         </div>
       )}
       <p className="muted small hint">{card.harness === "codex" ? text.codexHistory : text.claudeHistory}</p>
+      {multi && <p className="muted small hint">{text.multiQuotaNote}</p>}
     </section>
   );
 }
@@ -917,6 +922,98 @@ export function SubscriptionCard({
           )}
         </p>
       )}
+      <p className="muted small hint-top">{text.apiNote}</p>
+    </section>
+  );
+}
+
+/**
+ * The subscription block for accounts declared by hand: the month's API-equivalent spend over
+ * the total of their plans. The quota's own value is left out, since it measures one account;
+ * the projection and pace stay, from the reading shown, with the source it comes from.
+ */
+export function MultiSubscriptionCard({
+  harness,
+  summary,
+  sources,
+  card,
+  quotaReason,
+}: {
+  harness: string;
+  summary: MultiSummary;
+  /** How many environments the month's spend comes from. */
+  sources: number;
+  card?: QuotaCard;
+  /** Set when quotas are not read: the projection and pace give way to it. */
+  quotaReason?: string;
+}) {
+  const text = t().views;
+  const reason = quotaReason ?? (card ? undefined : text.quotaWaiting);
+  const quota = reason ? undefined : card;
+  const spend = quota ? budget(quota.weekly) : null;
+  const connected = quota ? text.multiConnected(quota.sources.join(" · ")) : "";
+  const names = summary.accounts
+    .map((account) => {
+      const plan = account.label ?? text.multiIncomplete;
+      return account.name ? `${account.name} (${plan})` : plan;
+    })
+    .join(" · ");
+  return (
+    <section className="card">
+      <header className="card-head">
+        <h2>
+          <TitleIcon kind="subscription" />
+          {text.subscription}
+          {/* The names and plans stay at hand on hover, out of the way. */}
+          <InfoTooltip text={names}>
+            <span className="muted small multi-count">· {text.multiAccounts(summary.accounts.length)}</span>
+          </InfoTooltip>
+        </h2>
+        {/* A free total shows as 0, unlike a single plan: it is a sum the person declared. */}
+        <span className="chip">
+          {agentLabel(harness)} · {text.multiPlanLabel} · {formatUsd(summary.total)}
+          {text.perMonth}
+        </span>
+      </header>
+      <div className="stats">
+        <Stat
+          title={text.monthCost}
+          value={summary.monthCost === null ? "n/a" : formatUsd(summary.monthCost)}
+          hint={text.monthCostHint(sources)}
+        />
+        <Stat
+          title={text.multiRatio}
+          value={
+            summary.incomplete
+              ? text.multiIncomplete
+              : summary.ratio !== null
+                ? `${decimal(summary.ratio)}×`
+                : summary.total === 0
+                  ? text.free
+                  : "n/a"
+          }
+          hint={summary.incomplete ? text.multiIncompleteHint : text.multiRatioHint}
+        />
+        {quota && (
+          <>
+            <Stat
+              title={text.projected}
+              value={
+                projectable(quota.weekly.window)
+                  ? percent(whole((quota.weekly.window.usedPercent / quota.weekly.window.elapsedPercent) * 100))
+                  : text.tooEarly
+              }
+              hint={connected}
+            />
+            <Stat
+              title={text.advisedPace}
+              value={spend === null ? "n/a" : spend.perDay ? text.perDay(decimal(spend.percent)) : percent(whole(spend.percent))}
+              hint={connected}
+            />
+          </>
+        )}
+      </div>
+      {reason && <p className="muted small hint-top">{reason}</p>}
       <p className="muted small hint-top">{text.apiNote}</p>
     </section>
   );

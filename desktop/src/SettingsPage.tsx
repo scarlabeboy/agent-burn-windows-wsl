@@ -3,10 +3,11 @@ import { EnvIcon } from "./EnvIcons";
 import { HarnessSettings } from "./HarnessSettings";
 import type { groupHarnesses } from "./harnesses";
 import { LANG_NAMES, t, type Lang } from "./i18n";
+import { MultiAccountSettings } from "./MultiAccountSettings";
 import { SettingRow, SettingsCard, Switch } from "./SettingsUi";
 import { autoUpdateActive, autoUpdateHint, offlineHint, quotaHint, refreshHint } from "./settingsHints";
 import { Glyph } from "./TitleIcons";
-import { QUOTA_HARNESSES, type Settings, type TrayWindow, type WslMode } from "./types";
+import { QUOTA_HARNESSES, type QuotaHarness, type Settings, type TrayWindow, type WslMode } from "./types";
 import { checkHint, foundHint } from "./updateHints";
 import { REPO_URL, type useUpdater } from "./updater";
 import { agentLabel } from "./views";
@@ -29,6 +30,7 @@ export function SettingsPage({
   updater,
   appVersion,
   openUpdate,
+  detectedPlans,
 }: {
   settings: Settings;
   lang: Lang;
@@ -44,6 +46,8 @@ export function SettingsPage({
   updater: ReturnType<typeof useUpdater>;
   appVersion: string;
   openUpdate: () => void;
+  /** The catalog plan the CLI detects for each harness, for the first multi-account line. */
+  detectedPlans: Partial<Record<QuotaHarness, string | null>>;
 }) {
   const text = t();
   return (
@@ -187,6 +191,10 @@ export function SettingsPage({
             onChange={(next) => updateSettings({ ...settings, claudeRenew: next })}
           />
         </SettingRow>
+      </SettingsCard>
+
+      <SettingsCard title={text.settings.multiCard} icon={<Glyph kind="subscription" size={16} />}>
+        <MultiAccountSettings settings={settings} updateSettings={updateSettings} detectedPlans={detectedPlans} />
       </SettingsCard>
 
       {/* Hidden when there is no WSL to turn off; kept while off so it can be turned back on. */}

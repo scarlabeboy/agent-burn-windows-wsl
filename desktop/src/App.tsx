@@ -8,7 +8,8 @@ import { EmptyState } from "./EmptyState";
 import { errorText } from "./errors";
 import { SUBSCRIPTIONS, SUPPORTED_HARNESSES, disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
 import { setLang, systemLang, t } from "./i18n";
-import { planProfile, withPlanProfile } from "./plans";
+import { monthCost, multiAccountOf, multiSummary } from "./multiAccount";
+import { catalogIdOf, planProfile, withPlanProfile } from "./plans";
 import { PERIODS, defaultGranularity, periodLabel, type Period } from "./periods";
 import { isMonthly, quotaCards, quotaFailure, type QuotaCard } from "./quota";
 import { SettingsPage } from "./SettingsPage";
@@ -24,7 +25,7 @@ import { loadedAtOf, reportOf } from "./sourceState";
 import { StatusBar, useAppVersion } from "./StatusBar";
 import { pickClaudeAccount, pickSubscription, withAccountSpend } from "./subscription";
 import { Tooltip } from "./Tooltip";
-import { QUOTA_HARNESSES, type ModelPricing, type QuotaReading, type Settings, type SourceId, type TabId, type UsageReport } from "./types";
+import { QUOTA_HARNESSES, type ModelPricing, type QuotaHarness, type QuotaReading, type Settings, type SourceId, type TabId, type UsageReport } from "./types";
 import { UpdateDialog } from "./UpdateDialog";
 import { useUpdater } from "./updater";
 import { useCodexBackfill, useCodexLimitUsage } from "./useCodexHistory";
@@ -43,6 +44,7 @@ import {
   OverviewIcon,
   Page,
   QuotaIcon,
+  MultiSubscriptionCard,
   QuotaSection,
   SpendChart,
   SubscriptionCard,
@@ -125,6 +127,8 @@ export default function App({ initialSettings, onThemeChange }: {
     archiveReady,
     detected,
     refreshRef,
+    // Claude Code's weekly resets fall at the same time for every account: see `recordReading`.
+    rawHarnesses: multiAccountOf(settings, "claude") ? ["claude"] : [],
   });
 
   // Background behaviour: the Windows startup entry and closing to the notification area.
@@ -221,6 +225,36 @@ export default function App({ initialSettings, onThemeChange }: {
   );
   const pageCards = cards.filter((card) => card.harness === page);
 
+  // Accounts declared by hand, per harness. The plan detected on any source fills the first line
+  // the first time the switch is turned on.
+  const multiHarnesses = QUOTA_HARNESSES.filter((harness) => multiAccountOf(settings, harness));
+  const detectedPlans = useMemo(() => {
+    const reports = sourceIds.map((id) => reportOf(states[id])).filter((entry): entry is UsageReport => !!entry);
+    return Object.fromEntries(
+      QUOTA_HARNESSES.map((harness) => {
+        const sub = pickSubscription(reports, harness);
+        return [harness, sub ? catalogIdOf(harness, sub.plan, sub.pricePerMonth) : null];
+      }),
+    );
+  }, [sourceIds, states]);
+  // The month's spend counts every source, whichever tab is open: the setting covers the accounts,
+  // not one environment.
+  const pageMulti = (page === "claude" || page === "codex") ? multiAccountOf(settings, page) : undefined;
+  const multiSources = useMemo(
+    () =>
+      pageMulti
+        ? sourceIds.flatMap((id) => {
+            const report = reportOf(states[id]);
+            return report ? [{ report, days: archivedDays(id) }] : [];
+          })
+        : [],
+    [pageMulti, sourceIds, states],
+  );
+  const pageMultiSummary =
+    pageMulti && (page === "claude" || page === "codex")
+      ? multiSummary(page, pageMulti, monthCost(multiSources, page, disabled, new Date()))
+      : undefined;
+
   // Ages of the quota readings shown in the tooltip and the sidebar, kept current.
   const nowMs = useNow(15_000);
   useTrayIntegration({
@@ -232,6 +266,7 @@ export default function App({ initialSettings, onThemeChange }: {
     lang,
     refresh,
     refreshQuotas,
+    multiHarnesses,
   });
   // Screen readers and the WebView's own texts take the page language from `<html lang>`.
   useEffect(() => {
@@ -483,6 +518,7 @@ export default function App({ initialSettings, onThemeChange }: {
               updater={updater}
               appVersion={appVersion}
               openUpdate={() => setShowUpdate(true)}
+              detectedPlans={detectedPlans}
             />
           ) : !report ? (
             stoppedNames.length > 0 && !pendingState ? (
@@ -556,9 +592,19 @@ export default function App({ initialSettings, onThemeChange }: {
                       resetCredits={pickSubscription(sourceReports, card.harness)?.resetCreditsAvailable ?? undefined}
                       scoped={card.harness === "claude" ? pickClaudeAccount(sourceReports)?.scoped : undefined}
                       scopedAt={card.harness === "claude" ? pickClaudeAccount(sourceReports)?.observedAtMs : undefined}
+                      multi={multiHarnesses.includes(card.harness as QuotaHarness)}
                     />
                   ))}
-                  {(page === "claude" || page === "codex") && (
+                  {(page === "claude" || page === "codex") && pageMultiSummary && (
+                    <MultiSubscriptionCard
+                      harness={page}
+                      summary={pageMultiSummary}
+                      sources={multiSources.length}
+                      card={pageCards[0]}
+                      quotaReason={quotaOffReason(settings)}
+                    />
+                  )}
+                  {(page === "claude" || page === "codex") && !pageMultiSummary && (
                     <SubscriptionCard
                       harness={page}
                       sub={withPlanProfile(withAccountSpend(pickSubscription(sourceReports, page), accountReadings))}

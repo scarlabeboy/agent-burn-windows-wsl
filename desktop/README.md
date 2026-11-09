@@ -102,6 +102,12 @@ Keep this list up to date when a change adds or removes one.
 - Costs are API-equivalent values from the CLI's price table, not a bill.
 - The same harness used with a subscription and with an API key cannot be told apart: the
   subscription value then also counts the sessions paid through the API.
+- Several accounts of one harness cannot be told apart: the CLI reports no account. They can be
+  declared by hand (Settings · Multiple accounts); the Subscription block then compares the
+  month's API-equivalent spend of every source with the current total of their plans (no
+  proration), and the gauges stay those of the account signed in when read. Claude Code accounts
+  reset at the same time, so their readings share a series: with several declared, its gauges
+  show each reading as measured, without the half-hour hold of a jump.
 - Quotas are read for Claude Code and Codex only. Cursor's usage and other harness
   subscriptions (OpenCode Go…) are not shown, even though the CLI reads Cursor's.
 - "Since the reset day" counts the whole day of the reset, and applies only to subscriptions

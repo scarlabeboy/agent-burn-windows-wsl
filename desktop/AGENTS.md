@@ -11,8 +11,9 @@ for changes under `desktop/`, the Windows desktop app of this fork. Everything o
   lives in `use*.ts` hooks (`useUsageReports` scans, `useQuotaReadings` quotas,
   `usePeriodReports` periods and per-model detail, `useCodexHistory`, `useTrayIntegration`,
   `useSourceDiscovery`, `useDesktopPreferences`). `views.tsx` holds the cards; `Sidebar.tsx`,
-  `SettingsPage.tsx`, `QuotaChart.tsx`, `UpdateDialog.tsx`, `StatusBar.tsx` their own parts. Pure logic lives
-  in small modules (`quota.ts`, `aggregate.ts`, `periods.ts`, `dailyArchive.ts`,
+  `SettingsPage.tsx`, `MultiAccountSettings.tsx`, `QuotaChart.tsx`, `UpdateDialog.tsx`, `StatusBar.tsx` their own
+  parts. Pure logic lives
+  in small modules (`quota.ts`, `plans.ts`, `multiAccount.ts`, `aggregate.ts`, `periods.ts`, `dailyArchive.ts`,
   `releaseNotes.ts`…) with `*.test.ts` next to them. `i18n/` holds the French and English texts.
 - `src-tauri/`: Tauri v2 shell in Rust. `cli.rs` runs the bundled CLI, `sources.rs` lists WSL
   distributions, `archive.rs` stores history, `backfill.rs` rebuilds Codex quota history from

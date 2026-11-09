@@ -161,6 +161,19 @@ export interface Settings {
   trayIcon: "logo" | QuotaHarness;
   /** Which quota of that harness the icon shows. */
   trayWindow: TrayWindow;
+  /** Accounts declared by hand per harness, for people who use more than one. Kept while off. */
+  multiAccount?: Partial<Record<QuotaHarness, MultiAccountConfig>>;
+}
+
+/** One account declared by hand: an optional name and a plan of `PLAN_CATALOG`, or none chosen yet. */
+export interface MultiAccountEntry {
+  name: string;
+  plan: string | null;
+}
+
+export interface MultiAccountConfig {
+  on: boolean;
+  accounts: MultiAccountEntry[];
 }
 
 export type QuotaHarness = "claude" | "codex";

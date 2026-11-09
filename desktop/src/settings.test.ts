@@ -79,3 +79,20 @@ for (const { raw, states, minutes } of damagedCases) {
     assert.equal(settings.refreshMinutes, minutes);
   });
 }
+
+test("readSettings keeps a valid multi-account setting and drops a damaged one", (context) => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  context.after(() => {
+    if (original) Object.defineProperty(globalThis, "localStorage", original);
+    else Reflect.deleteProperty(globalThis, "localStorage");
+  });
+  let raw = JSON.stringify({ multiAccount: { codex: { on: true, accounts: [{ name: "A", plan: "plus" }, { name: "", plan: null }] } } });
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: { getItem: (key: string) => (key === "abf.settings" ? raw : null) },
+  });
+  assert.deepEqual(readSettings().multiAccount?.codex?.accounts.map((line) => line.plan), ["plus", null]);
+  raw = JSON.stringify({ multiAccount: "broken", theme: "dark" });
+  assert.equal(readSettings().multiAccount, undefined);
+  assert.equal(readSettings().theme, "dark");
+});

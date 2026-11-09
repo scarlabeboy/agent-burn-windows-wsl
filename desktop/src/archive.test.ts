@@ -113,3 +113,20 @@ test("an idle Codex session is not recorded, and a cycle that stayed at 0 % is n
   mergeBackfill("codex", "test", [{ windowMinutes: SESSION, endMinute: end - 600, samples: [[(end - 800) * 60_000, 0]] }], 0);
   assert.ok(!pastCycles("codex", SESSION, end * 60_000).includes((end - 600) * 60_000));
 });
+
+test("a raw reading shows as measured, where a jump would otherwise be held back", () => {
+  const start = START + 2 * WEEK_MS;
+  const at = (minutes: number, value: number): QuotaReading => {
+    const observedAt = start + minutes * 60_000;
+    return {
+      agent: "claude",
+      observedAt,
+      window: { windowMinutes: WEEK, usedPercent: value, elapsedPercent: ((observedAt - start) / WEEK_MS) * 100 },
+    };
+  };
+  recordReading(at(600, 20));
+  // Another account of the same cycle, three times busier: held back by default...
+  assert.equal(recordReading(at(605, 60)).window.usedPercent, 20);
+  // ...and shown as it is with several accounts declared.
+  assert.equal(recordReading(at(610, 61), true).window.usedPercent, 61);
+});

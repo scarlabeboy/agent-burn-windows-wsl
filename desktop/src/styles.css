@@ -392,3 +392,12 @@ th .sort:hover, th .sort.on { color: var(--text); }
 .empty-state h2 { margin: 0 0 10px; font-size: 18px; }
 .empty-state p { margin: 8px 0; line-height: 1.5; max-width: 70ch; }
 .set-note { margin: 0; padding: 10px 0 12px; border-top: 1px solid var(--line); }
+
+/* Multi-account lines: an optional name, a plan, and a cross from the third line on. */
+.multi-line { display: flex; align-items: center; gap: 8px; }
+.multi-name { width: 170px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.multi-name::placeholder { color: var(--muted); }
+.multi-remove { width: 34px; padding: 6px 0; text-align: center; }
+span.multi-remove { display: inline-block; }
+.multi-add { justify-content: flex-end; }
+.multi-count { font-weight: 400; margin-left: -4px; }
