@@ -20,6 +20,7 @@ import {
   formatDay,
   formatDuration,
   freshness,
+  isMonthly,
   pastGauge,
   type GaugeModel,
   type QuotaCard,
@@ -517,6 +518,7 @@ function WindowCard({
   card,
   weekly,
   nowMs,
+  wide = false,
 }: {
   title: string;
   /** Absent for a session not under way. */
@@ -524,6 +526,7 @@ function WindowCard({
   card: QuotaCard;
   weekly: boolean;
   nowMs: number;
+  wide?: boolean;
 }) {
   const windowMinutes = model?.window.windowMinutes ?? SESSION_MINUTES;
   // Null for the cycle under way, otherwise the end of the closed cycle shown.
@@ -566,10 +569,10 @@ function WindowCard({
     </span>
   );
   if (selected !== null) {
-    return <PastCard title={title} card={card} windowMinutes={windowMinutes} endMs={selected} weekly={weekly} nav={nav} />;
+    return <PastCard title={title} card={card} windowMinutes={windowMinutes} endMs={selected} weekly={weekly} nav={nav} wide={wide} />;
   }
   return model ? (
-    <GaugeCard title={title} model={model} card={card} weekly={weekly} nowMs={nowMs} nav={nav} />
+    <GaugeCard title={title} model={model} card={card} weekly={weekly} nowMs={nowMs} nav={nav} wide={wide} />
   ) : (
     <IdleSessionCard nav={nav} />
   );
@@ -583,6 +586,7 @@ function PastCard({
   endMs,
   weekly,
   nav,
+  wide,
 }: {
   title: string;
   card: QuotaCard;
@@ -590,6 +594,7 @@ function PastCard({
   endMs: number;
   weekly: boolean;
   nav: ReactNode;
+  wide: boolean;
 }) {
   const startMs = endMs - windowMinutes * 60_000;
   // Never empty: a cycle without samples is not offered.
@@ -622,6 +627,7 @@ function PastCard({
         color={agentColor(card.harness)}
         weekly={weekly}
         past
+        wide={wide}
       />
     </div>
   );
@@ -634,6 +640,7 @@ function GaugeCard({
   weekly,
   nowMs,
   nav,
+  wide,
 }: {
   title: string;
   model: GaugeModel;
@@ -641,6 +648,7 @@ function GaugeCard({
   weekly: boolean;
   nowMs: number;
   nav: ReactNode;
+  wide: boolean;
 }) {
   const ahead = model.pace >= 0;
   const color = agentColor(card.harness);
@@ -671,7 +679,7 @@ function GaugeCard({
           </span>
         )}
       </div>
-      <QuotaChart harness={card.harness} model={model} observedAt={card.observedAt} color={color} weekly={weekly} />
+      <QuotaChart harness={card.harness} model={model} observedAt={card.observedAt} color={color} weekly={weekly} wide={wide} />
     </div>
   );
 }
@@ -704,6 +712,7 @@ function IdleSessionCard({ nav }: { nav: ReactNode }) {
 /** Subscription quota of one harness: warning banner plus the 5-hour and weekly charts. */
 export function QuotaSection({ card, resetCredits }: { card: QuotaCard; resetCredits?: number }) {
   const weekly = card.weekly;
+  const monthly = isMonthly(weekly.window.windowMinutes);
   const spend = budget(weekly);
   const emptyAt = weekly.minutesToEmpty !== null ? card.observedAt + weekly.minutesToEmpty * 60_000 : null;
   const nowMs = useNow(15_000);
@@ -730,15 +739,18 @@ export function QuotaSection({ card, resetCredits }: { card: QuotaCard; resetCre
       </header>
       {emptyAt !== null && (
         <div className="banner">
-          <strong>{text.limitReached(formatDay(emptyAt))}</strong>{" "}
+          <strong>{text.limitReached(formatDay(emptyAt), monthly)}</strong>{" "}
           {spend.perDay
             ? text.stayUnder(decimal(spend.percent), formatDay(weekly.endMs))
             : text.leftToLast(whole(spend.percent), formatDay(weekly.endMs))}
         </div>
       )}
+      {/* A plan with only a monthly quota (Codex Free) has no session: its card fills the row. */}
       <div className="gauge-grid">
-        <WindowCard title={text.session} model={card.session} card={card} weekly={false} nowMs={nowMs} />
-        <WindowCard title={text.weekly} model={weekly} card={card} weekly nowMs={nowMs} />
+        {!card.sessionless && (
+          <WindowCard title={text.session} model={card.session} card={card} weekly={false} nowMs={nowMs} />
+        )}
+        <WindowCard title={monthly ? text.monthly : text.weekly} model={weekly} card={card} weekly nowMs={nowMs} wide={card.sessionless} />
       </div>
       <p className="muted small hint">{card.harness === "codex" ? text.codexHistory : text.claudeHistory}</p>
     </section>
@@ -809,7 +821,13 @@ export function SubscriptionCard({
         <div className="stats">
           <Stat
             title={text.value}
-            value={estimate.valueMultiple != null ? `${decimal(estimate.valueMultiple)}×` : "n/a"}
+            value={
+              estimate.valueMultiple != null
+                ? `${decimal(estimate.valueMultiple)}×`
+                : sub?.plan?.toLowerCase() === "free"
+                  ? text.free
+                  : "n/a"
+            }
             hint={text.valueHint}
           />
           <Stat title={text.monthlyValue} value={formatUsd(estimate.monthlyValue)} hint={text.monthlyValueHint} />

@@ -13,6 +13,7 @@ export const en: Strings = {
     subscriptions: "Subscriptions",
     harness: "Harnesses",
     weeklyQuota: "7d quota",
+    monthlyQuota: "30d quota",
     bothQuotas: "5h · Quota · 7d",
     wslDistro: "WSL distribution",
     periodShown: "Period shown",
@@ -47,8 +48,8 @@ export const en: Strings = {
     limitUsageUnread:
       "Weekly limit per day not read: no Codex sign-in in this environment, or the dashboard cannot be reached.",
     limitUsageLoading: "Reading the weekly limit per day…",
-    tooltipLine: (agent: string, session: string | undefined, weekly: string) =>
-      `${agent}: ${session ? `5h ${session}% · ` : ""}wk ${weekly}%`,
+    tooltipLine: (agent: string, session: string | undefined, long: string, monthly: boolean) =>
+      `${agent}: ${session ? `5h ${session}% · ` : ""}${monthly ? "30d" : "wk"} ${long}%`,
     tooltipAge: (age: string) => `${age} ago`,
   },
   settings: {
@@ -78,10 +79,10 @@ export const en: Strings = {
     trayIconIdle: "Shows the logo while quotas are not read.",
     trayLogo: "Logo",
     trayWindow: "Quota shown",
-    trayWindows: { session: "5-hour session", weekly: "Weekly", tightest: "Lowest" },
+    trayWindows: { session: "5-hour session", weekly: "Week or month", tightest: "Lowest" },
     trayWindowHints: {
       session: "A session not started yet has all of its quota: the icon then shows the logo.",
-      weekly: "The weekly quota, whatever the session.",
+      weekly: "The quota of the week, or of the month for Codex Free, whatever the session.",
       tightest: "The lower of the two, 5-hour session or week: the icon switches between them by itself.",
     },
     data: "Data",
@@ -261,12 +262,14 @@ export const en: Strings = {
     pace: (points: string, ahead: boolean) => `${points} pts ${ahead ? "ahead" : "behind"}`,
     session: "5h session",
     weekly: "Weekly",
+    monthly: "Monthly",
     noSession: "No session running",
     startsOnFirst: "Starts with your first message.",
     resetsTitle: "Limit resets kept by the provider, to use when a limit is reached",
     resetsInStock: (count: number) => `↺ ${count} ${count > 1 ? "resets" : "reset"} in stock`,
     measured: (fresh: boolean, date: string) => `${fresh ? "Live · measured" : "Measured"} on ${date}`,
-    limitReached: (day: string) => `The weekly limit will be reached ≈ ${day}.`,
+    limitReached: (day: string, monthly: boolean) =>
+      `The ${monthly ? "monthly" : "weekly"} limit will be reached ≈ ${day}.`,
     stayUnder: (percent: string, day: string) => `Stay under ${percent}%/day to last until the reset (${day}).`,
     leftToLast: (percent: string, day: string) => `${percent}% left to last until the reset (${day}).`,
     codexHistory: "History rebuilt from your Codex logs, then completed by the app's readings.",
@@ -276,6 +279,7 @@ export const en: Strings = {
     quotaWaiting: "Figures are hidden while the quota is not read.",
     planUnknown: "unknown plan",
     perMonth: "/month",
+    free: "Free",
     claudePlanUnknown:
       "The plan could not be detected: it is read from the Claude Code sign-in (claude command) of this environment.",
     value: "Value / plan price",

@@ -21,8 +21,18 @@ export interface QuotaCard {
   sources: string[];
   observedAt: number;
   session?: GaugeModel;
+  /** The long window: a week on paid plans, a month on Codex Free (see `isMonthly`). */
   weekly: GaugeModel;
+  /**
+   * A plan with a single monthly quota and no 5-hour session (Codex Free): no session card is
+   * shown. A paid plan whose session has not started keeps its card.
+   */
+  sessionless: boolean;
 }
+
+/** Windows this long or longer are monthly ones (Codex Free: 30 days); shorter long ones are weekly. */
+const MONTHLY_MIN_MINUTES = 14 * 1440;
+export const isMonthly = (windowMinutes: number): boolean => windowMinutes >= MONTHLY_MIN_MINUTES;
 
 export function gauge(window: QuotaWindow, observedAt: number): GaugeModel {
   const used = window.usedPercent;
@@ -89,6 +99,7 @@ export function quotaCards(readings: { source: string; reading: QuotaReading }[]
             ? gauge(reading.sessionWindow, reading.observedAt)
             : undefined,
         weekly: gauge(reading.window, reading.observedAt),
+        sessionless: !reading.sessionWindow && isMonthly(reading.window.windowMinutes),
       });
     }
   }

@@ -1,5 +1,6 @@
 import { archiveRead, archiveWrite, type BackfillSeries } from "./api";
 import { recordDays, type DayStore } from "./dailyArchive";
+import { isMonthly } from "./quota";
 import { consistentSamples, currentUsed, type Sample } from "./quotaFilter";
 import type { QuotaReading, QuotaWindow, UsageReport } from "./types";
 
@@ -272,7 +273,7 @@ export interface Cycle {
   samples: Sample[];
 }
 
-/** Windows this long or longer are weekly ones. */
+/** Windows this long or longer are weekly ones, up to the monthly ones (Codex Free), left out. */
 const WEEKLY_MIN_MINUTES = 2 * 1440;
 
 /**
@@ -282,7 +283,10 @@ const WEEKLY_MIN_MINUTES = 2 * 1440;
 export function weeklyCycles(harness: string): Cycle[] {
   const cycles = Object.keys(quota.series)
     .map((key) => key.split("|"))
-    .filter(([name, minutes]) => name === harness && Number(minutes) >= WEEKLY_MIN_MINUTES)
+    .filter(
+      ([name, minutes]) =>
+        name === harness && Number(minutes) >= WEEKLY_MIN_MINUTES && !isMonthly(Number(minutes)),
+    )
     .map(([, minutes, endMinute]) => {
       const windowMinutes = Number(minutes);
       const endMs = Number(endMinute) * 60_000;
@@ -294,7 +298,8 @@ export function weeklyCycles(harness: string): Cycle[] {
   const merged: (Cycle & { windowMinutes: number })[] = [];
   for (const cycle of cycles) {
     const last = merged[merged.length - 1];
-    if (last && cycle.endMs - last.endMs <= SAME_CYCLE_MS) {
+    // Only a cycle of the same length: a 30-day one (Codex Free) never merges with a weekly one.
+    if (last && last.windowMinutes === cycle.windowMinutes && cycle.endMs - last.endMs <= SAME_CYCLE_MS) {
       last.samples = mergeSamples(last.samples, cycle.samples);
     } else {
       merged.push({ ...cycle });

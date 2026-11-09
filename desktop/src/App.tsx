@@ -67,7 +67,7 @@ import {
 } from "./periods";
 import { updateError } from "./releaseNotes";
 import { errorText } from "./errors";
-import { formatAge, freshness, quotaCards, quotaFailure, trayPercent, trayTone, type QuotaCard } from "./quota";
+import { formatAge, freshness, isMonthly, quotaCards, quotaFailure, trayPercent, trayTone, type QuotaCard } from "./quota";
 import { TRAY_ICON_SIZE, drawTrayIcon, type TrayIconTone } from "./trayIcon";
 import { useNow } from "./useNow";
 import {
@@ -646,6 +646,7 @@ export default function App({ initialSettings, onThemeChange }: {
         agentLabel(card.harness),
         card.session?.remaining.toFixed(0),
         card.weekly.remaining.toFixed(0),
+        isMonthly(card.weekly.window.windowMinutes),
       );
       return freshness(card.observedAt, nowMs).fresh
         ? line
@@ -1041,7 +1042,13 @@ export default function App({ initialSettings, onThemeChange }: {
                         {percent(quota.session.remaining.toFixed(0))}
                       </span>
                     )}
-                    <span className="nav-label">{quota.session ? text.app.bothQuotas : text.app.weeklyQuota}</span>
+                    <span className="nav-label">
+                      {quota.session
+                        ? text.app.bothQuotas
+                        : isMonthly(quota.weekly.window.windowMinutes)
+                          ? text.app.monthlyQuota
+                          : text.app.weeklyQuota}
+                    </span>
                     <span className={`${pillClass(quota.weekly.remaining)}${stale ? " stale" : ""}`}>
                       {percent(quota.weekly.remaining.toFixed(0))}
                     </span>
@@ -1422,7 +1429,9 @@ export default function App({ initialSettings, onThemeChange }: {
                       offReason={subscriptionOffReason(settings)}
                     />
                   )}
-                  {page === "codex" && (
+                  {/* On Codex Free the dashboard's daily figures are not shares of the monthly quota
+                      (0.16 % for a day that used 7 % of it): the chart would mislead, so it goes. */}
+                  {page === "codex" && !pageCards.some((card) => isMonthly(card.weekly.window.windowMinutes)) && (
                     <LimitUsageSection
                       offReason={limitUsageOffReason(settings)}
                       best={limitBest}

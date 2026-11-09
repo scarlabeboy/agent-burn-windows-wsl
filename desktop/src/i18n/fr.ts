@@ -14,6 +14,7 @@ export const fr = {
     subscriptions: "Abonnements",
     harness: "Harness",
     weeklyQuota: "Quota 7 j",
+    monthlyQuota: "Quota 30 j",
     bothQuotas: "5 h · Quota · 7 j",
     wslDistro: "Distribution WSL",
     periodShown: "Période affichée",
@@ -49,8 +50,8 @@ export const fr = {
       "Limite hebdomadaire par jour non lue : connexion Codex introuvable dans cet environnement, ou tableau de bord injoignable.",
     limitUsageLoading: "Lecture de la limite hebdomadaire par jour…",
     /** One line of the notification-area tooltip. */
-    tooltipLine: (agent: string, session: string | undefined, weekly: string) =>
-      `${agent} : ${session ? `5 h ${session} % · ` : ""}sem. ${weekly} %`,
+    tooltipLine: (agent: string, session: string | undefined, long: string, monthly: boolean) =>
+      `${agent} : ${session ? `5 h ${session} % · ` : ""}${monthly ? "30 j" : "sem."} ${long} %`,
     tooltipAge: (age: string) => `il y a ${age}`,
   },
   settings: {
@@ -80,10 +81,10 @@ export const fr = {
     trayIconIdle: "Affiche le logo tant que les quotas ne sont pas lus.",
     trayLogo: "Logo",
     trayWindow: "Quota affiché",
-    trayWindows: { session: "Session 5 h", weekly: "Semaine 7 j", tightest: "Le plus bas" },
+    trayWindows: { session: "Session 5 h", weekly: "Semaine ou mois", tightest: "Le plus bas" },
     trayWindowHints: {
       session: "Une session pas encore commencée a tout son quota : l'icône montre alors le logo.",
-      weekly: "Le quota de la semaine, quelle que soit la session.",
+      weekly: "Le quota de la semaine, ou du mois pour Codex en gratuit, quelle que soit la session.",
       tightest: "Le plus bas des deux, session 5 h ou semaine : l'icône passe de l'un à l'autre toute seule.",
     },
     data: "Données",
@@ -266,12 +267,14 @@ export const fr = {
     pace: (points: string, ahead: boolean) => `${points} pts ${ahead ? "d'avance" : "de retard"}`,
     session: "Session 5 h",
     weekly: "Hebdomadaire",
+    monthly: "Mensuel",
     noSession: "Pas de session en cours",
     startsOnFirst: "Démarre dès votre premier message.",
     resetsTitle: "Resets de limite gardés par le fournisseur, à utiliser quand une limite est atteinte",
     resetsInStock: (count: number) => `↺ ${count} ${count > 1 ? "resets" : "reset"} en stock`,
     measured: (fresh: boolean, date: string) => `${fresh ? "En direct · mesuré" : "Mesuré"} le ${date}`,
-    limitReached: (day: string) => `La limite hebdomadaire sera atteinte ≈ ${day}.`,
+    limitReached: (day: string, monthly: boolean) =>
+      `La limite ${monthly ? "mensuelle" : "hebdomadaire"} sera atteinte ≈ ${day}.`,
     stayUnder: (percent: string, day: string) => `Restez sous ${percent} %/jour pour tenir jusqu'au reset (${day}).`,
     leftToLast: (percent: string, day: string) => `Il reste ${percent} % pour tenir jusqu'au reset (${day}).`,
     codexHistory: "Historique reconstitué depuis vos logs Codex, puis complété par les relevés de l'application.",
@@ -281,6 +284,7 @@ export const fr = {
     quotaWaiting: "Chiffres masqués tant que le quota n'est pas lu.",
     planUnknown: "plan inconnu",
     perMonth: "/mois",
+    free: "Gratuit",
     claudePlanUnknown:
       "Le plan n'a pas pu être détecté : il est lu dans la connexion de Claude Code (commande claude) de cet environnement.",
     value: "Valeur / prix du forfait",

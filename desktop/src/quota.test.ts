@@ -8,12 +8,15 @@ import {
   freshness,
   gauge,
   idleSession,
+  isMonthly,
+  quotaCards,
   quotaFailure,
   pastGauge,
   trayPercent,
   trayTone,
   type QuotaCard,
 } from "./quota";
+import type { QuotaReading } from "./types";
 
 test("a weekly axis dates both ends, which share a weekday; a 5-hour axis shows the time only", () => {
   const start = new Date(2026, 10, 1, 20, 0).getTime();
@@ -84,6 +87,23 @@ const trayCard = (weeklyUsed: number, sessionUsed?: number): QuotaCard => ({
     sessionUsed === undefined
       ? undefined
       : gauge({ usedPercent: sessionUsed, windowMinutes: 300, elapsedPercent: 50 }, NOW),
+  sessionless: false,
+});
+
+test("only a monthly quota without a session hides the session card", () => {
+  const reading = (windowMinutes: number, session: boolean): QuotaReading => ({
+    agent: "codex",
+    observedAt: NOW,
+    window: { usedPercent: 7, elapsedPercent: 2, windowMinutes },
+    ...(session ? { sessionWindow: { usedPercent: 0, elapsedPercent: 0, windowMinutes: 300 } } : {}),
+  });
+  const sessionless = (windowMinutes: number, session: boolean) =>
+    quotaCards([{ source: "Windows", reading: reading(windowMinutes, session) }])[0].sessionless;
+  assert.equal(sessionless(43_200, false), true, "Codex Free: one monthly quota");
+  assert.equal(sessionless(WEEK, true), false, "a paid plan with an idle session keeps its card");
+  assert.equal(sessionless(WEEK, false), false, "a paid plan read without a session keeps its card");
+  assert.equal(isMonthly(43_200), true);
+  assert.equal(isMonthly(WEEK), false);
 });
 
 test("the tray icon shows the chosen quota, or the tighter of the two", () => {

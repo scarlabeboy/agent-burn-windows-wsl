@@ -3,7 +3,9 @@ import { getVersion, readSeries, subscribe } from "./archive";
 import { percent, t } from "./i18n";
 import { forecast, formatAxis, formatDay, formatDuration, type GaugeModel } from "./quota";
 
-const W = 560;
+const NARROW_W = 560;
+/** About twice as wide, for a card alone on its row: same height and text size as a card of a pair. */
+const WIDE_W = 1160;
 const H = 210;
 const PAD = { left: 40, right: 14, top: 22, bottom: 28 };
 
@@ -15,10 +17,13 @@ interface Props {
   weekly: boolean;
   /** A closed cycle: what was recorded and the even pace, without "now" or a forecast. */
   past?: boolean;
+  /** The card fills the row alone (Codex Free): the chart stretches instead of growing taller. */
+  wide?: boolean;
 }
 
 /** Remaining quota over one window: recorded steps, even pace, and the forecast to the reset. */
-export function QuotaChart({ harness, model, observedAt, color, weekly, past = false }: Props) {
+export function QuotaChart({ harness, model, observedAt, color, weekly, past = false, wide = false }: Props) {
+  const W = wide ? WIDE_W : NARROW_W;
   const { startMs, endMs } = model;
   const x = (t: number) =>
     PAD.left + ((Math.min(Math.max(t, startMs), endMs) - startMs) / (endMs - startMs)) * (W - PAD.left - PAD.right);
@@ -91,7 +96,7 @@ export function QuotaChart({ harness, model, observedAt, color, weekly, past = f
         </clipPath>
       </defs>
 
-      <ChartGrid />
+      <ChartGrid width={W} />
 
       {emptyAt !== null && (
         <g>
@@ -192,7 +197,7 @@ function LabelBackground({ id }: { id: string }) {
   );
 }
 
-function ChartGrid() {
+function ChartGrid({ width: W }: { width: number }) {
   const y = (value: number) => PAD.top + ((100 - value) / 100) * (H - PAD.top - PAD.bottom);
   return (
     <>
@@ -210,9 +215,10 @@ function ChartGrid() {
 
 /** The frame of a chart with nothing to draw yet, so an idle card keeps the look of the others. */
 export function IdleChart({ note }: { note: string }) {
+  const W = NARROW_W;
   return (
     <svg className="qchart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={note}>
-      <ChartGrid />
+      <ChartGrid width={W} />
       <text x={(PAD.left + W - PAD.right) / 2} y={(PAD.top + H - PAD.bottom) / 2} textAnchor="middle" className="qidle">
         {note}
       </text>
