@@ -1,44 +1,33 @@
 import { listen } from "@tauri-apps/api/event";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   backfillCodex,
-  detectSources,
-  getAutostart,
   loadLimitUsage,
   loadQuota,
   loadUsage,
   readPeriod,
   readSeen,
   readTab,
-  setAutostart,
-  setCloseToTray,
-  setClaudeRenew,
-  setRestartOnCrash,
   setTrayIcon,
   setTrayLabels,
   quitApp,
   setTrayTooltip,
-  setWslKeepalive,
   writePeriod,
   writeSeen,
   writeSettings,
   writeTab,
 } from "./api";
-import { HarnessSettings } from "./HarnessSettings";
-import { SettingRow, SettingsCard, Switch } from "./SettingsUi";
+import { EmptyPeriod, LimitUsageSection, Pending, QuotaMissing, ReadingLimitSection, noUsage } from "./AppNotices";
+import { SettingsPage } from "./SettingsPage";
+import { OVERVIEW, Sidebar } from "./Sidebar";
 import { EmptyState } from "./EmptyState";
-import { EnvIcon } from "./EnvIcons";
 import { StatusBar, useAppVersion } from "./StatusBar";
-import { Glyph } from "./TitleIcons";
 import { Tooltip } from "./Tooltip";
 import { UpdateDialog } from "./UpdateDialog";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { REPO_URL, useUpdater, type UpdateState } from "./updater";
-import { LimitUsageChart, ReadingLimitChart } from "./LimitUsageChart";
-import { limitDays } from "./limitDays";
+import { useUpdater } from "./updater";
 import type { LimitUsageDay } from "./limitUsage";
 import { SUPPORTED_HARNESSES, disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
-import { formatUsd, mergeReports, totalBreakdown, withoutHarnesses } from "./aggregate";
+import { mergeReports, totalBreakdown, withoutHarnesses } from "./aggregate";
 import { hasUsage, withArchive } from "./dailyArchive";
 import {
   archivedDays,
@@ -46,14 +35,11 @@ import {
   cacheReport,
   cachedReports,
   flush,
-  getVersion,
   loadArchive,
   mergeBackfill,
   recordReading,
-  subscribe,
-  weeklyCycles,
 } from "./archive";
-import { LANG_NAMES, locale, percent, setLang, systemLang, t, type Lang } from "./i18n";
+import { setLang, systemLang, t } from "./i18n";
 import {
   PERIODS,
   compactDate,
@@ -65,36 +51,30 @@ import {
   type DateRange,
   type Period,
 } from "./periods";
-import { updateError } from "./releaseNotes";
 import { errorText } from "./errors";
 import { formatAge, freshness, isMonthly, quotaCards, quotaFailure, trayPercent, trayTone, type QuotaCard } from "./quota";
 import { TRAY_ICON_SIZE, drawTrayIcon, type TrayIconTone } from "./trayIcon";
+import { loadedAtOf, reportOf } from "./sourceState";
+import { useDesktopPreferences } from "./useDesktopPreferences";
 import { useNow } from "./useNow";
+import { useSourceDiscovery } from "./useSourceDiscovery";
 import {
-  autoUpdateActive,
-  autoUpdateHint,
-  offlineHint,
-  quotaHint,
   limitUsageOffReason,
   readingLimitOffReason,
   quotaOffReason,
   quotasActive,
-  refreshHint,
   subscriptionOffReason,
 } from "./settingsHints";
 import { pickClaudeAccount, pickSubscription, withAccountSpend } from "./subscription";
 import {
   QUOTA_HARNESSES,
-  type Detected,
   type ModelPricing,
   type QuotaReading,
   type Settings,
   type SourceId,
   type SourceState,
   type TabId,
-  type TrayWindow,
   type UsageReport,
-  type WslMode,
 } from "./types";
 import {
   BrandIcon,
@@ -109,146 +89,17 @@ import {
   SubscriptionCard,
   Stats,
   TokenBreakdownCard,
-  agentColor,
   agentLabel,
   asReport,
 } from "./views";
 
 const SUBSCRIPTIONS = ["codex", "claude", "cursor"];
-const MELVYNX_URL = "https://github.com/Melvynx/agent-burn";
-const DAVID_URL = "https://github.com/DavidSZD/agent-burn";
-const OVERVIEW = "overview";
 /** The weekly Codex limit per day changes slowly: read again after this long. */
 const LIMIT_USAGE_TTL_MS = 5 * 60_000;
 /** How long a quota stays on screen after a failed read, so missed reads do not blank it. */
 const QUOTA_GRACE_MS = 5 * 60_000;
 /** Each source's Claude plan is read from its own sign-in file; there is no manual choice. */
 const CLAUDE_PLAN = "auto";
-function reportOf(state: SourceState | undefined): UsageReport | undefined {
-  if (!state) return undefined;
-  if (state.status === "ready") return state.report;
-  if (state.status === "loading" || state.status === "error") return state.previous;
-  return undefined;
-}
-
-/** When the report on screen for a source was read (0 when there is none). */
-function loadedAtOf(state: SourceState | undefined): number {
-  if (state?.status === "ready") return state.loadedAt;
-  if (state?.status === "loading" || state?.status === "error") return state.previousAt ?? 0;
-  return 0;
-}
-
-/** The weekly Claude limit per day from the app's own readings, or the reason there is none. */
-function ReadingLimitSection({ offReason }: { offReason?: string }) {
-  const archiveVersion = useSyncExternalStore(subscribe, getVersion);
-  const nowMs = useNow(60_000);
-  const today = isoDate(new Date(nowMs));
-  const days = useMemo(() => limitDays(weeklyCycles("claude"), nowMs), [archiveVersion, today]);
-  if (offReason) return <div className="notice">{offReason}</div>;
-  return <ReadingLimitChart days={days} color={agentColor("claude")} />;
-}
-
-/** The weekly Codex limit per day, or the reason there is none to show. */
-function LimitUsageSection({
-  offReason,
-  best,
-  attempted,
-  label,
-}: {
-  offReason?: string;
-  best?: { id: string; days: LimitUsageDay[] };
-  attempted: boolean;
-  label: (id: string) => string;
-}) {
-  if (offReason) return <div className="notice">{offReason}</div>;
-  if (best) return <LimitUsageChart days={best.days} where={label(best.id)} />;
-  return <div className="notice">{attempted ? t().app.limitUsageUnread : t().app.limitUsageLoading}</div>;
-}
-
-/** Why a harness page has no quota, in the words of the open tab; `cause` when the app knows it. */
-function quotaMissing(harness: string, tab: TabId, wslRunning: boolean, cause?: string): string {
-  const name = agentLabel(harness);
-  const text = t().app;
-  if (tab === "wsl" && !wslRunning) return text.quotaWslOff(name);
-  const where = text.quotaWhere[tab];
-  if (cause) return text.quotaReadFailed(name, where, errorText(cause));
-  return harness === "claude" ? text.quotaMissingClaude(name, where) : text.quotaMissingCodex(name, where);
-}
-
-const noUsage = (tokens: number, cost: number) => tokens === 0 && cost === 0;
-
-/** A chosen period without any usage, instead of a page of zeros. */
-function EmptyPeriod({ period, harness }: { period: string; harness?: string }) {
-  return <div className="notice">{t().app.emptyPeriod(period, harness)}</div>;
-}
-
-const clockOf = (ms: number) => new Date(ms).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit" });
-
-/**
- * The installed version's line: the last check and the next automatic one. It stays the same
- * when a version is found, which gets a line of its own (`foundHint`).
- */
-function checkHint(
-  state: UpdateState,
-  checking: boolean,
-  checkError: string | null,
-  checkedAt: number | null,
-  nextAt: number | null,
-): string {
-  const text = t().update;
-  if (checking) return text.checking;
-  if (checkError !== null) return text.checkFailed(updateError(checkError));
-  const next = nextAt !== null ? ` · ${text.nextCheck(clockOf(nextAt))}` : "";
-  if (checkedAt === null) return `${text.notChecked}${next}`;
-  const last = state.status === "none" ? text.upToDate(clockOf(checkedAt)) : text.checkedAt(clockOf(checkedAt));
-  return `${last}${next}`;
-}
-
-/** The found version's line: what to do with it, or how its install goes. */
-function foundHint(state: UpdateState, offline: boolean): string {
-  const text = t().update;
-  if (state.status === "installing") {
-    return state.percent !== undefined ? text.downloading(state.percent) : text.installing;
-  }
-  if (state.status !== "available") return text.available;
-  if (offline) return text.foundOffline(state.version);
-  if (state.installError !== undefined) return text.cannotInstall(updateError(state.installError));
-  return text.available;
-}
-
-/** A source's read error, with the app's own errors said in the interface language. */
-
-function pillClass(remaining: number): string {
-  if (remaining < 20) return "pill bad";
-  if (remaining < 50) return "pill mid";
-  return "pill ok";
-}
-
-/** `quotaMissing` as a notice, with the CLI's own message on hover when there is one. */
-function QuotaMissing({ harness, tab, wslRunning, cause }: {
-  harness: string;
-  tab: TabId;
-  wslRunning: boolean;
-  cause?: string;
-}) {
-  return (
-    <div className="notice" title={cause}>
-      {quotaMissing(harness, tab, wslRunning, cause)}
-    </div>
-  );
-}
-
-function Pending({ state, label }: { state: SourceState | undefined; label: string }) {
-  if (state?.status === "error") {
-    return (
-      <div className="notice error" title={state.message}>
-        <strong>{t().app.readFailed(label.charAt(0).toUpperCase() + label.slice(1))}</strong>{" "}
-        {errorText(state.message)}
-      </div>
-    );
-  }
-  return <div className="notice">{t().app.reading(label)}</div>;
-}
 
 export default function App({ initialSettings, onThemeChange }: {
   initialSettings: Settings;
@@ -259,7 +110,8 @@ export default function App({ initialSettings, onThemeChange }: {
   const lang = settings.language ?? systemLang();
   setLang(lang);
   const text = t();
-  const [detected, setDetected] = useState<Detected | null>(null);
+  // WSL distributions, detected (and kept running) as the settings ask.
+  const detected = useSourceDiscovery(settings.wslRead, settings.wslMode);
   const [states, setStates] = useState<Record<string, SourceState>>({});
   const [pricing, setPricing] = useState<Record<string, ModelPricing>>({});
   const [quotas, setQuotas] = useState<Record<string, Record<string, QuotaReading>>>({});
@@ -273,7 +125,6 @@ export default function App({ initialSettings, onThemeChange }: {
   // its source finished after that, or its figures would trail the totals beside them.
   const [details, setDetails] = useState<Record<string, { report: UsageReport; requestedAt: number }>>({});
   const [detailErrors, setDetailErrors] = useState<Record<string, string>>({});
-  const [autostart, setAutostartState] = useState<boolean | null>(null);
   const detailsRef = useRef(details);
   detailsRef.current = details;
   const statesRef = useRef(states);
@@ -331,40 +182,6 @@ export default function App({ initialSettings, onThemeChange }: {
     window.addEventListener("beforeunload", flush);
     return () => window.removeEventListener("beforeunload", flush);
   }, []);
-
-  // The detection only lists WSL, it never starts it: this check is cheap, so it repeats to
-  // notice a distribution starting or stopping. With WSL off, WSL is not queried at all.
-  useEffect(() => {
-    if (!settings.wslRead) {
-      setDetected({ distros: [] });
-      return;
-    }
-    let cancelled = false;
-    const check = () =>
-      detectSources()
-        // A failed check says nothing new: the last known distributions stay.
-        .catch(() => null)
-        .then((next) => {
-          if (!cancelled && next)
-            setDetected((previous) => (JSON.stringify(previous) === JSON.stringify(next) ? previous : next));
-        });
-    void check();
-    const timer = setInterval(check, 15_000);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [settings.wslRead]);
-
-  // "Kept running": the app keeps each distribution awake while it runs and renews that every
-  // few seconds, so a distribution that was shut down comes back. Any other mode stops it.
-  useEffect(() => {
-    const keep = settings.wslRead && settings.wslMode === "keep";
-    void setWslKeepalive(keep).catch(() => undefined);
-    if (!keep) return;
-    const timer = setInterval(() => void setWslKeepalive(true).catch(() => undefined), 15_000);
-    return () => clearInterval(timer);
-  }, [settings.wslRead, settings.wslMode]);
 
   const scanning = useRef(false);
   const rescan = useRef(false);
@@ -514,33 +331,7 @@ export default function App({ initialSettings, onThemeChange }: {
   );
 
   // Background behaviour: the Windows startup entry and closing to the notification area.
-  useEffect(() => {
-    getAutostart()
-      .then(setAutostartState)
-      .catch(() => setAutostartState(null));
-  }, []);
-  useEffect(() => {
-    void setCloseToTray(settings.closeToTray).catch(() => undefined);
-  }, [settings.closeToTray]);
-  useEffect(() => {
-    void setClaudeRenew(settings.claudeRenew).catch(() => undefined);
-  }, [settings.claudeRenew]);
-  useEffect(() => {
-    void setRestartOnCrash(settings.restartOnCrash).catch(() => undefined);
-  }, [settings.restartOnCrash]);
-  // The box follows the click at once; writing the startup entry can take seconds on a machine
-  // whose security software inspects it. The real state is read back when the write is over.
-  const [autostartBusy, setAutostartBusy] = useState(false);
-  const toggleAutostart = (enabled: boolean) => {
-    setAutostartState(enabled);
-    setAutostartBusy(true);
-    setAutostart(enabled)
-      .catch(() => undefined)
-      .then(() => getAutostart())
-      .then(setAutostartState)
-      .catch(() => undefined)
-      .finally(() => setAutostartBusy(false));
-  };
+  const { autostart, autostartBusy, toggleAutostart } = useDesktopPreferences(settings);
 
   // Quotas off, or offline: no read at all; the readings already shown stay with their time.
   const quotasOn = quotasActive(settings);
@@ -972,114 +763,25 @@ export default function App({ initialSettings, onThemeChange }: {
 
   return (
     <div className="app">
-      <aside className="sidebar">
-        <div className="brand-row">
-          <span className="flame">🔥</span>
-          <strong>Agent Burn Windows</strong>
-        </div>
-
-        <nav className="sidebar-nav">
-
-          {tabs.length > 0 && (
-            <>
-              <div className="nav-group">{text.app.environment}</div>
-              {/* The computer on its own line, then its two parts, Windows and WSL, side by side. */}
-              {[tabs.slice(0, 1), tabs.slice(1)].map((row, index) => (
-                <div key={index} className={index === 0 ? "nav-row" : "nav-row nav-pair"}>
-                  {row.map((entry) => (
-                    <button
-                      key={entry.id}
-                      className={`nav env${tab === entry.id ? " on" : ""}`}
-                      onClick={() => openTab(entry.id)}
-                    >
-                      <span className="nav-icon">
-                        <EnvIcon env={entry.id} />
-                      </span>
-                      <span className="nav-label">{entry.label}</span>
-                    </button>
-                  ))}
-                </div>
-              ))}
-              {tab === "wsl" && distros.length > 1 && (
-                <select
-                  className="nav-select"
-                  value={activeDistro?.name}
-                  title={activeDistro?.name}
-                  onChange={(event) => setDistro(event.target.value)}
-                  aria-label={text.app.wslDistro}
-                >
-                  {distros.map((entry) => (
-                    <option key={entry.name}>{entry.name}</option>
-                  ))}
-                </select>
-              )}
-            </>
-          )}
-
-          <div className="nav-group">{text.app.view}</div>
-          <button className={`nav${page === OVERVIEW && !showSettings ? " on" : ""}`} onClick={() => openPage(OVERVIEW)}>
-            <OverviewIcon />
-            <span className="nav-label">{text.app.overview}</span>
-            <span className="nav-value">{navReport ? formatUsd(navReport.totals.totalCost) : ""}</span>
-          </button>
-
-          {subscriptionIds.length > 0 && <div className="nav-group">{text.app.subscriptions}</div>}
-          {subscriptionIds.map((id) => {
-            const quota = weeklyCard(id);
-            const stale = quota !== undefined && !freshness(quota.observedAt, nowMs).fresh;
-            const cost = resetRtd
-              ? resetSpend.get(id)
-              : localReport?.agents.find((entry) => entry.agent === id)?.totalCost;
-            // The spend line matches every harness; the weekly quota goes below it, only while read.
-            return (
-              <button
-                key={id}
-                className={`nav sub${page === id && !showSettings ? " on" : ""}`}
-                onClick={() => openPage(id)}
-              >
-                <span className="nav-line">
-                  <BrandIcon agent={id} />
-                  <span className="nav-label">{agentLabel(id)}</span>
-                  <span className="nav-value">{cost !== undefined ? formatUsd(cost) : ""}</span>
-                </span>
-                {quota && (
-                  <span className={`nav-line nav-quota${quota.session ? " both" : ""}`}>
-                    {/* Grey when the reading is not live. */}
-                    {quota.session && (
-                      <span className={`${pillClass(quota.session.remaining)}${stale ? " stale" : ""}`}>
-                        {percent(quota.session.remaining.toFixed(0))}
-                      </span>
-                    )}
-                    <span className="nav-label">
-                      {quota.session
-                        ? text.app.bothQuotas
-                        : isMonthly(quota.weekly.window.windowMinutes)
-                          ? text.app.monthlyQuota
-                          : text.app.weeklyQuota}
-                    </span>
-                    <span className={`${pillClass(quota.weekly.remaining)}${stale ? " stale" : ""}`}>
-                      {percent(quota.weekly.remaining.toFixed(0))}
-                    </span>
-                  </span>
-                )}
-              </button>
-            );
-          })}
-
-          {otherAgents.length > 0 && <div className="nav-group">{text.app.harness}</div>}
-          {otherAgents.map((agent) => (
-            <button
-              key={agent.agent}
-              className={`nav${page === agent.agent && !showSettings ? " on" : ""}`}
-              onClick={() => openPage(agent.agent)}
-            >
-              <BrandIcon agent={agent.agent} />
-              <span className="nav-label">{agentLabel(agent.agent)}</span>
-              <span className="nav-value">{formatUsd(agent.totalCost)}</span>
-            </button>
-          ))}
-        </nav>
-      </aside>
+      <Sidebar
+        tabs={tabs}
+        tab={tab}
+        openTab={openTab}
+        distros={distros}
+        activeDistro={activeDistro}
+        onDistro={setDistro}
+        page={page}
+        showSettings={showSettings}
+        openPage={openPage}
+        overviewCost={navReport?.totals.totalCost}
+        subscriptionIds={subscriptionIds}
+        weeklyCard={weeklyCard}
+        costOf={(id) =>
+          resetRtd ? resetSpend.get(id) : localReport?.agents.find((entry) => entry.agent === id)?.totalCost
+        }
+        nowMs={nowMs}
+        otherAgents={otherAgents}
+      />
 
       <div className="content">
         <header className="topbar">
@@ -1124,238 +826,21 @@ export default function App({ initialSettings, onThemeChange }: {
 
         <main>
           {showSettings ? (
-            <div className="settings">
-              <SettingsCard title={text.settings.general} icon={<Glyph kind="general" size={16} />}>
-                <SettingRow title={text.settings.language} description={text.settings.languageHint}>
-                  <select
-                    value={lang}
-                    onChange={(event) => updateSettings({ ...settings, language: event.target.value as Lang })}
-                  >
-                    {(Object.keys(LANG_NAMES) as Lang[]).map((value) => (
-                      <option key={value} value={value}>
-                        {LANG_NAMES[value]}
-                      </option>
-                    ))}
-                  </select>
-                </SettingRow>
-                <SettingRow title={text.settings.theme} description={text.settings.themeHints[settings.theme]}>
-                  <select
-                    aria-label={text.settings.theme}
-                    value={settings.theme}
-                    onChange={(event) => {
-                      const theme = event.target.value;
-                      if (theme === "system" || theme === "dark" || theme === "light") {
-                        updateSettings({ ...settings, theme });
-                      }
-                    }}
-                  >
-                    <option value="system">{text.settings.themes.system}</option>
-                    <option value="dark">{text.settings.themes.dark}</option>
-                    <option value="light">{text.settings.themes.light}</option>
-                  </select>
-                </SettingRow>
-              </SettingsCard>
-
-              <SettingsCard title={text.settings.background} icon={<Glyph kind="monitor" size={16} />}>
-                <SettingRow title={text.settings.autostart} description={text.settings.autostartHint}>
-                  <Switch
-                    checked={autostart ?? false}
-                    disabled={autostart === null || autostartBusy}
-                    tip={autostartBusy ? text.settings.autostartBusy : undefined}
-                    label={text.settings.autostart}
-                    onChange={toggleAutostart}
-                  />
-                </SettingRow>
-                <SettingRow title={text.settings.restartOnCrash} description={text.settings.restartOnCrashHint}>
-                  <Switch
-                    checked={settings.restartOnCrash}
-                    label={text.settings.restartOnCrash}
-                    onChange={(next) => updateSettings({ ...settings, restartOnCrash: next })}
-                  />
-                </SettingRow>
-                <SettingRow title={text.settings.tray} description={text.settings.trayHint}>
-                  <Switch
-                    checked={settings.closeToTray}
-                    label={text.settings.tray}
-                    onChange={(next) => updateSettings({ ...settings, closeToTray: next })}
-                  />
-                </SettingRow>
-                <SettingRow
-                  title={text.settings.trayIcon}
-                  description={quotasOn ? text.settings.trayIconHint : text.settings.trayIconIdle}
-                >
-                  <select
-                    aria-label={text.settings.trayIcon}
-                    value={settings.trayIcon}
-                    disabled={!quotasOn}
-                    onChange={(event) => updateSettings({ ...settings, trayIcon: event.target.value as Settings["trayIcon"] })}
-                  >
-                    <option value="logo">{text.settings.trayLogo}</option>
-                    {QUOTA_HARNESSES.map((harness) => (
-                      <option key={harness} value={harness}>
-                        {agentLabel(harness)}
-                      </option>
-                    ))}
-                  </select>
-                </SettingRow>
-                {settings.trayIcon !== "logo" && (
-                  <SettingRow title={text.settings.trayWindow} description={text.settings.trayWindowHints[settings.trayWindow]}>
-                    <select
-                      aria-label={text.settings.trayWindow}
-                      value={settings.trayWindow}
-                      disabled={!quotasOn}
-                      onChange={(event) => updateSettings({ ...settings, trayWindow: event.target.value as TrayWindow })}
-                    >
-                      {(["tightest", "session", "weekly"] as TrayWindow[]).map((window) => (
-                        <option key={window} value={window}>
-                          {text.settings.trayWindows[window]}
-                        </option>
-                      ))}
-                    </select>
-                  </SettingRow>
-                )}
-              </SettingsCard>
-
-              {/* The refresh comes first: under the offline switch it would look governed by it, as
-                  the WSL mode is by its switch, while it keeps going offline. */}
-              <SettingsCard title={text.settings.data} icon={<Glyph kind="data" size={16} />}>
-                <SettingRow title={text.settings.refresh} description={refreshHint(settings.refreshMinutes)}>
-                  <select
-                    value={settings.refreshMinutes}
-                    onChange={(event) => updateSettings({ ...settings, refreshMinutes: Number(event.target.value) })}
-                  >
-                    <option value={0}>{text.settings.never}</option>
-                    {/* A WSL scan with OpenCode takes about 30 s: every minute would read almost
-                        nonstop. 1 can come back here if scans get faster. */}
-                    {[5, 10, 30].map((minutes) => (
-                      <option key={minutes} value={minutes}>
-                        {text.settings.everyMinutes(minutes)}
-                      </option>
-                    ))}
-                  </select>
-                </SettingRow>
-                <SettingRow title={text.settings.offline} description={offlineHint(settings.offline)}>
-                  <Switch
-                    checked={settings.offline}
-                    label={text.settings.offline}
-                    onChange={(next) => updateSettings({ ...settings, offline: next })}
-                  />
-                </SettingRow>
-              </SettingsCard>
-
-              <SettingsCard title={text.settings.quotasCard} icon={<Glyph kind="subscription" size={16} />}>
-                <SettingRow title={text.settings.quotas} description={quotaHint(settings)}>
-                  <Switch
-                    checked={quotasOn}
-                    disabled={settings.offline}
-                    label={text.settings.quotas}
-                    onChange={(next) => updateSettings({ ...settings, quotas: next })}
-                  />
-                </SettingRow>
-                {/* Renewal only happens on an online quota reading: without one the switch has no effect. */}
-                <SettingRow
-                  title={text.settings.claudeRenew}
-                  description={quotasOn ? text.settings.claudeRenewHint : text.settings.claudeRenewIdle}
-                >
-                  <Switch
-                    checked={settings.claudeRenew}
-                    disabled={!quotasOn}
-                    label={text.settings.claudeRenew}
-                    onChange={(next) => updateSettings({ ...settings, claudeRenew: next })}
-                  />
-                </SettingRow>
-              </SettingsCard>
-
-              {/* Hidden when there is no WSL to turn off; kept while off so it can be turned back on. */}
-              {(!settings.wslRead || settings.wslMode === "keep" || distros.length > 0) && (
-                <SettingsCard title="WSL" icon={<EnvIcon env="wsl" size={16} />}>
-                  <SettingRow
-                    title={text.settings.wslRead}
-                    description={settings.wslRead ? text.settings.wslReadOn : text.settings.wslReadOff}
-                  >
-                    <Switch
-                      checked={settings.wslRead}
-                      label={text.settings.wslRead}
-                      onChange={(next) => updateSettings({ ...settings, wslRead: next })}
-                    />
-                  </SettingRow>
-                  {/* The mode is kept while reading is off, and greyed out. */}
-                  <SettingRow title={text.settings.wslModeTitle} description={text.settings.wslModeHints[settings.wslMode]}>
-                    <select
-                      value={settings.wslMode}
-                      disabled={!settings.wslRead}
-                      onChange={(event) => updateSettings({ ...settings, wslMode: event.target.value as WslMode })}
-                    >
-                      {(["auto", "keep"] as WslMode[]).map((mode) => (
-                        <option key={mode} value={mode}>
-                          {text.settings.wslModes[mode]}
-                        </option>
-                      ))}
-                    </select>
-                  </SettingRow>
-                </SettingsCard>
-              )}
-
-              <SettingsCard title={text.app.harness} icon={<Glyph kind="flame" size={16} />}>
-                <HarnessSettings groups={harnessGroups} onToggle={toggleHarness} />
-                <p className="muted small set-note">{text.settings.harnessNote}</p>
-              </SettingsCard>
-
-              <SettingsCard title={text.settings.updates} icon={<Glyph kind="updates" size={16} />}>
-                <SettingRow title={text.settings.autoUpdate} description={autoUpdateHint(settings.offline)}>
-                  <Switch
-                    checked={autoUpdateActive(settings)}
-                    disabled={settings.offline}
-                    label={text.settings.autoUpdate}
-                    onChange={(next) => updateSettings({ ...settings, autoUpdate: next })}
-                  />
-                </SettingRow>
-                {/* Checking stays at hand when a version is found: a newer one may follow. */}
-                <SettingRow
-                  title={text.settings.installedVersion(appVersion)}
-                  description={checkHint(updater.state, updater.checking, updater.checkError, updater.checkedAt, updater.nextAt)}
-                >
-                  <button
-                    className="btn"
-                    disabled={settings.offline || updater.checking || updater.state.status === "installing"}
-                    onClick={() => void updater.checkNow()}
-                  >
-                    {text.settings.checkNow}
-                  </button>
-                </SettingRow>
-                {(updater.state.status === "available" || updater.state.status === "installing") && (
-                  <SettingRow
-                    title={t().update.availableTitle(updater.state.version)}
-                    description={foundHint(updater.state, settings.offline)}
-                  >
-                    <button className="btn primary" onClick={() => setShowUpdate(true)}>
-                      {text.settings.seeVersion(updater.state.version)}
-                    </button>
-                  </SettingRow>
-                )}
-              </SettingsCard>
-
-              <SettingsCard title={text.settings.about} icon={<Glyph kind="about" size={16} />}>
-                <SettingRow
-                  title={`Agent Burn Windows${appVersion ? ` ${appVersion}` : ""}`}
-                  description={text.settings.aboutHint}
-                >
-                  <button className="btn" onClick={() => void openUrl(REPO_URL)}>
-                    {text.settings.repo}
-                  </button>
-                </SettingRow>
-                <SettingRow title={text.settings.origin} description={text.settings.originHint}>
-                  <button className="btn" onClick={() => void openUrl(MELVYNX_URL)}>
-                    Agent Burn ↗
-                  </button>
-                </SettingRow>
-                <SettingRow title={text.settings.inspiration} description={text.settings.inspirationHint}>
-                  <button className="btn" onClick={() => void openUrl(DAVID_URL)}>
-                    DavidSZD ↗
-                  </button>
-                </SettingRow>
-              </SettingsCard>
-            </div>
+            <SettingsPage
+              settings={settings}
+              lang={lang}
+              updateSettings={updateSettings}
+              quotasOn={quotasOn}
+              autostart={autostart}
+              autostartBusy={autostartBusy}
+              toggleAutostart={toggleAutostart}
+              hasDistros={distros.length > 0}
+              harnessGroups={harnessGroups}
+              toggleHarness={toggleHarness}
+              updater={updater}
+              appVersion={appVersion}
+              openUpdate={() => setShowUpdate(true)}
+            />
           ) : !report ? (
             stoppedNames.length > 0 && !pendingState ? (
               <div className="notice">{text.app.wslOffNoData(stoppedNames.join(", "))}</div>
