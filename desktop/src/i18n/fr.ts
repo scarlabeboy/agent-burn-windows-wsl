@@ -285,6 +285,7 @@ export const fr = {
     planUnknown: "plan inconnu",
     perMonth: "/mois",
     free: "Gratuit",
+    unknownPrice: "prix inconnu",
     claudePlanUnknown:
       "Le plan n'a pas pu être détecté : il est lu dans la connexion de Claude Code (commande claude) de cet environnement.",
     value: "Valeur / prix du forfait",

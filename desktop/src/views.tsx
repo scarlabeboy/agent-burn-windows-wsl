@@ -780,7 +780,9 @@ export function SubscriptionCard({
   const estimate = sub?.estimate ?? null;
   const scoped = harness === "claude" ? (account?.scoped ?? []) : [];
   const extra = harness === "claude" && account?.extraEnabled ? account : undefined;
-  if (!offReason && !sub && scoped.length === 0 && !extra) return null;
+  // Without a quota the block still says the plan is not read, whether or not the CLI named one
+  // (Codex has no entry at all without live limits).
+  if (!offReason && card && !sub && scoped.length === 0 && !extra) return null;
   const known = sub?.plan && sub.plan !== "";
   const spend = card ? budget(card.weekly) : null;
   const text = t().views;
@@ -826,7 +828,7 @@ export function SubscriptionCard({
                 ? `${decimal(estimate.valueMultiple)}×`
                 : sub?.plan?.toLowerCase() === "free"
                   ? text.free
-                  : "n/a"
+                  : text.unknownPrice
             }
             hint={text.valueHint}
           />

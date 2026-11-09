@@ -280,6 +280,7 @@ export const en: Strings = {
     planUnknown: "unknown plan",
     perMonth: "/month",
     free: "Free",
+    unknownPrice: "unknown price",
     claudePlanUnknown:
       "The plan could not be detected: it is read from the Claude Code sign-in (claude command) of this environment.",
     value: "Value / plan price",
