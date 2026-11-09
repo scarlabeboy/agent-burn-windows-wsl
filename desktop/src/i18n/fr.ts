@@ -286,6 +286,7 @@ export const fr = {
     perMonth: "/mois",
     free: "Gratuit",
     unknownPrice: "prix inconnu",
+    noEstimate: "Valeur et projection calculées dès que le quota commence à être utilisé.",
     claudePlanUnknown:
       "Le plan n'a pas pu être détecté : il est lu dans la connexion de Claude Code (commande claude) de cet environnement.",
     value: "Valeur / prix du forfait",

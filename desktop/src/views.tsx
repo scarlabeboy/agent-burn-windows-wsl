@@ -819,25 +819,31 @@ export function SubscriptionCard({
         </span>
       </header>
       {!known && harness === "claude" && <p className="muted small hint-top">{text.claudePlanUnknown}</p>}
-      {estimate && (
+      {sub && !estimate && <p className="muted small hint-top">{text.noEstimate}</p>}
+      {(estimate || sub) && (
         <div className="stats">
-          <Stat
-            title={text.value}
-            value={
-              estimate.valueMultiple != null
-                ? `${decimal(estimate.valueMultiple)}×`
-                : sub?.plan?.toLowerCase() === "free"
-                  ? text.free
-                  : text.unknownPrice
-            }
-            hint={text.valueHint}
-          />
-          <Stat title={text.monthlyValue} value={formatUsd(estimate.monthlyValue)} hint={text.monthlyValueHint} />
-          <Stat
-            title={text.projected}
-            value={percent(whole(estimate.projectedUsePercent))}
-            hint={text.projectedHint}
-          />
+          {/* The CLI works out no estimate while nothing is used: the advised pace still shows. */}
+          {estimate && (
+            <>
+              <Stat
+                title={text.value}
+                value={
+                  estimate.valueMultiple != null
+                    ? `${decimal(estimate.valueMultiple)}×`
+                    : sub?.plan?.toLowerCase() === "free"
+                      ? text.free
+                      : text.unknownPrice
+                }
+                hint={text.valueHint}
+              />
+              <Stat title={text.monthlyValue} value={formatUsd(estimate.monthlyValue)} hint={text.monthlyValueHint} />
+              <Stat
+                title={text.projected}
+                value={percent(whole(estimate.projectedUsePercent))}
+                hint={text.projectedHint}
+              />
+            </>
+          )}
           <Stat
             title={text.advisedPace}
             value={

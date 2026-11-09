@@ -368,7 +368,7 @@ export default function App({ initialSettings, onThemeChange }: {
 
   const scanning = useRef(false);
   const rescan = useRef(false);
-  const refreshRef = useRef<() => void>(() => undefined);
+  const refreshRef = useRef<(queue?: boolean) => void>(() => undefined);
   const refresh = useCallback((queue = false) => {
     // One scan at a time: a slow WSL read must never overlap the next automatic one.
     // A change of sources (WSL started) waits for the running scan instead of being lost.
@@ -467,6 +467,9 @@ export default function App({ initialSettings, onThemeChange }: {
   const quotaReads = useRef(new Set<string>());
   // The last failure of each source and harness, kept until a reading succeeds.
   const [quotaErrors, setQuotaErrors] = useState<Record<string, string>>({});
+  // The shape of each source and harness's windows (lengths, session or not). A change means the
+  // plan changed (Codex Free taken back to Plus): the plan and price come from the next usage scan.
+  const quotaShapes = useRef(new Map<string, string>());
   const refreshQuotas = useCallback(
     (force: boolean) => {
       for (const id of readableIds) {
@@ -479,6 +482,10 @@ export default function App({ initialSettings, onThemeChange }: {
             .then((reading) => {
               // Stored as measured; what is shown has an unconfirmed over-count held back.
               const shown = recordReading(reading);
+              const shape = `${reading.window.windowMinutes}|${reading.sessionWindow?.windowMinutes ?? "-"}`;
+              const known = quotaShapes.current.get(key);
+              quotaShapes.current.set(key, shape);
+              if (known !== undefined && known !== shape) refreshRef.current(true);
               setQuotaErrors(({ [key]: _cleared, ...rest }) => rest);
               setQuotas((current) => {
                 // A reading older than the one shown arrived late: it is not the latest state.
@@ -537,12 +544,13 @@ export default function App({ initialSettings, onThemeChange }: {
 
   // Quotas off, or offline: no read at all; the readings already shown stay with their time.
   const quotasOn = quotasActive(settings);
+  // Readings wait for the archive: one recorded before it loads would be replaced by it.
   useEffect(() => {
-    if (!quotasOn) return;
+    if (!quotasOn || !archiveReady) return;
     refreshQuotas(false);
     const timer = setInterval(() => refreshQuotas(false), 60_000);
     return () => clearInterval(timer);
-  }, [detected, refreshQuotas, quotasOn]);
+  }, [detected, refreshQuotas, quotasOn, archiveReady]);
 
   // Tray menu actions, and a last save of the archive before the app quits (tray "Quit", or
   // closing the window when it does not stay in the notification area): the process ends once
