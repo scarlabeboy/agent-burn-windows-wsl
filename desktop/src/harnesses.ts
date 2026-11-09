@@ -18,6 +18,9 @@ export const SUPPORTED_HARNESSES = [
   "qwen",
 ];
 
+/** Harnesses sold as a subscription: listed apart in the side bar. */
+export const SUBSCRIPTIONS = ["codex", "claude", "cursor"];
+
 /** Only "off" exists for now; a table leaves room for other states later. */
 export type HarnessState = "off";
 export type HarnessStates = Record<string, HarnessState>;

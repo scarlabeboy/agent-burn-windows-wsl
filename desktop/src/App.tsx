@@ -1,81 +1,39 @@
-import { listen } from "@tauri-apps/api/event";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  backfillCodex,
-  loadLimitUsage,
-  loadQuota,
-  loadUsage,
-  readPeriod,
-  readSeen,
-  readTab,
-  setTrayIcon,
-  setTrayLabels,
-  quitApp,
-  setTrayTooltip,
-  writePeriod,
-  writeSeen,
-  writeSettings,
-  writeTab,
-} from "./api";
+import { useEffect, useMemo, useState } from "react";
+import { readPeriod, readSeen, readTab, writePeriod, writeSeen, writeSettings, writeTab } from "./api";
 import { EmptyPeriod, LimitUsageSection, Pending, QuotaMissing, ReadingLimitSection, noUsage } from "./AppNotices";
-import { SettingsPage } from "./SettingsPage";
-import { OVERVIEW, Sidebar } from "./Sidebar";
+import { totalBreakdown } from "./aggregate";
+import { archivedDays } from "./archive";
+import { hasUsage } from "./dailyArchive";
 import { EmptyState } from "./EmptyState";
-import { StatusBar, useAppVersion } from "./StatusBar";
-import { Tooltip } from "./Tooltip";
-import { UpdateDialog } from "./UpdateDialog";
-import { useUpdater } from "./updater";
-import type { LimitUsageDay } from "./limitUsage";
-import { SUPPORTED_HARNESSES, disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
-import { mergeReports, totalBreakdown, withoutHarnesses } from "./aggregate";
-import { hasUsage, withArchive } from "./dailyArchive";
-import {
-  archivedDays,
-  backfilledAt,
-  cacheReport,
-  cachedReports,
-  flush,
-  loadArchive,
-  mergeBackfill,
-  recordReading,
-} from "./archive";
-import { setLang, systemLang, t } from "./i18n";
-import {
-  PERIODS,
-  compactDate,
-  defaultGranularity,
-  filterReport,
-  isoDate,
-  periodLabel,
-  rangeFor,
-  type DateRange,
-  type Period,
-} from "./periods";
 import { errorText } from "./errors";
-import { formatAge, freshness, isMonthly, quotaCards, quotaFailure, trayPercent, trayTone, type QuotaCard } from "./quota";
-import { TRAY_ICON_SIZE, drawTrayIcon, type TrayIconTone } from "./trayIcon";
-import { loadedAtOf, reportOf } from "./sourceState";
-import { useDesktopPreferences } from "./useDesktopPreferences";
-import { useNow } from "./useNow";
-import { useSourceDiscovery } from "./useSourceDiscovery";
+import { SUBSCRIPTIONS, SUPPORTED_HARNESSES, disabledHarnesses, groupHarnesses, scanAgents } from "./harnesses";
+import { setLang, systemLang, t } from "./i18n";
+import { PERIODS, defaultGranularity, periodLabel, type Period } from "./periods";
+import { isMonthly, quotaCards, quotaFailure, type QuotaCard } from "./quota";
+import { SettingsPage } from "./SettingsPage";
 import {
   limitUsageOffReason,
-  readingLimitOffReason,
   quotaOffReason,
   quotasActive,
+  readingLimitOffReason,
   subscriptionOffReason,
 } from "./settingsHints";
+import { OVERVIEW, Sidebar } from "./Sidebar";
+import { loadedAtOf, reportOf } from "./sourceState";
+import { StatusBar, useAppVersion } from "./StatusBar";
 import { pickClaudeAccount, pickSubscription, withAccountSpend } from "./subscription";
-import {
-  QUOTA_HARNESSES,
-  type ModelPricing,
-  type QuotaReading,
-  type Settings,
-  type SourceId,
-  type SourceState,
-  type TabId,
-  type UsageReport,
-} from "./types";
+import { Tooltip } from "./Tooltip";
+import type { ModelPricing, QuotaReading, Settings, SourceId, TabId, UsageReport } from "./types";
+import { UpdateDialog } from "./UpdateDialog";
+import { useUpdater } from "./updater";
+import { useCodexBackfill, useCodexLimitUsage } from "./useCodexHistory";
+import { useDesktopPreferences } from "./useDesktopPreferences";
+import { useNow } from "./useNow";
+import { usePeriodReports } from "./usePeriodReports";
+import { useQuotaReadings } from "./useQuotaReadings";
+import { useSourceDiscovery } from "./useSourceDiscovery";
+import { useTrayIntegration } from "./useTrayIntegration";
+import { useUsageReports } from "./useUsageReports";
 import {
   BrandIcon,
   EnvironmentSplit,
@@ -93,14 +51,6 @@ import {
   asReport,
 } from "./views";
 
-const SUBSCRIPTIONS = ["codex", "claude", "cursor"];
-/** The weekly Codex limit per day changes slowly: read again after this long. */
-const LIMIT_USAGE_TTL_MS = 5 * 60_000;
-/** How long a quota stays on screen after a failed read, so missed reads do not blank it. */
-const QUOTA_GRACE_MS = 5 * 60_000;
-/** Each source's Claude plan is read from its own sign-in file; there is no manual choice. */
-const CLAUDE_PLAN = "auto";
-
 export default function App({ initialSettings, onThemeChange }: {
   initialSettings: Settings;
   onThemeChange: (theme: Settings["theme"]) => void;
@@ -112,23 +62,12 @@ export default function App({ initialSettings, onThemeChange }: {
   const text = t();
   // WSL distributions, detected (and kept running) as the settings ask.
   const detected = useSourceDiscovery(settings.wslRead, settings.wslMode);
-  const [states, setStates] = useState<Record<string, SourceState>>({});
   const [pricing, setPricing] = useState<Record<string, ModelPricing>>({});
-  const [quotas, setQuotas] = useState<Record<string, Record<string, QuotaReading>>>({});
   const [storedTab, setStoredTab] = useState<TabId | null>(readTab);
   const [distro, setDistro] = useState<string | null>(null);
   const [page, setPage] = useState<string>(OVERVIEW);
   const [showSettings, setShowSettings] = useState(false);
-  const [archiveReady, setArchiveReady] = useState(false);
   const [period, setPeriodState] = useState<Period>(readPeriod);
-  // Per-model detail of a period, with when it was asked for: it is only used while no scan of
-  // its source finished after that, or its figures would trail the totals beside them.
-  const [details, setDetails] = useState<Record<string, { report: UsageReport; requestedAt: number }>>({});
-  const [detailErrors, setDetailErrors] = useState<Record<string, string>>({});
-  const detailsRef = useRef(details);
-  detailsRef.current = details;
-  const statesRef = useRef(states);
-  statesRef.current = states;
   const setPeriod = (next: Period) => {
     setPeriodState(next);
     writePeriod(next);
@@ -165,196 +104,30 @@ export default function App({ initialSettings, onThemeChange }: {
     writeTab(next);
   };
 
-  // Saved quota history and the last reports load first, so the app opens with data to show.
-  useEffect(() => {
-    loadArchive()
-      .catch(() => undefined)
-      .finally(() => {
-        setStates((current) => {
-          const next = { ...current };
-          for (const [id, cached] of Object.entries(cachedReports())) {
-            next[id] ??= { status: "ready", report: cached.report, loadedAt: cached.loadedAt };
-          }
-          return next;
-        });
-        setArchiveReady(true);
-      });
-    window.addEventListener("beforeunload", flush);
-    return () => window.removeEventListener("beforeunload", flush);
-  }, []);
-
-  const scanning = useRef(false);
-  const rescan = useRef(false);
-  const refreshRef = useRef<(queue?: boolean) => void>(() => undefined);
-  const refresh = useCallback((queue = false) => {
-    // One scan at a time: a slow WSL read must never overlap the next automatic one.
-    // A change of sources (WSL started) waits for the running scan instead of being lost.
-    if (scanning.current) {
-      if (queue) rescan.current = true;
-      return;
-    }
-    scanning.current = true;
-    const scans = readableIds.map((id) => {
-      setStates((current) => ({
-        ...current,
-        [id]: { status: "loading", previous: reportOf(current[id]), previousAt: loadedAtOf(current[id]) },
-      }));
-      return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, quotasActive(settings), CLAUDE_PLAN, {}, agentsToScan)
-        .then(({ pricing: nextPricing, ...report }) => {
-          // Keep reference rates only in memory; the last Windows or WSL read wins.
-          if (nextPricing) setPricing((current) => ({ ...current, ...nextPricing }));
-          const loadedAt = Date.now();
-          cacheReport(id, report, loadedAt, !settings.offline);
-          setStates((current) => ({ ...current, [id]: { status: "ready", report, loadedAt } }));
-        })
-        .catch((error) =>
-          setStates((current) => ({
-            ...current,
-            [id]: {
-              status: "error",
-              message: String(error),
-              previous: reportOf(current[id]),
-              previousAt: loadedAtOf(current[id]),
-            },
-          })),
-        );
-    });
-    void Promise.all(scans).finally(() => {
-      scanning.current = false;
-      if (rescan.current) {
-        rescan.current = false;
-        refreshRef.current();
-      }
-    });
-  }, [readableIds, settings.offline, settings.quotas, agentsToScan]);
-  refreshRef.current = refresh;
-
-  // Windows is scanned as soon as the archive is loaded. A WSL distribution joins the scan
-  // once its detection answers: the sources change, which scans again (queued if one runs).
-  useEffect(() => {
-    if (archiveReady) refresh(true);
-  }, [detected, archiveReady, refresh]);
-
-  // Automatic scans. Changing their interval only resets the timer: it does not scan.
-  // The time of the next one is kept for the status bar (0: none planned).
-  const [nextScan, setNextScan] = useState(0);
-  useEffect(() => {
-    if (!archiveReady) return;
-    if (settings.refreshMinutes <= 0) {
-      setNextScan(0);
-      return;
-    }
-    const every = settings.refreshMinutes * 60_000;
-    setNextScan(Date.now() + every);
-    const timer = setInterval(() => {
-      refreshRef.current();
-      setNextScan(Date.now() + every);
-    }, every);
-    return () => clearInterval(timer);
-  }, [archiveReady, settings.refreshMinutes]);
-
-  // Rebuild Codex limit history from each source's logs: 30 days the first time, then only
-  // what changed since the last scan. It starts after the first usage scan has had a head start.
-  useEffect(() => {
-    if (!archiveReady) return;
-    let cancelled = false;
-    if (disabled.includes("codex")) return;
-    void (async () => {
-      await new Promise((resolve) => setTimeout(resolve, 8000));
-      for (const id of readableIds) {
-        if (cancelled) return;
-        const scannedAt = Date.now();
-        const last = backfilledAt(id);
-        const since = last ? last - 24 * 3600_000 : scannedAt - 30 * 24 * 3600_000;
-        try {
-          const series = await backfillCodex(id === "windows" ? null : id.slice(4), since);
-          if (!cancelled) mergeBackfill("codex", id, series, scannedAt);
-        } catch {
-          // A source without Codex logs has no history to rebuild.
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [detected, archiveReady, readableIds, disabledKey]);
-
-  // One quota read at a time per source and harness: a read can wait minutes on a frozen WSL,
-  // and the next ones must not pile up behind it.
-  const quotaReads = useRef(new Set<string>());
-  // The last failure of each source and harness, kept until a reading succeeds.
-  const [quotaErrors, setQuotaErrors] = useState<Record<string, string>>({});
-  // The shape of each source and harness's windows (lengths, session or not). A change means the
-  // plan changed (Codex Free taken back to Plus): the plan and price come from the next usage scan.
-  const quotaShapes = useRef(new Map<string, string>());
-  const refreshQuotas = useCallback(
-    (force: boolean) => {
-      for (const id of readableIds) {
-        const name = id === "windows" ? null : id.slice(4);
-        for (const harness of QUOTA_HARNESSES.filter((entry) => !disabled.includes(entry))) {
-          const key = `${id}|${harness}`;
-          if (quotaReads.current.has(key)) continue;
-          quotaReads.current.add(key);
-          loadQuota(harness, name, force)
-            .then((reading) => {
-              // Stored as measured; what is shown has an unconfirmed over-count held back.
-              const shown = recordReading(reading);
-              const shape = `${reading.window.windowMinutes}|${reading.sessionWindow?.windowMinutes ?? "-"}`;
-              const known = quotaShapes.current.get(key);
-              quotaShapes.current.set(key, shape);
-              if (known !== undefined && known !== shape) refreshRef.current(true);
-              setQuotaErrors(({ [key]: _cleared, ...rest }) => rest);
-              setQuotas((current) => {
-                // A reading older than the one shown arrived late: it is not the latest state.
-                const previous = current[id]?.[harness];
-                if (previous && previous.observedAt > reading.observedAt) return current;
-                return { ...current, [id]: { ...current[id], [harness]: shown } };
-              });
-            })
-            // A source without a sign-in for this harness simply has no quota to show. A reading
-            // from the last five minutes stays through missed reads: in WSL without a sign-in,
-            // the quota comes from Claude Code's own cache, which the CLI takes only while fresh.
-            .catch((error) => {
-              setQuotaErrors((current) => ({ ...current, [key]: String(error) }));
-              setQuotas((current) => {
-                const previous = current[id]?.[harness];
-                if (previous && Date.now() - previous.observedAt < QUOTA_GRACE_MS) return current;
-                const { [harness]: _removed, ...rest } = current[id] ?? {};
-                return { ...current, [id]: rest };
-              });
-            })
-            .finally(() => quotaReads.current.delete(key));
-        }
-      }
-    },
-    [readableIds, disabledKey],
-  );
-
-  // Background behaviour: the Windows startup entry and closing to the notification area.
-  const { autostart, autostartBusy, toggleAutostart } = useDesktopPreferences(settings);
+  // Archive first, then full scans of every readable source.
+  const { states, archiveReady, refresh, refreshRef, nextScan } = useUsageReports({
+    settings,
+    readableIds,
+    agentsToScan,
+    detected,
+    setPricing,
+  });
+  useCodexBackfill({ archiveReady, readableIds, disabled, disabledKey, detected });
 
   // Quotas off, or offline: no read at all; the readings already shown stay with their time.
   const quotasOn = quotasActive(settings);
-  // Readings wait for the archive: one recorded before it loads would be replaced by it.
-  useEffect(() => {
-    if (!quotasOn || !archiveReady) return;
-    refreshQuotas(false);
-    const timer = setInterval(() => refreshQuotas(false), 60_000);
-    return () => clearInterval(timer);
-  }, [detected, refreshQuotas, quotasOn, archiveReady]);
+  const { quotas, quotaErrors, refreshQuotas } = useQuotaReadings({
+    readableIds,
+    disabled,
+    disabledKey,
+    quotasOn,
+    archiveReady,
+    detected,
+    refreshRef,
+  });
 
-  // Tray menu actions, and a last save of the archive before the app quits (tray "Quit", or
-  // closing the window when it does not stay in the notification area): the process ends once
-  // saved. "Refresh quotas" reads the quotas; with quotas off it reads the usage instead.
-  useEffect(() => {
-    const unlisten = [
-      listen("tray-refresh", () => (quotasOn ? refreshQuotas(true) : refresh())),
-      listen("quit-requested", () => void flush().finally(() => void quitApp())),
-    ];
-    return () => {
-      unlisten.forEach((pending) => void pending.then((stop) => stop()));
-    };
-  }, [refreshQuotas, refresh, quotasOn]);
+  // Background behaviour: the Windows startup entry and closing to the notification area.
+  const { autostart, autostartBusy, toggleAutostart } = useDesktopPreferences(settings);
 
   const updater = useUpdater(settings.autoUpdate, settings.offline);
   const [showUpdate, setShowUpdate] = useState(false);
@@ -437,197 +210,54 @@ export default function App({ initialSettings, onThemeChange }: {
 
   // Ages of the quota readings shown in the tooltip and the sidebar, kept current.
   const nowMs = useNow(15_000);
-  // Quota summary on the notification-area icon: the account, whatever tab is open. A reading
-  // that is not live says how old it is, as the quota cards do.
-  const tooltip = accountCards
-    .map((card) => {
-      const line = text.app.tooltipLine(
-        agentLabel(card.harness),
-        card.session?.remaining.toFixed(0),
-        card.weekly.remaining.toFixed(0),
-        isMonthly(card.weekly.window.windowMinutes),
-      );
-      return freshness(card.observedAt, nowMs).fresh
-        ? line
-        : `${line} · ${text.app.tooltipAge(formatAge(nowMs - card.observedAt))}`;
-    })
-    .join("\n");
-  useEffect(() => {
-    // Without any quota the summary goes too, rather than keep percentages that no longer hold.
-    void setTrayTooltip(tooltip ? `Agent Burn Windows\n${tooltip}` : "Agent Burn Windows").catch(() => undefined);
-  }, [tooltip]);
-  // The remaining quota on the notification-area icon, when one is chosen: the logo otherwise,
-  // when nothing is read and when all of it is left. An old reading turns the figure grey.
-  const trayCards = settings.trayIcon === "logo" ? [] : accountCards.filter((card) => card.harness === settings.trayIcon);
-  const trayValue = trayPercent(trayCards, settings.trayWindow, nowMs);
-  const trayFresh =
-    trayCards.length > 0 && freshness(Math.max(...trayCards.map((card) => card.observedAt)), nowMs).fresh;
-  const trayKey = trayValue === null ? "logo" : `${trayValue}|${trayFresh ? trayTone(trayValue) : "stale"}`;
-  useEffect(() => {
-    const [value, tone] = trayKey.split("|");
-    const rgba = trayKey === "logo" ? null : drawTrayIcon(Number(value), tone as TrayIconTone);
-    void setTrayIcon(rgba, TRAY_ICON_SIZE).catch(() => undefined);
-  }, [trayKey]);
-  // The notification-area menu is built by the Rust side: it gets its words from here. Its
-  // refresh entry reads the usage instead when quotas are not read, and says so.
-  useEffect(() => {
-    const { open, refresh, refreshUsage, quit } = t().tray;
-    void setTrayLabels({ open, refresh: quotasOn ? refresh : refreshUsage, quit }).catch(() => undefined);
-  }, [lang, quotasOn]);
+  useTrayIntegration({
+    accountCards,
+    nowMs,
+    trayIcon: settings.trayIcon,
+    trayWindow: settings.trayWindow,
+    quotasOn,
+    lang,
+    refresh,
+    refreshQuotas,
+  });
   // Screen readers and the WebView's own texts take the page language from `<html lang>`.
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
 
-  // "Since the reset day" needs a weekly quota cycle, so it only applies on Claude and Codex pages.
-  const effectivePeriod: Period =
-    period === "rtd" && (page === OVERVIEW || pageCards.length === 0) ? "all" : period;
-  const resetStartMs = pageCards[0]?.weekly.startMs;
-  const today = isoDate(new Date());
-  const range = useMemo(
-    () => rangeFor(effectivePeriod, new Date(), resetStartMs),
-    [effectivePeriod, resetStartMs !== undefined ? isoDate(new Date(resetStartMs)) : undefined, today],
-  );
-  const rangeSince = range?.since;
-  const rangeUntil = range?.until;
-  const detailScope = page === OVERVIEW ? "*" : page;
-  const detailKey = (id: string) => `${id}|${rangeSince}|${rangeUntil ?? ""}|${detailScope}`;
-  const currentDetail = (id: string, key: string) => {
-    const detail = detailsRef.current[key];
-    return detail && detail.requestedAt >= loadedAtOf(statesRef.current[id]) ? detail.report : undefined;
-  };
+  const { effectivePeriod, range, localParts, localReport, navReport, resetRtd, resetSpend, report, detailError } =
+    usePeriodReports({
+      period,
+      page,
+      pageCards,
+      cards,
+      activeIds,
+      activeKey,
+      readableKey,
+      states,
+      disabled,
+      disabledKey,
+      label,
+      archiveReady,
+      detected,
+      lastScan,
+      offline: settings.offline,
+      agentsToScan,
+      setPricing,
+    });
 
-  // Totals and daily series of a period are filtered locally and are exact; per-model detail
-  // comes from a period scan of the CLI, loaded on demand and reused for a few minutes.
-  const localPartsFor = (range: DateRange | null) =>
-    activeKey
-      .split(",")
-      .filter(Boolean)
-      .flatMap((id) => {
-        const base = reportOf(states[id]);
-        if (!base) return [];
-        // Days a harness no longer reports (old logs purged) come back from the daily archive.
-        // A harness turned off since this report was read (a stopped WSL keeps it) stays out.
-        const current = withoutHarnesses(base, disabled);
-        const report = withArchive(range ? filterReport(current, range) : current, archivedDays(id), disabled, range ?? undefined);
-        return [{ id, label: label(id), report }];
-      });
-  const localReportFor = (range: DateRange | null) => {
-    const parts = localPartsFor(range);
-    return parts.length ? mergeReports(parts.map((part) => part.report)) : undefined;
-  };
-  const localParts = useMemo(() => localPartsFor(range), [activeKey, states, rangeSince, rangeUntil, disabledKey]);
-  const localReport = useMemo(
-    () => (localParts.length ? mergeReports(localParts.map((part) => part.report)) : undefined),
-    [localParts],
-  );
-
-  // Under "Since the reset day" the side bar does not follow the open page: each subscription
-  // counts from its own reset day, everything else over the whole period, as on their own pages.
-  const resetRtd = period === "rtd";
-  const resetStarts = resetRtd
-    ? SUBSCRIPTIONS.map((id) => {
-        const start = cards.find((card) => card.harness === id)?.weekly.startMs;
-        return [id, start] as const;
-      })
-    : [];
-  const resetStartsKey = resetStarts
-    .map(([id, start]) => `${id}:${start === undefined ? "" : isoDate(new Date(start))}`)
-    .join(",");
-  const navReport = useMemo(
-    () => (resetRtd ? localReportFor(null) : localReport),
-    [resetRtd, localReport, activeKey, states, disabledKey],
-  );
-  const resetSpend = useMemo(
-    () =>
-      new Map(
-        resetStarts.map(([id, start]) => {
-          const since = start === undefined ? navReport : localReportFor(rangeFor("rtd", new Date(), start));
-          return [id, since?.agents.find((agent) => agent.agent === id)?.totalCost] as const;
-        }),
-      ),
-    [resetStartsKey, navReport],
-  );
-  const report = useMemo(() => {
-    if (!localReport) return undefined;
-    if (!range) return localReport;
-    return mergeReports(
-      localParts.map((part) => {
-        const detail = currentDetail(part.id, detailKey(part.id));
-        return detail
-          ? withArchive(withoutHarnesses(detail, disabled), archivedDays(part.id), disabled, range)
-          : part.report;
-      }),
-    );
-  }, [localReport, localParts, details, states, rangeSince, rangeUntil, detailScope, disabledKey]);
-  const detailError = activeKey
-    .split(",")
-    .map((id) => detailErrors[detailKey(id)])
-    .find(Boolean);
-
-  const detailReads = useRef(new Set<string>());
-  const [detailRetry, setDetailRetry] = useState(0);
-  // The detail waits for a scan to end, failed or not: a failed scan still lets it be asked.
-  const scanningKey = activeIds.filter((id) => states[id]?.status === "loading").join(",");
-  useEffect(() => {
-    if (!rangeSince || !archiveReady) return;
-    let cancelled = false;
-    void (async () => {
-      for (const id of activeKey.split(",").filter((entry) => entry && readableKey.split(",").includes(entry))) {
-        if (cancelled) return;
-        const key = `${id}|${rangeSince}|${rangeUntil ?? ""}|${detailScope}`;
-        // Asked again after each scan of the source, so per-model figures follow the totals.
-        if (currentDetail(id, key)) continue;
-        // Not while the source is scanned: the end of that scan asks for it again anyway. Nor
-        // twice at once: at launch, two scans ending close together used to ask up to four times.
-        if (statesRef.current[id]?.status === "loading" || detailReads.current.has(key)) continue;
-        detailReads.current.add(key);
-        const requestedAt = Date.now();
-        try {
-          const { pricing: nextPricing, ...detail } = await loadUsage(
-            id === "windows" ? null : id.slice(4),
-            settings.offline,
-            false,
-            CLAUDE_PLAN,
-            { since: compactDate(rangeSince), until: rangeUntil ? compactDate(rangeUntil) : undefined },
-            detailScope === "*" ? agentsToScan : [detailScope],
-          );
-          if (nextPricing) setPricing((current) => ({ ...current, ...nextPricing }));
-          setDetails((current) => ({ ...current, [key]: { report: detail, requestedAt } }));
-          setDetailErrors(({ [key]: _cleared, ...rest }) => rest);
-        } catch (error) {
-          setDetailErrors((current) => ({ ...current, [key]: String(error) }));
-        } finally {
-          detailReads.current.delete(key);
-          // A scan that ended during this read made it stale: ask again now that none is running.
-          if (requestedAt < loadedAtOf(statesRef.current[id])) setDetailRetry((count) => count + 1);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [rangeSince, rangeUntil, detailScope, activeKey, readableKey, detected, archiveReady, lastScan, scanningKey, settings.offline, agentsToScan, detailRetry]);
-
-  // The weekly Codex limit per day belongs to the account, so any source that can read it gives
-  // the whole picture: the open tab shows the freshest answer among its own sources.
-  const [limitUsage, setLimitUsage] = useState<Record<string, { days: LimitUsageDay[]; at: number }>>({});
-  const limitUsageRef = useRef(limitUsage);
-  limitUsageRef.current = limitUsage;
-  useEffect(() => {
-    if (page !== "codex" || !quotasOn || !archiveReady || disabled.includes("codex")) return;
-    for (const id of activeIds) {
-      if (!readableIds.includes(id as SourceId)) continue;
-      const known = limitUsageRef.current[id];
-      if (known && Date.now() - known.at < LIMIT_USAGE_TTL_MS) continue;
-      loadLimitUsage(id === "windows" ? null : id.slice(4))
-        .catch(() => [] as LimitUsageDay[])
-        .then((days) => setLimitUsage((current) => ({ ...current, [id]: { days, at: Date.now() } })));
-    }
-  }, [page, activeKey, readableKey, quotasOn, archiveReady, lastScan, disabledKey]);
-  const limitEntries = activeIds.flatMap((id) => (limitUsage[id] ? [{ id, ...limitUsage[id] }] : []));
-  const limitBest = limitEntries.filter((entry) => entry.days.length > 0).sort((a, b) => b.at - a.at)[0];
-  const limitAttempted = limitEntries.length > 0;
+  const { limitBest, limitAttempted } = useCodexLimitUsage({
+    page,
+    quotasOn,
+    archiveReady,
+    disabled,
+    disabledKey,
+    activeIds,
+    activeKey,
+    readableIds,
+    readableKey,
+    lastScan,
+  });
 
   // Plan, price and account meters come from the sources of the open tab.
   const sourceReports = useMemo(
