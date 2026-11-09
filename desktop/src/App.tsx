@@ -1430,8 +1430,11 @@ export default function App({ initialSettings, onThemeChange }: {
                     />
                   )}
                   {/* On Codex Free the dashboard's daily figures are not shares of the monthly quota
-                      (0.16 % for a day that used 7 % of it): the chart would mislead, so it goes. */}
-                  {page === "codex" && !pageCards.some((card) => isMonthly(card.weekly.window.windowMinutes)) && (
+                      (0.16 % for a day that used 7 % of it): the chart would mislead, so it goes.
+                      With no readable source in the tab (WSL off), nothing would ever be read. */}
+                  {page === "codex" &&
+                    !pageCards.some((card) => isMonthly(card.weekly.window.windowMinutes)) &&
+                    (limitUsageOffReason(settings) || activeIds.some((id) => readableIds.includes(id as SourceId))) && (
                     <LimitUsageSection
                       offReason={limitUsageOffReason(settings)}
                       best={limitBest}
