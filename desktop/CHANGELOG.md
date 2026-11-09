@@ -6,6 +6,42 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.6.3
+
+#### English
+
+### Improvements
+- Codex on the free plan shows its quota as it is: a single 30-day quota without a 5-hour session. The card is called "Monthly" and fills the row, its chart as tall as the others; the sidebar says "30d quota", the notification area tooltip "30d", and the warning "the monthly limit will be reached". The notification area icon choice is now "Week or month".
+- The subscription block says "Free" instead of "n/a" for the value of a free plan, and "unknown price" for a plan whose price is not known.
+- The Codex subscription block stays when its quota cannot be read, saying the plan is not read, like Claude's.
+- The past Codex quotas found in its logs also include the archived sessions.
+
+### Fixes
+- On the free Codex plan, the chart of the weekly limit used per day is hidden: the daily figures of the ChatGPT dashboard are not shares of the monthly quota.
+- A monthly quota is no longer drawn with the weekly cycles, and two cycles of different lengths are no longer merged.
+- Readings taken while an update downloads are kept: the history is saved after the download, just before installing.
+- An update check that hangs stops after 30 seconds, and a download after 10 minutes, so later checks are no longer blocked.
+- Quitting the app (closing the window when it does not stay in the notification area, or Quit from the icon) saves the history first.
+- Damaged settings fall back to their defaults instead of leaving the window blank.
+- Reading the past Codex quotas from its logs stops after 2 minutes and runs once at a time per environment.
+
+#### Français
+
+### Améliorations
+- Codex en forfait gratuit affiche son quota tel qu'il est : un quota unique de 30 jours, sans session de 5 h. La carte s'appelle « Mensuel » et occupe toute la ligne, son graphique aussi haut que les autres ; le menu de gauche indique « Quota 30 j », l'infobulle de la zone de notification « 30 j », et l'alerte « la limite mensuelle sera atteinte ». Le choix de l'icône de la zone de notification devient « Semaine ou mois ».
+- Le bloc Abonnement indique « Gratuit » au lieu de « n/a » pour la valeur d'un forfait gratuit, et « prix inconnu » pour un forfait dont le prix n'est pas connu.
+- Le bloc Abonnement de Codex reste affiché quand son quota ne peut pas être lu, avec « plan non lu », comme celui de Claude.
+- Les quotas Codex passés retrouvés dans ses journaux comprennent aussi les sessions archivées.
+
+### Corrections
+- En forfait Codex gratuit, le graphique de la limite hebdomadaire utilisée par jour est masqué : les chiffres par jour du tableau de bord ChatGPT ne sont pas des parts du quota mensuel.
+- Un quota mensuel n'est plus dessiné avec les cycles hebdomadaires, et deux cycles de durées différentes ne sont plus fusionnés.
+- Les relevés pris pendant le téléchargement d'une mise à jour sont gardés : l'historique est enregistré après le téléchargement, juste avant l'installation.
+- Une recherche de mise à jour bloquée s'arrête après 30 secondes, et un téléchargement après 10 minutes : les recherches suivantes ne sont plus bloquées.
+- Quitter l'application (fermer la fenêtre quand elle ne reste pas dans la zone de notification, ou Quitter depuis l'icône) enregistre d'abord l'historique.
+- Des réglages abîmés reprennent leurs valeurs par défaut au lieu de laisser la fenêtre vide.
+- La lecture des quotas Codex passés dans ses journaux s'arrête après 2 minutes et ne tourne qu'une fois à la fois par environnement.
+
 ## 0.6.2
 
 #### English
