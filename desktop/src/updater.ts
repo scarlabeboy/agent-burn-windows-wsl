@@ -1,7 +1,7 @@
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { showWindow } from "./api";
+import { markUpdate } from "./api";
 import { flush } from "./archive";
 
 /** First automatic check after startup, then this often. */
@@ -38,34 +38,7 @@ export type UpdateState =
  * does not match the key built into the app. Installing on Windows closes the app; the installer
  * starts it again.
  */
-/** Set right before an update is installed from the window, read once by the next launch. */
-const SHOW_AFTER_UPDATE_KEY = "abf.showAfterUpdate";
-
-function markShowAfterUpdate(on: boolean) {
-  try {
-    if (on) localStorage.setItem(SHOW_AFTER_UPDATE_KEY, "1");
-    else localStorage.removeItem(SHOW_AFTER_UPDATE_KEY);
-  } catch {
-    // Without storage, an app started in the background simply comes back there.
-  }
-}
-
-/**
- * The update was installed from the window: show it again, even when the app had been started
- * in the background (the installer passes `--background` on).
- */
-function showAfterUpdate() {
-  try {
-    if (localStorage.getItem(SHOW_AFTER_UPDATE_KEY) === null) return;
-  } catch {
-    return;
-  }
-  markShowAfterUpdate(false);
-  void showWindow().catch(() => undefined);
-}
-
 export function useUpdater(auto: boolean, offline: boolean) {
-  useEffect(showAfterUpdate, []);
   const [state, setState] = useState<UpdateState>({ status: "idle" });
   /** The last check that got an answer, whether it found a version or not. */
   const [checkedAt, setCheckedAt] = useState<number | null>(null);
@@ -170,11 +143,13 @@ export function useUpdater(auto: boolean, offline: boolean) {
       } finally {
         clearTimeout(saveTimeout);
       }
-      markShowAfterUpdate(true);
+      // The next launch shows the window, even started in the background (see mark_update).
+      // A marker that cannot be written only means the app may come back hidden.
+      await markUpdate(true).catch(() => undefined);
       await pending.install();
       await relaunch();
     } catch (error) {
-      markShowAfterUpdate(false);
+      void markUpdate(false).catch(() => undefined);
       installing.current = false;
       setState({ status: "available", ...release, installError: String(error) });
     }

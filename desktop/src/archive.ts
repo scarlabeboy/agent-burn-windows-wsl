@@ -203,6 +203,12 @@ async function loadStore<T>(name: StoreName, valid: (value: T) => boolean): Prom
       writable.add(name);
       return value;
     }
+    // The report cache only holds the last report of each source, which the next scan brings
+    // back: it starts over rather than staying unsaved at every launch.
+    if (name === "report-cache") {
+      writable.add(name);
+      return null;
+    }
     setProblem(name, `${name}.json holds unexpected content`);
   } catch (error) {
     // Read-only for this run, see `writable`.

@@ -109,14 +109,14 @@ fn request_quit(app: &AppHandle) {
     });
 }
 
-/// The page saved its archive after `quit-requested`: the process can end.
-/// Shows the window from the page: after an update clicked in it, the installer starts the app
-/// again with the arguments it had, `--background` included, which would keep it hidden.
+/// Set by the page right before it installs an update. The installer starts the app again with
+/// the arguments it had, `--background` included: the marker shows the window anyway.
 #[tauri::command]
-pub fn show_window(app: AppHandle) {
-    show_main(&app);
+pub fn mark_update(on: bool) -> Result<(), String> {
+    crate::archive::mark_update(on)
 }
 
+/// The page saved its archive after `quit-requested`: the process can end.
 #[tauri::command]
 pub fn quit_app(app: AppHandle) {
     app.exit(0);

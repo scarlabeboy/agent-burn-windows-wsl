@@ -8,7 +8,8 @@ use std::{
 
 use serde_json::Value;
 
-/// Files the app may keep in its data directory; nothing else is ever read or written.
+/// Files the app may keep in its data directory; nothing else is ever read or written, apart
+/// from the empty update marker below.
 const NAMES: [&str; 4] = ["quota-history", "report-cache", "daily-metrics", "wsl-users"];
 const MAX_BYTES: usize = 64 * 1024 * 1024;
 static NEXT_WRITE: AtomicU64 = AtomicU64::new(0);
@@ -25,6 +26,39 @@ fn directory() -> PathBuf {
     local_data()
         .join("dev.scarlabeboy.agent-burn-windows")
         .join("archive")
+}
+
+/// Empty file written right before an update is installed from the window. Written and synced
+/// here rather than in the page's storage, which reaches the disk late: the installer closes
+/// the app at once.
+const UPDATE_MARKER: &str = "show-after-update";
+/// An older marker is from an update that did not go through (installer cancelled or blocked).
+const UPDATE_MARKER_MAX_AGE: std::time::Duration = std::time::Duration::from_secs(10 * 60);
+
+/// Sets or clears the update marker.
+pub fn mark_update(on: bool) -> Result<(), String> {
+    let path = directory().join(UPDATE_MARKER);
+    if !on {
+        return match fs::remove_file(&path) {
+            Err(error) if error.kind() != io::ErrorKind::NotFound => Err(error.to_string()),
+            _ => Ok(()),
+        };
+    }
+    fs::create_dir_all(directory()).map_err(|error| error.to_string())?;
+    let file = fs::File::create(&path).map_err(|error| error.to_string())?;
+    file.sync_all().map_err(|error| error.to_string())
+}
+
+/// Whether a recent update marker was there; it is removed either way, so it acts only once.
+pub fn take_update_marker() -> bool {
+    let path = directory().join(UPDATE_MARKER);
+    let recent = fs::metadata(&path)
+        .and_then(|meta| meta.modified())
+        .ok()
+        .and_then(|modified| SystemTime::now().duration_since(modified).ok())
+        .is_some_and(|age| age < UPDATE_MARKER_MAX_AGE);
+    let _ = fs::remove_file(&path);
+    recent
 }
 
 /// Where the first versions kept the archive: the install directory itself.
@@ -183,6 +217,33 @@ mod tests {
             .filter(|entry| entry.file_name().to_string_lossy().ends_with(".tmp"))
             .count();
         assert_eq!(leftovers, 0, "a failed save removes its temporary file");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn the_update_marker_acts_once() {
+        let _turn = crate::sources::TEST_ENVIRONMENT.lock().unwrap_or_else(|error| error.into_inner());
+        struct RestoreLocalData(Option<std::ffi::OsString>);
+        impl Drop for RestoreLocalData {
+            fn drop(&mut self) {
+                match &self.0 {
+                    Some(value) => env::set_var("LOCALAPPDATA", value),
+                    None => env::remove_var("LOCALAPPDATA"),
+                }
+            }
+        }
+        let _restore = RestoreLocalData(env::var_os("LOCALAPPDATA"));
+        let root = env::temp_dir().join(format!("abf-archive-marker-test-{}", std::process::id()));
+        env::set_var("LOCALAPPDATA", &root);
+
+        assert!(!take_update_marker(), "no marker, a normal launch");
+        mark_update(true).unwrap();
+        assert!(take_update_marker(), "a fresh marker shows the window");
+        assert!(!take_update_marker(), "and only once");
+        mark_update(true).unwrap();
+        mark_update(false).unwrap();
+        assert!(!take_update_marker(), "a failed install clears it");
+        mark_update(false).unwrap();
         fs::remove_dir_all(root).unwrap();
     }
 

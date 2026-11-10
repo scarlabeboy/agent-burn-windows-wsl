@@ -221,4 +221,4 @@ export const setTrayLabels = (labels: { open: string; refresh: string; quit: str
   invoke<void>("set_tray_labels", labels);
 /** Ends the process, once the archive is saved after `quit-requested`. */
 export const quitApp = () => invoke<void>("quit_app");
-export const showWindow = () => invoke<void>("show_window");
+export const markUpdate = (on: boolean) => invoke<void>("mark_update", { on });

@@ -1,4 +1,7 @@
+import { listen } from "@tauri-apps/api/event";
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { quitApp } from "./api";
+import { flush } from "./archive";
 import { t } from "./i18n";
 
 /**
@@ -14,6 +17,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error(error, info.componentStack);
+    // The app's own listener went with it: "Quit" still saves and closes at once.
+    void listen("quit-requested", () => void flush().finally(() => void quitApp())).catch(() => undefined);
   }
 
   render() {

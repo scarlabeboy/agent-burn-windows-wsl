@@ -19,17 +19,20 @@ What the app does on your PC, in short:
   Claude Code sign-in file. It never shows or logs a sign-in token.
 - **Contacts**, with the sign-ins already on the PC: Anthropic and OpenAI for the quotas (every
   minute while **Quotas** is on), Cursor's server for Cursor's usage (each scan, when signed in),
-  GitHub (LiteLLM's price list) and models.dev for the model prices at each scan, and GitHub
-  for updates (at startup and every 6 hours).
+  GitHub for the model prices at each scan (LiteLLM's list; models.dev only for a model missing
+  from it), and GitHub for updates (at startup and every 6 hours).
   **Offline mode** stops all of it.
 - **Writes** its history in `%LOCALAPPDATA%\dev.scarlabeboy.agent-burn-windows`, and the CLI keeps
   its quota cache in `~/.cache/agent-burn/claude-usage.json`, in the Windows profile and in each
   WSL distribution it reads. That cache is shared with the Agent Burn CLI, so it stays after
   uninstalling; the history goes only if the uninstaller's option to delete the app data is
-  ticked.
+  ticked. Each scan that reads OpenCode copies its database to `%TEMP%\agent-burn-windows`
+  and removes the copy afterwards. **Start with Windows**, when turned on, adds a startup
+  entry. **Renew the Claude Code sign-in** (off by default) lets the CLI rewrite
+  `~/.claude/.credentials.json` when it renews the sign-in.
 - **Starts**: WSL is never woken up in the default **Automatic** mode. **Restart after an
   unexpected stop** is on by default: Windows reopens the app in the notification area after a
-  crash or an update. Starting with Windows is off until you turn it on.
+  crash or a Windows update restart. Starting with Windows is off until you turn it on.
 - **Installer**: not code-signed, so SmartScreen or an antivirus may warn about it. Updates are
   only installed when you click Install, and only if signed with the release key.
 
@@ -93,7 +96,8 @@ app is not 1.0 yet.
   `%LOCALAPPDATA%\dev.scarlabeboy.agent-burn-windows\archive`, apart from the install
   directory. The daily totals keep each day an online scan reported, so days whose logs a
   harness has since deleted still count. A file that cannot be read is left as it is and
-  never written over; one that is not valid JSON is set aside as `<name>.broken-<time>`.
+  never written over; one that is not valid JSON is set aside as `<name>.broken-<time>`. A
+  report cache with unexpected content starts over: the next scan rebuilds it.
 - Subscription quotas use the CLI's quota-only mode. Each tab shows the quotas of its own
   environment (Windows, WSL); the Computer view keeps the freshest reading of each harness.
   The environment is chosen in the sidebar, above the pages.

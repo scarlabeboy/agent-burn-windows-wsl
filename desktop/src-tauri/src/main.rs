@@ -168,8 +168,10 @@ fn main() {
             // Leftovers of a run that was stopped mid-scan; off the startup path.
             std::thread::spawn(cli::clean_stale_temp);
             background::build_tray(app.handle())?;
-            // The window starts hidden; a startup launch keeps it in the notification area.
-            if !background::started_in_background() {
+            // The window starts hidden; a startup launch keeps it in the notification area,
+            // unless the launch follows an update installed from the window.
+            let after_update = archive::take_update_marker();
+            if after_update || !background::started_in_background() {
                 background::show_main(app.handle());
             }
             Ok(())
@@ -191,7 +193,7 @@ fn main() {
             background::set_tray_tooltip,
             background::set_tray_icon,
             background::set_tray_labels,
-            background::show_window,
+            background::mark_update,
             background::quit_app
         ])
         .run(tauri::generate_context!())
