@@ -106,6 +106,9 @@ export function writeSeen(seen: string[]) {
   }
 }
 
+/** The intervals offered, in minutes (0, never, comes apart). */
+export const REFRESH_CHOICES = [5, 10, 30];
+
 export function readSettings(): Settings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -113,11 +116,12 @@ export function readSettings(): Settings {
     const stored = JSON.parse(raw);
     if (typeof stored !== "object" || stored === null || Array.isArray(stored)) return defaults;
     const { wslEnabled: _old, ...rest } = stored;
-    // "Every minute" is no longer offered: a scan can take half a minute.
+    // "Every minute" is no longer offered: a scan can take half a minute. Any other value (a
+    // damaged file) would scan nonstop or never, so only the offered ones are kept.
     const refreshMinutes =
       stored.refreshMinutes === 1
         ? 5
-        : typeof stored.refreshMinutes === "number" && Number.isFinite(stored.refreshMinutes)
+        : stored.refreshMinutes === 0 || REFRESH_CHOICES.includes(stored.refreshMinutes)
           ? stored.refreshMinutes
           : defaults.refreshMinutes;
     // A damaged value here would break the first render (`Object.keys(null)`).

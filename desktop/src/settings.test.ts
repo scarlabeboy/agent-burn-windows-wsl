@@ -59,6 +59,8 @@ const damagedCases = [
   { raw: '{"harnessStates":null,"refreshMinutes":"x"}', states: {}, minutes: 10 },
   { raw: '{"harnessStates":["codex"],"refreshMinutes":null}', states: {}, minutes: 10 },
   { raw: '{"harnessStates":{"pi":"off"},"refreshMinutes":0}', states: { pi: "off" }, minutes: 0 },
+  { raw: '{"refreshMinutes":0.00001}', states: {}, minutes: 10 },
+  { raw: '{"refreshMinutes":30}', states: {}, minutes: 30 },
   { raw: "null", states: {}, minutes: 10 },
 ] as const;
 

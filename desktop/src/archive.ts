@@ -142,6 +142,18 @@ function migrateLegacy() {
 const isObject = (value: unknown) => typeof value === "object" && value !== null;
 
 /**
+ * Every series a list of readings: one damaged entry would otherwise break the load after all
+ * three archives were made writable, and the next scan would replace the other two.
+ */
+const validQuota = (value: QuotaStore) =>
+  isObject(value?.series) &&
+  Object.values(value.series).every(
+    (samples) =>
+      Array.isArray(samples) &&
+      samples.every((sample) => isObject(sample) && Number.isFinite(sample.t) && Number.isFinite(sample.used)),
+  );
+
+/**
  * One saved archive. Nothing saved yet is a fresh start and the archive becomes writable; a
  * file that cannot be read, or that holds something else than expected, keeps it read-only.
  */
@@ -170,18 +182,19 @@ const unused = (samples: Sample[]): boolean => samples.every((sample) => sample.
 /** Load saved quota history, report cache and daily metrics, so the app opens with data. */
 export async function loadArchive(): Promise<void> {
   const [savedQuota, savedReports, savedDaily] = await Promise.all([
-    loadStore<QuotaStore>("quota-history", (value) => isObject(value?.series)),
+    loadStore<QuotaStore>("quota-history", validQuota),
     loadStore<ReportStore>("report-cache", (value) => isObject(value?.sources)),
     loadStore<DailyStore>("daily-metrics", (value) => isObject(value?.sources)),
   ]);
+  // Installed first: whatever follows, the next scan adds to them instead of replacing them.
+  if (savedReports) reports = savedReports;
+  if (savedDaily) daily = savedDaily;
   if (savedQuota) {
     quota = { version: 1, series: savedQuota.series, backfilled: savedQuota.backfilled ?? {} };
     const empty = Object.keys(quota.series).filter((key) => unused(quota.series[key]));
     for (const key of empty) delete quota.series[key];
     if (empty.length > 0) save("quota-history");
   }
-  if (savedReports) reports = savedReports;
-  if (savedDaily) daily = savedDaily;
   // First run with the daily archive: the last saved reports seed it, so no day already seen
   // is lost even if a harness purges it before the next scan.
   for (const [sourceId, cached] of Object.entries(reports.sources)) {

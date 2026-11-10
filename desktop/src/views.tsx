@@ -787,6 +787,8 @@ export function QuotaSection({
       {scoped.length > 0 && (
         <div className="scoped">
           {scoped.map((window) => {
+            // Past its reset, the percentage read before it is no longer the account's.
+            const ended = window.resetsAtMs !== null && window.resetsAtMs <= nowMs;
             const left = Math.max(0, 100 - window.usedPercent);
             return (
               <div key={window.name}>
@@ -797,17 +799,23 @@ export function QuotaSection({
                       <span className="muted"> · {text.scopedAge(formatAge(nowMs - scopedAt))}</span>
                     )}
                   </span>
-                  <span>
-                    {/* Counted from now, like the gauges; gone once the reset has passed. */}
-                    {window.resetsAtMs !== null && window.resetsAtMs > nowMs && (
-                      <span className="muted">{text.resetIn(formatDuration((window.resetsAtMs - nowMs) / 60_000))} · </span>
-                    )}
-                    {text.percentLeft(left.toFixed(0))}
-                  </span>
+                  {ended ? (
+                    <span className="late">{text.cycleEnded}</span>
+                  ) : (
+                    <span>
+                      {/* Counted from now, like the gauges. */}
+                      {window.resetsAtMs !== null && (
+                        <span className="muted">{text.resetIn(formatDuration((window.resetsAtMs - nowMs) / 60_000))} · </span>
+                      )}
+                      {text.percentLeft(left.toFixed(0))}
+                    </span>
+                  )}
                 </div>
-                <div className="bar">
-                  <div style={{ width: `${left}%`, background: agentColor(card.harness) }} />
-                </div>
+                {!ended && (
+                  <div className="bar">
+                    <div style={{ width: `${left}%`, background: agentColor(card.harness) }} />
+                  </div>
+                )}
               </div>
             );
           })}

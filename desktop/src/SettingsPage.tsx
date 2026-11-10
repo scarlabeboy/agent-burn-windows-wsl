@@ -1,4 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { REFRESH_CHOICES } from "./api";
 import { EnvIcon } from "./EnvIcons";
 import { HarnessSettings } from "./HarnessSettings";
 import type { groupHarnesses } from "./harnesses";
@@ -154,7 +155,7 @@ export function SettingsPage({
             <option value={0}>{text.settings.never}</option>
             {/* A WSL scan with OpenCode takes about 30 s: every minute would read almost
                 nonstop. 1 can come back here if scans get faster. */}
-            {[5, 10, 30].map((minutes) => (
+            {REFRESH_CHOICES.map((minutes) => (
               <option key={minutes} value={minutes}>
                 {text.settings.everyMinutes(minutes)}
               </option>

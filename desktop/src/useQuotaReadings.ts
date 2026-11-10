@@ -74,23 +74,28 @@ export function useQuotaReadings({
               // Stored as measured; what is shown has an unconfirmed over-count held back.
               const shown = recordReading(reading, rawRef.current.includes(reading.agent));
               // A reading older than the last one (a slow read) says nothing about the plan now.
+              // Each reason below asks for one rescan at most, so several at once queue only one.
+              let rescan = false;
               const shape = `${reading.window.windowMinutes}|${reading.sessionWindow?.windowMinutes ?? "-"}`;
               const known = quotaShapes.current.get(key);
               if (!known || reading.observedAt >= known.at) {
                 quotaShapes.current.set(key, { shape, at: reading.observedAt });
-                if (known && known.shape !== shape) refreshRef.current(true);
+                if (known && known.shape !== shape) rescan = true;
               }
-              const { usedPercent, elapsedPercent, windowMinutes } = reading.window;
+              // Compared as shown: an over-count held back and then gone is no drop.
+              const { usedPercent } = shown.window;
+              const { elapsedPercent, windowMinutes } = reading.window;
               const endMs = reading.observedAt + (1 - elapsedPercent / 100) * windowMinutes * 60_000;
               const weekly = lastWeekly.current.get(key);
               if (!weekly || reading.observedAt >= weekly.at) {
                 lastWeekly.current.set(key, { used: usedPercent, endMs, at: reading.observedAt });
                 const sameCycle = weekly !== undefined && Math.abs(weekly.endMs - endMs) <= SAME_CYCLE_MS;
-                if (sameCycle && weekly.used - usedPercent >= DROP_POINTS) refreshRef.current(true);
+                if (sameCycle && weekly.used - usedPercent >= DROP_POINTS) rescan = true;
               }
               const since = failingSince.current.get(key);
               failingSince.current.delete(key);
-              if (since !== undefined && Date.now() - since >= QUOTA_GRACE_MS) refreshRef.current(true);
+              if (since !== undefined && Date.now() - since >= QUOTA_GRACE_MS) rescan = true;
+              if (rescan) refreshRef.current(true);
               setQuotaErrors(({ [key]: _cleared, ...rest }) => rest);
               setQuotas((current) => {
                 // A reading older than the one shown arrived late: it is not the latest state.
