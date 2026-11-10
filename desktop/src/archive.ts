@@ -140,17 +140,46 @@ function migrateLegacy() {
 }
 
 const isObject = (value: unknown) => typeof value === "object" && value !== null;
+/** A plain object used as a dictionary: an array would lose its entries when saved. */
+const isDict = (value: unknown): value is Record<string, unknown> => isObject(value) && !Array.isArray(value);
+const finite = (value: unknown) => typeof value === "number" && Number.isFinite(value);
 
 /**
- * Every series a list of readings: one damaged entry would otherwise break the load after all
- * three archives were made writable, and the next scan would replace the other two.
+ * Each archive checked down to what the app reads: one damaged entry would otherwise break the
+ * load or the first render after all three archives were made writable, and the next scan
+ * would replace the other two.
  */
 const validQuota = (value: QuotaStore) =>
-  isObject(value?.series) &&
+  isDict(value?.series) &&
   Object.values(value.series).every(
     (samples) =>
       Array.isArray(samples) &&
-      samples.every((sample) => isObject(sample) && Number.isFinite(sample.t) && Number.isFinite(sample.used)),
+      samples.every((sample) => isObject(sample) && finite(sample.t) && finite(sample.used)),
+  ) &&
+  (value.backfilled === undefined || isDict(value.backfilled));
+
+const validReports = (value: ReportStore) =>
+  isDict(value?.sources) &&
+  Object.values(value.sources).every(
+    (cached) =>
+      isObject(cached) &&
+      finite(cached.loadedAt) &&
+      isObject(cached.report) &&
+      Array.isArray(cached.report.agents) &&
+      Array.isArray(cached.report.daily) &&
+      Array.isArray(cached.report.models) &&
+      isObject(cached.report.totals),
+  );
+
+const validDaily = (value: DailyStore) =>
+  isDict(value?.sources) &&
+  Object.values(value.sources).every(
+    (agents) =>
+      isDict(agents) &&
+      Object.values(agents).every(
+        (days) =>
+          isDict(days) && Object.values(days).every((day) => isObject(day) && finite(day.tokens) && finite(day.cost)),
+      ),
   );
 
 /**
@@ -183,8 +212,8 @@ const unused = (samples: Sample[]): boolean => samples.every((sample) => sample.
 export async function loadArchive(): Promise<void> {
   const [savedQuota, savedReports, savedDaily] = await Promise.all([
     loadStore<QuotaStore>("quota-history", validQuota),
-    loadStore<ReportStore>("report-cache", (value) => isObject(value?.sources)),
-    loadStore<DailyStore>("daily-metrics", (value) => isObject(value?.sources)),
+    loadStore<ReportStore>("report-cache", validReports),
+    loadStore<DailyStore>("daily-metrics", validDaily),
   ]);
   // Installed first: whatever follows, the next scan adds to them instead of replacing them.
   if (savedReports) reports = savedReports;

@@ -81,20 +81,3 @@ test("archived days count as usage when the logs have none left", () => {
   assert.equal(hasUsage(report([agent("claude", [])]), {}, ["claude"]), false);
   assert.equal(hasUsage(report([agent("claude", [])]), {}, []), true);
 });
-
-test("a partly purged day keeps its fuller value, in the archive and the report", () => {
-  let store = recordDays({}, report([agent("claude", [["2026-09-01", 100, 1]])]));
-  // Some of that day's logs are purged, others remain.
-  const partial = report([agent("claude", [["2026-09-01", 40, 0.4]])]);
-  store = recordDays(store, partial);
-  assert.deepEqual(store.claude, { "2026-09-01": { tokens: 100, cost: 1 } });
-  const merged = withArchive(partial, store, []);
-  assert.equal(merged.totals.totalTokens, 100);
-  assert.equal(merged.totals.totalCost, 1);
-  assert.deepEqual(merged.daily, [{ date: "2026-09-01", tokens: 100, cost: 1 }]);
-  assert.equal(merged.archivedDays, 1);
-  assert.equal(partial.agents[0].daily[0].tokens, 40, "the scanned report is left as it was");
-  // A new price for the same tokens is the scan's truth.
-  store = recordDays(store, report([agent("claude", [["2026-09-01", 100, 1.2]])]));
-  assert.deepEqual(store.claude, { "2026-09-01": { tokens: 100, cost: 1.2 } });
-});

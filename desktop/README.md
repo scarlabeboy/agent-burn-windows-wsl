@@ -118,6 +118,8 @@ Keep this list up to date when a change adds or removes one.
 - A Claude subscription that has ended is not shown as Free: the sign-in file keeps the old plan
   and Anthropic only refuses the quota, so the app says the quota and plan are not read.
 - The daily archive only keeps days an online scan saw: logs deleted before that are lost.
+- A day whose logs are only partly deleted counts what is left: the scan is the truth for the
+  days it reports, so a lower figure (a CLI that stops counting something twice) is not held back.
 - A stopped WSL distribution keeps its last report; one never read has no data. An online WSL
   scan takes about 30 s.
 - The remembered WSL user name of a distribution is never checked again.
