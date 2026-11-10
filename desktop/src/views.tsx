@@ -797,7 +797,13 @@ export function QuotaSection({
                       <span className="muted"> · {text.scopedAge(formatAge(nowMs - scopedAt))}</span>
                     )}
                   </span>
-                  <span>{text.percentLeft(left.toFixed(0))}</span>
+                  <span>
+                    {/* Counted from now, like the gauges; gone once the reset has passed. */}
+                    {window.resetsAtMs !== null && window.resetsAtMs > nowMs && (
+                      <span className="muted">{text.resetIn(formatDuration((window.resetsAtMs - nowMs) / 60_000))} · </span>
+                    )}
+                    {text.percentLeft(left.toFixed(0))}
+                  </span>
                 </div>
                 <div className="bar">
                   <div style={{ width: `${left}%`, background: agentColor(card.harness) }} />
