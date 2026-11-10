@@ -6,6 +6,30 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.6.6
+
+#### English
+
+### Improvements
+- The Fable line's bar turns green, orange or red with what is left, like the quota badges and the notification-area icon.
+- Once its reset has passed, the Fable line says "Cycle ended · new reading expected" instead of keeping the old percentage.
+
+### Fixes
+- A damaged archive file is set aside more surely: it no longer keeps the other archives from loading, which the next scan could then have replaced.
+- A provider over-count held back no longer starts a new scan every minute.
+- A damaged scan interval in the settings goes back to 10 minutes instead of scanning nonstop.
+
+#### Français
+
+### Améliorations
+- La barre de la ligne Fable passe au vert, à l'orange ou au rouge selon ce qui reste, comme les pastilles de quota et l'icône de la zone de notification.
+- Une fois son reset passé, la ligne Fable indique « Cycle terminé · nouveau relevé attendu » au lieu de garder l'ancien pourcentage.
+
+### Corrections
+- Un fichier d'archive abîmé est mieux écarté : il n'empêche plus les autres archives de se charger, que le scan suivant aurait pu remplacer.
+- Un surcomptage du fournisseur retenu ne relance plus un scan chaque minute.
+- Un intervalle de scan abîmé dans les réglages revient à 10 minutes au lieu de scanner sans arrêt.
+
 ## 0.6.5
 
 #### English
