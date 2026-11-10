@@ -15,6 +15,7 @@ import {
   SESSION_MINUTES,
   budget,
   cycleEnded,
+  trayTone,
   formatAxis,
   formatClock,
   formatDay,
@@ -813,7 +814,8 @@ export function QuotaSection({
                 </div>
                 {!ended && (
                   <div className="bar">
-                    <div style={{ width: `${left}%`, background: agentColor(card.harness) }} />
+                    {/* Coloured by what is left, with the thresholds of the notification-area icon. */}
+                    <div style={{ width: `${left}%`, background: `var(--${trayTone(left)})` }} />
                   </div>
                 )}
               </div>
