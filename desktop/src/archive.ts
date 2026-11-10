@@ -166,6 +166,16 @@ const validReports = (value: ReportStore) =>
       finite(cached.loadedAt) &&
       isObject(cached.report) &&
       Array.isArray(cached.report.agents) &&
+      cached.report.agents.every(
+        (agent) =>
+          isObject(agent) &&
+          typeof agent.agent === "string" &&
+          Array.isArray(agent.daily) &&
+          Array.isArray(agent.models) &&
+          isObject(agent.tokenBreakdown) &&
+          finite(agent.totalCost) &&
+          finite(agent.totalTokens),
+      ) &&
       Array.isArray(cached.report.daily) &&
       Array.isArray(cached.report.models) &&
       isObject(cached.report.totals),

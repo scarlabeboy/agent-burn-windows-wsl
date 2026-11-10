@@ -684,7 +684,8 @@ function GaugeCard({
         <span className="gauge-value">{percent(model.remaining.toFixed(0))}</span>
         <span className="muted">{text.remaining}</span>
         {/* Right after a reset, nothing used and almost no time elapsed: a lead of a few tenths says nothing. */}
-        {(model.remaining < 100 || model.pace >= 1) && (
+        {/* A cycle that has ended has no pace left to keep. */}
+        {!ended && (model.remaining < 100 || model.pace >= 1) && (
           <span className={ahead ? "pace ok" : "pace bad"}>
             {ahead ? "+" : "−"}
             {text.pace(formatNumber(Math.abs(model.pace), 1), ahead)}
@@ -713,7 +714,7 @@ function IdleSessionCard({ nav }: { nav: ReactNode }) {
         <span>{text.noSession}</span>
       </div>
       <div className="gauge-main">
-        <span className="gauge-value">100%</span>
+        <span className="gauge-value">{percent("100")}</span>
         <span className="muted">{text.remaining}</span>
       </div>
       <IdleChart note={text.startsOnFirst} />

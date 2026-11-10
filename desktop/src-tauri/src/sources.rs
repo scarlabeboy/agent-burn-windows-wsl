@@ -53,10 +53,15 @@ fn parse_names(bytes: &[u8]) -> Vec<String> {
                 && !name.contains(char::is_whitespace)
                 // An option of the help text ("--install", "--status"), not a distribution.
                 && !name.starts_with('-')
-                && !name.starts_with("docker-desktop")
+                // Container engines' own distributions: not used for coding, and kept awake by
+                // their engine, not by this app.
+                && !CONTAINER_DISTROS.iter().any(|prefix| name.starts_with(prefix))
         })
         .collect()
 }
+
+/// Distributions created by Docker Desktop, Rancher Desktop and Podman.
+const CONTAINER_DISTROS: [&str; 3] = ["docker-desktop", "rancher-desktop", "podman-machine"];
 
 /// Runs `wsl.exe` and returns its output, or `None` on failure or after `WSL_TIMEOUT`.
 /// The listing commands never start a distribution; the one command that runs inside a
@@ -77,6 +82,62 @@ pub fn wsl_program() -> std::ffi::OsString {
         Some(root) => std::path::Path::new(&root).join("System32").join("wsl.exe").into_os_string(),
         None => "wsl.exe".into(),
     }
+}
+
+/// Whether the user's WSL registry key lists at least one distribution (one subkey each). A key
+/// that cannot be read says nothing, and wsl.exe is asked as before. A development build with
+/// fake `wsl.exe` (`ABF_WSL_EXE`) always asks it.
+fn distributions_registered() -> bool {
+    #[cfg(debug_assertions)]
+    if env::var_os("ABF_WSL_EXE").is_some() {
+        return true;
+    }
+    registered_count().map_or(true, |count| count > 0)
+}
+
+#[cfg(windows)]
+fn registered_count() -> Option<u32> {
+    use windows_sys::Win32::{
+        Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS},
+        System::Registry::{RegCloseKey, RegOpenKeyExW, RegQueryInfoKeyW, HKEY, HKEY_CURRENT_USER, KEY_READ},
+    };
+    let path: Vec<u16> = r"Software\Microsoft\Windows\CurrentVersion\Lxss"
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
+    let mut key: HKEY = std::ptr::null_mut();
+    // SAFETY: plain registry calls on a key this function opens and closes.
+    unsafe {
+        let opened = RegOpenKeyExW(HKEY_CURRENT_USER, path.as_ptr(), 0, KEY_READ, &mut key);
+        if opened == ERROR_FILE_NOT_FOUND {
+            return Some(0);
+        }
+        if opened != ERROR_SUCCESS {
+            return None;
+        }
+        let mut subkeys = 0u32;
+        let queried = RegQueryInfoKeyW(
+            key,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null(),
+            &mut subkeys,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+        RegCloseKey(key);
+        (queried == ERROR_SUCCESS).then_some(subkeys)
+    }
+}
+
+#[cfg(not(windows))]
+fn registered_count() -> Option<u32> {
+    None
 }
 
 /// Names of the installed distributions, without starting any of them.
@@ -181,6 +242,11 @@ fn detect_recent() -> Detection {
 /// `wsl -l -q` and `wsl --list --running --quiet` only read WSL's registry. `None` when the
 /// listing fails or takes too long.
 fn detect_now() -> Option<Detected> {
+    // No distribution registered (WSL never installed, or none left): nothing to list, and
+    // wsl.exe is not run every few seconds on a PC that has no use for it.
+    if !distributions_registered() {
+        return Some(Detected::default());
+    }
     let listed = wsl_output(&["-l", "-q"])?;
     // A failing `--running` (nothing is running) simply means an empty set.
     let running = wsl_output(&["--list", "--running", "--quiet"])
@@ -255,6 +321,13 @@ pub static TEST_ENVIRONMENT: Mutex<()> = Mutex::new(());
 mod tests {
     use super::*;
 
+    #[test]
+    #[cfg(windows)]
+    fn the_wsl_registry_key_is_read_or_known_missing() {
+        // Some(0) on a machine without WSL (the release runner), a count where it is installed.
+        assert!(registered_count().is_some());
+    }
+
     fn utf16(text: &str) -> Vec<u8> {
         let mut bytes = vec![0xff, 0xfe];
         bytes.extend(text.encode_utf16().flat_map(u16::to_le_bytes));
@@ -263,7 +336,9 @@ mod tests {
 
     #[test]
     fn reads_utf16_names_and_skips_docker() {
-        let names = parse_names(&utf16("Ubuntu\r\ndocker-desktop\r\nDebian\r\n"));
+        let names = parse_names(&utf16(
+            "Ubuntu\r\ndocker-desktop\r\nrancher-desktop-data\r\npodman-machine-default\r\nDebian\r\n",
+        ));
         assert_eq!(names, ["Ubuntu", "Debian"]);
     }
 

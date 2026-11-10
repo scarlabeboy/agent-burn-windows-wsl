@@ -10,6 +10,29 @@ reading, each model's reference rates (`pricing`) in `summary --json`, and
 `AGENT_BURN_NO_RENEW`, which stops it from renewing the Claude sign-in. Cost calculation is
 untouched.
 
+## For testers
+
+What the app does on your PC, in short:
+
+- **Reads** the usage logs of the coding tools it finds (Claude Code, Codex, OpenCode…) in your
+  Windows profile and in WSL distributions that are already running, and the plan fields of the
+  Claude Code sign-in file. It never shows or logs a sign-in token.
+- **Contacts**, with the sign-ins already on the PC: Anthropic and OpenAI for the quotas (every
+  minute while **Quotas** is on), Cursor's server for Cursor's usage (each scan, when signed in),
+  GitHub (LiteLLM's price list) and models.dev for the model prices at each scan, and GitHub
+  for updates (at startup and every 6 hours).
+  **Offline mode** stops all of it.
+- **Writes** its history in `%LOCALAPPDATA%\dev.scarlabeboy.agent-burn-windows`, and the CLI keeps
+  its quota cache in `~/.cache/agent-burn/claude-usage.json`, in the Windows profile and in each
+  WSL distribution it reads. That cache is shared with the Agent Burn CLI, so it stays after
+  uninstalling; the history goes only if the uninstaller's option to delete the app data is
+  ticked.
+- **Starts**: WSL is never woken up in the default **Automatic** mode. **Restart after an
+  unexpected stop** is on by default: Windows reopens the app in the notification area after a
+  crash or an update. Starting with Windows is off until you turn it on.
+- **Installer**: not code-signed, so SmartScreen or an antivirus may warn about it. Updates are
+  only installed when you click Install, and only if signed with the release key.
+
 ## Build the installer
 
 ```powershell
@@ -55,8 +78,9 @@ app is not 1.0 yet.
   bar has no environment choice.
   While it is on, the **Reading mode** is **Automatic** (default: a distribution is read when
   it is already running and never woken up) or **Kept running** (the app runs
-  `wsl.exe -d <distro> --exec sleep infinity` for each distribution while it runs; it never
-  runs `wsl --shutdown`). The mode is kept while reading is off.
+  `wsl.exe -d <distro> --exec sleep infinity` for each installed distribution while it runs,
+  which starts them all; it never runs `wsl --shutdown`). The distributions of Docker,
+  Rancher Desktop and Podman are left out. The mode is kept while reading is off.
 - Every process the app starts (each CLI run, the processes keeping WSL awake) lives in a
   Windows job that ends them with the app, so a CLI run still going never keeps
   `agent-burn.exe` locked when an update replaces it.

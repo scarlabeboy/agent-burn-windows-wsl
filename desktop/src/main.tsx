@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import App from "./App";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { readSettings } from "./api";
 import { createThemeController, resolveTheme, type ResolvedTheme } from "./theme";
 import "./styles.css";
@@ -18,6 +19,8 @@ void theme.apply(settings.theme);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App initialSettings={settings} onThemeChange={(next) => { void theme.apply(next); }} />
+    <ErrorBoundary>
+      <App initialSettings={settings} onThemeChange={(next) => { void theme.apply(next); }} />
+    </ErrorBoundary>
   </React.StrictMode>,
 );

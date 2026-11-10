@@ -110,6 +110,13 @@ fn request_quit(app: &AppHandle) {
 }
 
 /// The page saved its archive after `quit-requested`: the process can end.
+/// Shows the window from the page: after an update clicked in it, the installer starts the app
+/// again with the arguments it had, `--background` included, which would keep it hidden.
+#[tauri::command]
+pub fn show_window(app: AppHandle) {
+    show_main(&app);
+}
+
 #[tauri::command]
 pub fn quit_app(app: AppHandle) {
     app.exit(0);

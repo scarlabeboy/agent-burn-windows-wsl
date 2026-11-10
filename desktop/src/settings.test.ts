@@ -61,6 +61,7 @@ const damagedCases = [
   { raw: '{"harnessStates":{"pi":"off"},"refreshMinutes":0}', states: { pi: "off" }, minutes: 0 },
   { raw: '{"refreshMinutes":0.00001}', states: {}, minutes: 10 },
   { raw: '{"refreshMinutes":30}', states: {}, minutes: 30 },
+  { raw: '{"offline":"yes","quotas":1}', states: {}, minutes: 10 },
   { raw: "null", states: {}, minutes: 10 },
 ] as const;
 
@@ -79,6 +80,10 @@ for (const { raw, states, minutes } of damagedCases) {
     const settings = readSettings();
     assert.deepEqual(settings.harnessStates, states);
     assert.equal(settings.refreshMinutes, minutes);
+    // Every switch is a real true or false, whatever was saved.
+    for (const key of ["offline", "quotas", "closeToTray", "claudeRenew", "restartOnCrash", "autoUpdate"] as const) {
+      assert.equal(typeof settings[key], "boolean", key);
+    }
   });
 }
 

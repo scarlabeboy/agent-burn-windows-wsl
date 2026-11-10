@@ -4,6 +4,9 @@
  */
 export const fr = {
   app: {
+    crashTitle: "L'affichage a rencontré une erreur.",
+    crashBody: "Rechargez la fenêtre. Si l'erreur revient, signalez-la avec le détail ci-dessous.",
+    reload: "Recharger",
     settings: "Réglages",
     settingsSub: "Général, arrière-plan, données, quotas, WSL, harness et mises à jour",
     closeSettings: "Fermer les réglages",
@@ -115,7 +118,7 @@ export const fr = {
     wslModes: { auto: "Automatique", keep: "Maintenu allumé" },
     wslModeHints: {
       auto: "WSL est lu quand il tourne déjà ; l'application ne le réveille jamais.",
-      keep: "L'application garde WSL allumé tant qu'elle tourne (« Quitter » de l'icône l'arrête). Fermer la fenêtre ne change rien.",
+      keep: "L'application démarre toutes les distributions installées et les garde allumées tant qu'elle tourne (« Quitter » de l'icône l'arrête). Fermer la fenêtre ne change rien.",
     },
     updates: "Mises à jour",
     autoUpdate: "Rechercher les mises à jour automatiquement",
@@ -165,14 +168,14 @@ export const fr = {
   },
   hints: {
     offlineOn:
-      "Activé : quotas et mises à jour suspendus, coûts calculés avec les tarifs intégrés (les modèles récents peuvent afficher 0 $). Les journaux des harness restent lus.",
+      "Activé : quotas et mises à jour suspendus, coûts calculés avec les tarifs intégrés (les modèles récents peuvent afficher 0 $). Les journaux des harness restent lus ; Cursor, lu sur son serveur, ne l'est plus.",
     offlineOff:
       "Aucun appel réseau : quotas et mises à jour suspendus, coûts calculés avec les tarifs intégrés (les modèles récents peuvent afficher 0 $).",
     quotaOffline: "Désactivé en mode hors ligne : les quotas viennent des serveurs de Claude et Codex.",
     quotaOn: "Les jauges de Claude Code et Codex sont relues en ligne chaque minute.",
     quotaOff: "Les quotas ne sont plus relus ni affichés ; leur historique est gardé pour la reprise.",
     refreshEvery: (minutes: number) =>
-      `Relit les journaux des harness toutes les ${minutes} minutes, sur cet ordinateur : continue aussi en mode hors ligne.`,
+      `Relit les journaux des harness toutes les ${minutes} minutes : continue aussi en mode hors ligne, sauf pour Cursor, lu sur son serveur.`,
     refreshNever: "Pas de relecture régulière : seulement au démarrage, avec ⟳ ou quand WSL change.",
     autoUpdateOffline: "Désactivé en mode hors ligne : aucune recherche sur GitHub.",
     autoUpdateOn: "Au démarrage puis toutes les 6 heures, sur GitHub. Rien n'est installé sans votre accord.",

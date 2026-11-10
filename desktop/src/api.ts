@@ -86,6 +86,9 @@ const defaults: Settings = {
   trayWindow: "tightest",
 };
 
+/** The on/off settings, checked one by one (`wslRead` has its own migration). */
+const SWITCHES = ["offline", "quotas", "closeToTray", "claudeRenew", "restartOnCrash", "autoUpdate"] as const;
+
 const SEEN_KEY = "abf.seen-harnesses";
 
 /** Harnesses that have shown usage data at least once, so a disabled one stays listed. */
@@ -136,9 +139,15 @@ export function readSettings(): Settings {
     const trayWindow = ["session", "weekly"].includes(stored.trayWindow) ? stored.trayWindow : "tightest";
     // Checked line by line: a damaged value would break the settings page or the plan total.
     const multiAccount = readMultiAccount(stored.multiAccount);
+    // A switch saved as anything but true or false (a damaged file) takes its default: a text
+    // "offline" would otherwise reach the CLI and fail every scan.
+    const switches = Object.fromEntries(
+      SWITCHES.map((key) => [key, typeof stored[key] === "boolean" ? stored[key] : defaults[key]]),
+    );
     return {
       ...defaults,
       ...rest,
+      ...switches,
       ...wslSettings(stored),
       refreshMinutes,
       harnessStates,
@@ -212,3 +221,4 @@ export const setTrayLabels = (labels: { open: string; refresh: string; quit: str
   invoke<void>("set_tray_labels", labels);
 /** Ends the process, once the archive is saved after `quit-requested`. */
 export const quitApp = () => invoke<void>("quit_app");
+export const showWindow = () => invoke<void>("show_window");

@@ -191,6 +191,7 @@ fn main() {
             background::set_tray_tooltip,
             background::set_tray_icon,
             background::set_tray_labels,
+            background::show_window,
             background::quit_app
         ])
         .run(tauri::generate_context!())

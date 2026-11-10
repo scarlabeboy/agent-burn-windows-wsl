@@ -3,6 +3,9 @@ import type { Strings } from "./fr";
 /** Every text of the interface, in English. Typed on the French one: nothing can be missing. */
 export const en: Strings = {
   app: {
+    crashTitle: "The display ran into an error.",
+    crashBody: "Reload the window. If the error comes back, report it with the detail below.",
+    reload: "Reload",
     settings: "Settings",
     settingsSub: "General, background, data, quotas, WSL, harnesses and updates",
     closeSettings: "Close settings",
@@ -113,7 +116,7 @@ export const en: Strings = {
     wslModes: { auto: "Automatic", keep: "Kept running" },
     wslModeHints: {
       auto: "WSL is read when it is already running; the app never wakes it.",
-      keep: "The app keeps WSL running while it runs (“Quit” from the icon stops it). Closing the window changes nothing.",
+      keep: "The app starts every installed distribution and keeps them running while it runs (“Quit” from the icon stops it). Closing the window changes nothing.",
     },
     updates: "Updates",
     autoUpdate: "Check for updates automatically",
@@ -163,14 +166,14 @@ export const en: Strings = {
   },
   hints: {
     offlineOn:
-      "On: quotas and updates paused, costs computed with the built-in prices (recent models may show $0). Harness logs are still read.",
+      "On: quotas and updates paused, costs computed with the built-in prices (recent models may show $0). Harness logs are still read; Cursor, read from its server, is not.",
     offlineOff:
       "No network call: quotas and updates paused, costs computed with the built-in prices (recent models may show $0).",
     quotaOffline: "Off in offline mode: quotas come from the Claude and Codex servers.",
     quotaOn: "Claude Code and Codex gauges are read online every minute.",
     quotaOff: "Quotas are no longer read or shown; their history is kept for when they come back.",
     refreshEvery: (minutes: number) =>
-      `Reads the harness logs again every ${minutes} minutes, on this computer: keeps going in offline mode too.`,
+      `Reads the harness logs again every ${minutes} minutes: keeps going in offline mode too, except for Cursor, read from its server.`,
     refreshNever: "No regular reading: only at startup, with ⟳ or when WSL changes.",
     autoUpdateOffline: "Off in offline mode: no check on GitHub.",
     autoUpdateOn: "At startup then every 6 hours, on GitHub. Nothing is installed without your consent.",
@@ -295,7 +298,7 @@ export const en: Strings = {
     noEstimate: "Value and projection are worked out once the quota starts being used.",
     estimateUnavailable: "Value and projection are unavailable for now: they come back with the next scan.",
     tooEarly: "too early",
-    tooEarlyHint: "Projected once 10 % of the window has passed or of the quota is used",
+    tooEarlyHint: "Projected once 10% of the window has passed or of the quota is used",
     scopedAge: (age: string) => `read ${age} ago`,
     claudePlanUnknown:
       "The plan could not be detected: it is read from the Claude Code sign-in (claude command) of this environment.",
