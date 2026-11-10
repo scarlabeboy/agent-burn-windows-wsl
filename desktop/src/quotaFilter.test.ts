@@ -78,14 +78,37 @@ test("a single reading is shown, however high", () => {
 });
 
 test("a weekly jump that cannot be real is held back, however the clock runs", () => {
-  // 10 % to 30 % of a week in twenty minutes: not credible, so not shown until confirmed.
+  // 10 % to 30 % of a week in twenty minutes: not credible, so not shown until confirmed. The
+  // step to 20 % stays within what real use can do (10 points over half as much again).
   const jump = series([
     [0, 10],
     [600, 20],
     [1200, 30],
   ]);
-  assert.deepEqual(used(consistentSamples(jump, WEEK)), [10]);
-  assert.equal(currentUsed(jump, WEEK), 10);
+  assert.deepEqual(used(consistentSamples(jump, WEEK)), [10, 20]);
+  assert.equal(currentUsed(jump, WEEK), 20);
+});
+
+test("real use near 0 is shown, a large jump still held back", () => {
+  // 1 % to 7 % within half an hour: heavy use, not an over-count.
+  const busy = series([
+    [0, 1],
+    [600, 7],
+  ]);
+  assert.deepEqual(used(consistentSamples(busy, WEEK)), [1, 7]);
+  assert.equal(currentUsed(busy, WEEK), 7);
+  // 1 % to 12 %: past 1.5 × 1 + 10, held back until confirmed.
+  const jump = series([
+    [0, 1],
+    [600, 12],
+  ]);
+  assert.equal(currentUsed(jump, WEEK), 1);
+  // The case the macOS app saw: 99 % served while 49 % was enforced.
+  const served = series([
+    [0, 49],
+    [600, 99],
+  ]);
+  assert.equal(currentUsed(served, WEEK), 49);
 });
 
 test("the stored samples are not modified", () => {

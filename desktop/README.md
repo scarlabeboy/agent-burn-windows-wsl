@@ -115,6 +115,8 @@ Keep this list up to date when a change adds or removes one.
 - Claude quota history only covers the time the app runs; Codex history is also rebuilt from
   its session logs.
 - Per-model quotas and extra credits only show when the account's API returns them.
+- A Claude subscription that has ended is not shown as Free: the sign-in file keeps the old plan
+  and Anthropic only refuses the quota, so the app says the quota and plan are not read.
 - The daily archive only keeps days an online scan saw: logs deleted before that are lost.
 - A stopped WSL distribution keeps its last report; one never read has no data. An online WSL
   scan takes about 30 s.

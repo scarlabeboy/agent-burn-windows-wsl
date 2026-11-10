@@ -15,9 +15,13 @@ const RECENT_MS = 30 * 60_000;
 /** Only a weekly window is too slow to roughly double within half an hour. */
 const WEEKLY_MINUTES = 2 * 24 * 60;
 
-/** Weekly usage cannot jump far above the lowest recent reading: it is an unconfirmed over-count. */
+/**
+ * Weekly usage cannot jump far above the lowest recent reading: it is an unconfirmed over-count.
+ * The macOS app allows 3 points over half as much again; near 0 that held back real use (1 to 7 %
+ * in half an hour), so 10 points are allowed here. 49 to 99 % is still held back.
+ */
 const isOverCount = (used: number, floor: number, windowMinutes: number): boolean =>
-  windowMinutes >= WEEKLY_MINUTES && used > floor * 1.5 + 3;
+  windowMinutes >= WEEKLY_MINUTES && used > floor * 1.5 + 10;
 
 /** The samples of the newest reading's last half hour, newest first. */
 function recentSamples(samples: Sample[]): Sample[] {

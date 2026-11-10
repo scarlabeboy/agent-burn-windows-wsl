@@ -5,6 +5,10 @@ import { QUOTA_HARNESSES, type Detected, type QuotaReading, type SourceId } from
 
 /** How long a quota stays on screen after a failed read, so missed reads do not blank it. */
 const QUOTA_GRACE_MS = 5 * 60_000;
+/** A weekly window ending within this of the last one is the same cycle (as in the archive). */
+const SAME_CYCLE_MS = 2 * 60_000;
+/** A weekly usage drop this large within one cycle is a change of plan or account. */
+const DROP_POINTS = 5;
 
 /**
  * The quota readings of each source and harness, read every minute while quotas are on, and
@@ -50,6 +54,10 @@ export function useQuotaReadings({
   // grace period (a lapsed plan, a new sign-in) was scanned without it: value and projection
   // come from a new scan, as for a change of shape.
   const failingSince = useRef(new Map<string, number>());
+  // The last weekly reading of each source and harness. Usage never falls within one cycle, so a
+  // drop of several points without a reset means a larger plan with the same windows (Plus to
+  // Pro 200) or another account: the plan and value come from a new scan.
+  const lastWeekly = useRef(new Map<string, { used: number; endMs: number; at: number }>());
   const refreshQuotas = useCallback(
     (force: boolean) => {
       // A reading recorded before the archive loads would be replaced by it, whatever asked for
@@ -71,6 +79,14 @@ export function useQuotaReadings({
               if (!known || reading.observedAt >= known.at) {
                 quotaShapes.current.set(key, { shape, at: reading.observedAt });
                 if (known && known.shape !== shape) refreshRef.current(true);
+              }
+              const { usedPercent, elapsedPercent, windowMinutes } = reading.window;
+              const endMs = reading.observedAt + (1 - elapsedPercent / 100) * windowMinutes * 60_000;
+              const weekly = lastWeekly.current.get(key);
+              if (!weekly || reading.observedAt >= weekly.at) {
+                lastWeekly.current.set(key, { used: usedPercent, endMs, at: reading.observedAt });
+                const sameCycle = weekly !== undefined && Math.abs(weekly.endMs - endMs) <= SAME_CYCLE_MS;
+                if (sameCycle && weekly.used - usedPercent >= DROP_POINTS) refreshRef.current(true);
               }
               const since = failingSince.current.get(key);
               failingSince.current.delete(key);
