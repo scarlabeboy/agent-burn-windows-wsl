@@ -6,6 +6,36 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.6.7
+
+#### English
+
+### Improvements
+- On a PC without any WSL distribution, wsl.exe is no longer run every 15 seconds.
+- Kept running says that it starts every installed distribution; those of Rancher Desktop and Podman are left out, like Docker's.
+- A view that fails to render shows an error with its detail and a Reload button, instead of a blank window.
+- The README has a "For testers" section: what the app reads, contacts, writes and starts.
+
+### Fixes
+- After an update installed from the window, the app comes back with its window even when it had been started with Windows (from the update after this one).
+- A report cache with unexpected content starts over instead of leaving the history unsaved at every launch.
+- A damaged on/off setting takes its default instead of failing every scan.
+- Texts: Cursor is read from its server and not in offline mode; "100 %" spaced in French, "10%" in English; no pace shown on an ended cycle.
+
+#### Français
+
+### Améliorations
+- Sur un PC sans aucune distribution WSL, wsl.exe n'est plus lancé toutes les 15 secondes.
+- « Maintenu allumé » précise qu'il démarre toutes les distributions installées ; celles de Rancher Desktop et Podman sont écartées, comme celles de Docker.
+- Une vue qui ne s'affiche pas montre l'erreur, son détail et un bouton Recharger, au lieu d'une fenêtre blanche.
+- Le README a une section « For testers » : ce que l'app lit, contacte, écrit et démarre.
+
+### Corrections
+- Après une mise à jour installée depuis la fenêtre, l'app revient avec sa fenêtre même si elle avait été lancée au démarrage de Windows (à partir de la mise à jour suivante).
+- Un cache des rapports au contenu inattendu repart de zéro au lieu de laisser l'historique non enregistré à chaque lancement.
+- Un réglage oui/non abîmé reprend sa valeur par défaut au lieu de faire échouer chaque scan.
+- Textes : Cursor est lu sur son serveur et pas en mode hors ligne ; « 100 % » avec l'espace en français, « 10% » en anglais ; plus d'avance affichée sur un cycle terminé.
+
 ## 0.6.6
 
 #### English
