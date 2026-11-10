@@ -6,6 +6,46 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.6.4
+
+#### English
+
+### New
+- Several Codex or Claude Code accounts can be declared by hand in Settings › Multiple accounts, one switch per tool, with an optional name and a plan for each account. The Subscription block then shows "N accounts declared", the total of the plans, the API equivalent spent since the 1st of the month across every environment, and its ratio to the plans. The projection and pace stay, from the account signed in when the quota is read. A note in the settings and under the gauges says what the CLI cannot tell apart.
+
+### Improvements
+- Every individual plan is recognised with its name and price: Codex Free, Go, Plus, Pro 100, Pro 200 and Pro 500; Claude Pro, Max and Ultra. An unknown plan keeps the name and price the CLI gives.
+- On Claude Ultra, which has no 5-hour session, the weekly card fills the row.
+- The model-scoped weekly limits (Fable) show under the quota gauges, with their age once read more than 5 minutes ago.
+- No projection or limit warning before a tenth of the window has passed or a tenth of the quota is used: the projected use says "too early" instead of announcing the limit after an hour.
+- A plan change (Codex Free taken back to Plus) is followed right away, without waiting for the next full scan.
+- The Subscription block keeps the advised pace while the quota is unused, and says when value and projection are unavailable for now.
+
+### Fixes
+- On the WSL tab with WSL off, the Codex weekly limit per day no longer stays on "Reading..." for good: it is hidden.
+- The missing 5-hour session of Claude Ultra is decided from the plan of each environment, which can be signed in to a different account.
+- The Fable limit and the reset credits come from the environment of the quota shown, no longer from another one of the tab.
+- Quotas are read only once the history has loaded, and a late, older reading is ignored.
+
+#### Français
+
+### Nouveautés
+- Plusieurs comptes Codex ou Claude Code peuvent être déclarés à la main dans Réglages › Multicompte, un interrupteur par outil, avec un nom facultatif et un forfait pour chaque compte. Le bloc Abonnement indique alors « N comptes déclarés », le total des forfaits, l'équivalent API dépensé depuis le 1er du mois dans tous les environnements, et son rapport aux forfaits. La projection et le rythme restent, d'après le compte connecté au moment du relevé. Une note dans les réglages et sous les jauges dit ce que le CLI ne sait pas distinguer.
+
+### Améliorations
+- Chaque forfait individuel est reconnu avec son nom et son prix : Codex Free, Go, Plus, Pro 100, Pro 200 et Pro 500 ; Claude Pro, Max et Ultra. Un forfait inconnu garde le nom et le prix donnés par le CLI.
+- En Claude Ultra, sans session de 5 h, la carte hebdomadaire occupe toute la ligne.
+- Les limites hebdomadaires propres à un modèle (Fable) s'affichent sous les jauges du quota, avec leur âge quand le relevé date de plus de 5 minutes.
+- Pas de projection ni d'alerte de limite avant qu'un dixième de la période soit écoulé ou un dixième du quota utilisé : la consommation projetée indique « trop tôt » au lieu d'annoncer la limite au bout d'une heure.
+- Un changement de forfait (Codex Free repassé en Plus) est suivi aussitôt, sans attendre le scan complet suivant.
+- Le bloc Abonnement garde le rythme conseillé tant que le quota n'est pas utilisé, et indique quand valeur et projection sont momentanément indisponibles.
+
+### Corrections
+- Sur l'onglet WSL avec WSL désactivé, la limite hebdomadaire Codex utilisée par jour ne reste plus sur « Lecture… » : elle est masquée.
+- L'absence de session de 5 h de Claude Ultra est décidée d'après le forfait de chaque environnement, qui peut être connecté à un autre compte.
+- La limite Fable et les crédits de reset viennent de l'environnement du quota affiché, et plus d'un autre environnement de l'onglet.
+- Les quotas ne sont lus qu'une fois l'historique chargé, et un relevé tardif plus ancien est ignoré.
+
 ## 0.6.3
 
 #### English
