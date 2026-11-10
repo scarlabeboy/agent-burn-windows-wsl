@@ -6,6 +6,28 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.6.5
+
+#### English
+
+### Improvements
+- The model-scoped weekly limit (Fable) shows when it resets, on the right of its line: "Resets in 5d 3h · 100% left".
+- A quota back after more than 5 minutes without a reading (an ended plan taken again, a new sign-in) refreshes the subscription block right away, without waiting for the next scan.
+- A larger plan with the same windows (Plus to Pro 200) is followed right away: a weekly usage that drops without a reset refreshes the plan and value.
+
+### Fixes
+- Real use near zero is no longer held back for half an hour: going from 1 % to 7 % of the week shows at once. A jump that cannot be real (49 % to 99 %) is still held back until confirmed.
+
+#### Français
+
+### Améliorations
+- La limite hebdomadaire propre à un modèle (Fable) indique quand elle se réinitialise, à droite de sa ligne : « Reset dans 5j 3h · 100 % restants ».
+- Un quota qui revient après plus de 5 minutes sans relevé (forfait repris, nouvelle connexion) met aussitôt à jour le bloc Abonnement, sans attendre le scan suivant.
+- Un forfait plus grand aux mêmes fenêtres (Plus vers Pro 200) est suivi aussitôt : un usage hebdomadaire qui baisse sans reset met à jour le forfait et la valeur.
+
+### Corrections
+- Une vraie consommation près de 0 n'est plus retenue une demi-heure : passer de 1 % à 7 % de la semaine s'affiche tout de suite. Une hausse impossible (49 % à 99 %) reste retenue jusqu'à confirmation.
+
 ## 0.6.4
 
 #### English
