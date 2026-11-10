@@ -327,6 +327,7 @@ export const fr = {
     multiIncompleteHint: "Un compte n'a pas de forfait choisi (Réglages · Multicompte)",
     multiAccounts: (count: number) => `${count} comptes déclarés`,
     multiConnected: (source: string) => `Compte connecté · ${source}`,
+    multiQuotaWaiting: "Projection et rythme attendent la lecture du quota.",
     multiQuotaNote: "Multicompte · jauges du compte connecté, cycles précédents mélangés entre comptes",
     apiNote: "La dépense affichée est un équivalent API, pas votre facture d'abonnement.",
   },

@@ -201,13 +201,13 @@ export default function App({ initialSettings, onThemeChange }: {
     .join(",");
   const quotaCardsFor = (ids: string[]): QuotaCard[] => {
     const noSession = noSessionKey.split(",");
-    const freshest = new Map<string, { source: string; reading: QuotaReading; noSession: boolean }>();
+    const freshest = new Map<string, { source: string; sourceId: string; reading: QuotaReading; noSession: boolean }>();
     for (const id of ids.filter((entry) => readableIds.includes(entry as SourceId))) {
       for (const reading of Object.values(quotas[id] ?? {})) {
         if (disabled.includes(reading.agent)) continue;
         const best = freshest.get(reading.agent);
         if (!best || reading.observedAt > best.reading.observedAt) {
-          freshest.set(reading.agent, { source: label(id), reading, noSession: noSession.includes(`${id}|${reading.agent}`) });
+          freshest.set(reading.agent, { source: label(id), sourceId: id, reading, noSession: noSession.includes(`${id}|${reading.agent}`) });
         }
       }
     }
@@ -585,16 +585,25 @@ export default function App({ initialSettings, onThemeChange }: {
                         )}
                       />
                     ))}
-                  {pageCards.map((card) => (
-                    <QuotaSection
-                      key={card.harness}
-                      card={card}
-                      resetCredits={pickSubscription(sourceReports, card.harness)?.resetCreditsAvailable ?? undefined}
-                      scoped={card.harness === "claude" ? pickClaudeAccount(sourceReports)?.scoped : undefined}
-                      scopedAt={card.harness === "claude" ? pickClaudeAccount(sourceReports)?.observedAtMs : undefined}
-                      multi={multiHarnesses.includes(card.harness as QuotaHarness)}
-                    />
-                  ))}
+                  {pageCards.map((card) => {
+                    // Fable and the reset credits come from the report of the gauges' own source:
+                    // Windows and WSL can be signed in to different accounts.
+                    const own = card.sourceId ? reportOf(states[card.sourceId]) : undefined;
+                    const ownReports = own ? [own] : [];
+                    const claude = card.harness === "claude" ? pickClaudeAccount(ownReports) : undefined;
+                    const multi = multiHarnesses.includes(card.harness as QuotaHarness);
+                    return (
+                      <QuotaSection
+                        key={card.harness}
+                        card={card}
+                        resetCredits={pickSubscription(ownReports, card.harness)?.resetCreditsAvailable ?? undefined}
+                        scoped={claude?.scoped}
+                        scopedAt={claude?.observedAtMs}
+                        multi={multi}
+                        raw={multi && card.harness === "claude"}
+                      />
+                    );
+                  })}
                   {(page === "claude" || page === "codex") && pageMultiSummary && (
                     <MultiSubscriptionCard
                       harness={page}

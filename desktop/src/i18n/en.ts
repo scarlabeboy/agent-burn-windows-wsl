@@ -321,6 +321,7 @@ export const en: Strings = {
     multiIncompleteHint: "An account has no plan chosen (Settings · Multiple accounts)",
     multiAccounts: (count: number) => `${count} accounts declared`,
     multiConnected: (source: string) => `Signed-in account · ${source}`,
+    multiQuotaWaiting: "Projection and pace wait for the quota to be read.",
     multiQuotaNote: "Multiple accounts · gauges of the signed-in account, past cycles mixed across accounts",
     apiNote: "The spend shown is an API equivalent, not your subscription bill.",
   },

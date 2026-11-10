@@ -19,10 +19,12 @@ interface Props {
   past?: boolean;
   /** The card fills the row alone (Codex Free): the chart stretches instead of growing taller. */
   wide?: boolean;
+  /** The samples as measured, without the filter (several Claude Code accounts). */
+  raw?: boolean;
 }
 
 /** Remaining quota over one window: recorded steps, even pace, and the forecast to the reset. */
-export function QuotaChart({ harness, model, observedAt, color, weekly, past = false, wide = false }: Props) {
+export function QuotaChart({ harness, model, observedAt, color, weekly, past = false, wide = false, raw = false }: Props) {
   const W = wide ? WIDE_W : NARROW_W;
   const { startMs, endMs } = model;
   const x = (t: number) =>
@@ -33,8 +35,8 @@ export function QuotaChart({ harness, model, observedAt, color, weekly, past = f
   // Re-read whenever the archive changes (new readings, loaded or rebuilt history).
   const archiveVersion = useSyncExternalStore(subscribe, getVersion);
   const samples = useMemo(
-    () => readSeries(harness, model.window.windowMinutes, startMs),
-    [harness, model.window.windowMinutes, startMs, observedAt, archiveVersion],
+    () => readSeries(harness, model.window.windowMinutes, startMs, raw),
+    [harness, model.window.windowMinutes, startMs, observedAt, archiveVersion, raw],
   );
 
   const points = samples

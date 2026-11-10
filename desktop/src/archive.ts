@@ -238,17 +238,19 @@ const SAME_CYCLE_MS = 2 * 60_000;
  * The samples of one cycle for a chart, without the provider's over-counts (see quotaFilter).
  * Every series of that cycle is read: a reset can be rounded a minute either way, so one cycle
  * may have been stored under two ends two minutes apart (as weeklyCycles merges them).
+ * `raw`: as measured, like the gauges in that mode (see recordReading).
  */
-export function readSeries(harness: string, windowMinutes: number, startMs: number): Sample[] {
+export function readSeries(harness: string, windowMinutes: number, startMs: number, raw = false): Sample[] {
   const endMinute = endMinuteOf(windowMinutes, startMs);
   const spread = SAME_CYCLE_MS / 60_000;
   const series: Sample[][] = [];
   for (let offset = -spread; offset <= spread; offset++) {
-    const raw = quota.series[keyOf(harness, windowMinutes, endMinute + offset)];
-    if (raw) series.push(raw);
+    const stored = quota.series[keyOf(harness, windowMinutes, endMinute + offset)];
+    if (stored) series.push(stored);
   }
   // Merged first, filtered once: two sources apart by more than a point must not zigzag.
-  return consistentSamples(series.length > 1 ? series.reduce(mergeSamples) : (series[0] ?? []), windowMinutes);
+  const merged = series.length > 1 ? series.reduce(mergeSamples) : (series[0] ?? []);
+  return raw ? merged : consistentSamples(merged, windowMinutes);
 }
 
 /**

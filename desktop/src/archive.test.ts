@@ -129,4 +129,8 @@ test("a raw reading shows as measured, where a jump would otherwise be held back
   assert.equal(recordReading(at(605, 60)).window.usedPercent, 20);
   // ...and shown as it is with several accounts declared.
   assert.equal(recordReading(at(610, 61), true).window.usedPercent, 61);
+  // The curve follows the gauge in that mode; the filtered one still holds the jump back.
+  const series = (raw: boolean) => readSeries("claude", WEEK, start, raw).map((sample) => sample.used);
+  assert.equal(series(true).at(-1), 61);
+  assert.equal(series(false).at(-1), 20);
 });

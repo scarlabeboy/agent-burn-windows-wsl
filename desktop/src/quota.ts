@@ -19,6 +19,8 @@ export interface GaugeModel {
 export interface QuotaCard {
   harness: string;
   sources: string[];
+  /** The source of the reading shown, to take what goes with it (Fable, reset credits) from its report. */
+  sourceId?: string;
   observedAt: number;
   session?: GaugeModel;
   /** The long window: a week on paid plans, a month on Codex Free (see `isMonthly`). */
@@ -88,10 +90,10 @@ export const idleSession = (window: QuotaWindow): boolean =>
  */
 export function quotaCards(
   /** `noSession`: the plan of the reading's own source has no 5-hour session (Claude Ultra). */
-  readings: { source: string; reading: QuotaReading; noSession?: boolean }[],
+  readings: { source: string; sourceId?: string; reading: QuotaReading; noSession?: boolean }[],
 ): QuotaCard[] {
   const cards = new Map<string, QuotaCard>();
-  for (const { source, reading, noSession } of readings) {
+  for (const { source, sourceId, reading, noSession } of readings) {
     const key = [
       reading.agent,
       reading.window.usedPercent,
@@ -106,6 +108,7 @@ export function quotaCards(
       cards.set(key, {
         harness: reading.agent,
         sources: [source],
+        sourceId,
         observedAt: reading.observedAt,
         session:
           reading.sessionWindow && !idleSession(reading.sessionWindow)

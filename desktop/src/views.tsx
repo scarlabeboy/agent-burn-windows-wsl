@@ -522,6 +522,7 @@ function WindowCard({
   weekly,
   nowMs,
   wide = false,
+  raw = false,
 }: {
   title: string;
   /** Absent for a session not under way. */
@@ -530,6 +531,8 @@ function WindowCard({
   weekly: boolean;
   nowMs: number;
   wide?: boolean;
+  /** The curves as measured, like the gauges (several Claude Code accounts). */
+  raw?: boolean;
 }) {
   const windowMinutes = model?.window.windowMinutes ?? SESSION_MINUTES;
   // Null for the cycle under way, otherwise the end of the closed cycle shown.
@@ -572,10 +575,10 @@ function WindowCard({
     </span>
   );
   if (selected !== null) {
-    return <PastCard title={title} card={card} windowMinutes={windowMinutes} endMs={selected} weekly={weekly} nav={nav} wide={wide} />;
+    return <PastCard title={title} card={card} windowMinutes={windowMinutes} endMs={selected} weekly={weekly} nav={nav} wide={wide} raw={raw} />;
   }
   return model ? (
-    <GaugeCard title={title} model={model} card={card} weekly={weekly} nowMs={nowMs} nav={nav} wide={wide} />
+    <GaugeCard title={title} model={model} card={card} weekly={weekly} nowMs={nowMs} nav={nav} wide={wide} raw={raw} />
   ) : (
     <IdleSessionCard nav={nav} />
   );
@@ -590,6 +593,7 @@ function PastCard({
   weekly,
   nav,
   wide,
+  raw,
 }: {
   title: string;
   card: QuotaCard;
@@ -598,10 +602,11 @@ function PastCard({
   weekly: boolean;
   nav: ReactNode;
   wide: boolean;
+  raw: boolean;
 }) {
   const startMs = endMs - windowMinutes * 60_000;
   // Never empty: a cycle without samples is not offered.
-  const samples = readSeries(card.harness, windowMinutes, startMs);
+  const samples = readSeries(card.harness, windowMinutes, startMs, raw);
   const last = samples[samples.length - 1];
   const model = pastGauge(windowMinutes, endMs, last);
   // A weekly range shows both dates; a session shows its day once, twice if it ran past midnight.
@@ -631,6 +636,7 @@ function PastCard({
         weekly={weekly}
         past
         wide={wide}
+        raw={raw}
       />
     </div>
   );
@@ -644,6 +650,7 @@ function GaugeCard({
   nowMs,
   nav,
   wide,
+  raw,
 }: {
   title: string;
   model: GaugeModel;
@@ -652,6 +659,7 @@ function GaugeCard({
   nowMs: number;
   nav: ReactNode;
   wide: boolean;
+  raw: boolean;
 }) {
   const ahead = model.pace >= 0;
   const color = agentColor(card.harness);
@@ -682,7 +690,7 @@ function GaugeCard({
           </span>
         )}
       </div>
-      <QuotaChart harness={card.harness} model={model} observedAt={card.observedAt} color={color} weekly={weekly} wide={wide} />
+      <QuotaChart harness={card.harness} model={model} observedAt={card.observedAt} color={color} weekly={weekly} wide={wide} raw={raw} />
     </div>
   );
 }
@@ -722,6 +730,7 @@ export function QuotaSection({
   scoped = [],
   scopedAt,
   multi = false,
+  raw = false,
 }: {
   card: QuotaCard;
   resetCredits?: number;
@@ -731,6 +740,8 @@ export function QuotaSection({
   scopedAt?: number;
   /** Accounts declared by hand: the gauges and their history may belong to any of them. */
   multi?: boolean;
+  /** Readings recorded as measured (several Claude Code accounts): the curves follow them. */
+  raw?: boolean;
 }) {
   const weekly = card.weekly;
   const monthly = isMonthly(weekly.window.windowMinutes);
@@ -769,9 +780,9 @@ export function QuotaSection({
       {/* A plan with only a monthly quota (Codex Free) has no session: its card fills the row. */}
       <div className="gauge-grid">
         {!card.sessionless && (
-          <WindowCard title={text.session} model={card.session} card={card} weekly={false} nowMs={nowMs} />
+          <WindowCard title={text.session} model={card.session} card={card} weekly={false} nowMs={nowMs} raw={raw} />
         )}
-        <WindowCard title={monthly ? text.monthly : text.weekly} model={weekly} card={card} weekly nowMs={nowMs} wide={card.sessionless} />
+        <WindowCard title={monthly ? text.monthly : text.weekly} model={weekly} card={card} weekly nowMs={nowMs} wide={card.sessionless} raw={raw} />
       </div>
       {scoped.length > 0 && (
         <div className="scoped">
@@ -948,7 +959,7 @@ export function MultiSubscriptionCard({
   quotaReason?: string;
 }) {
   const text = t().views;
-  const reason = quotaReason ?? (card ? undefined : text.quotaWaiting);
+  const reason = quotaReason ?? (card ? undefined : text.multiQuotaWaiting);
   const quota = reason ? undefined : card;
   const spend = quota ? budget(quota.weekly) : null;
   const connected = quota ? text.multiConnected(quota.sources.join(" · ")) : "";
