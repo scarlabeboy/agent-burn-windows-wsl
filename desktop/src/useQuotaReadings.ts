@@ -46,6 +46,10 @@ export function useQuotaReadings({
   const rawRef = useRef(rawHarnesses);
   rawRef.current = rawHarnesses;
   const quotaShapes = useRef(new Map<string, { shape: string; at: number }>());
+  // When each source and harness's reads started failing. A quota back after longer than the
+  // grace period (a lapsed plan, a new sign-in) was scanned without it: value and projection
+  // come from a new scan, as for a change of shape.
+  const failingSince = useRef(new Map<string, number>());
   const refreshQuotas = useCallback(
     (force: boolean) => {
       // A reading recorded before the archive loads would be replaced by it, whatever asked for
@@ -68,6 +72,9 @@ export function useQuotaReadings({
                 quotaShapes.current.set(key, { shape, at: reading.observedAt });
                 if (known && known.shape !== shape) refreshRef.current(true);
               }
+              const since = failingSince.current.get(key);
+              failingSince.current.delete(key);
+              if (since !== undefined && Date.now() - since >= QUOTA_GRACE_MS) refreshRef.current(true);
               setQuotaErrors(({ [key]: _cleared, ...rest }) => rest);
               setQuotas((current) => {
                 // A reading older than the one shown arrived late: it is not the latest state.
@@ -80,6 +87,7 @@ export function useQuotaReadings({
             // from the last five minutes stays through missed reads: in WSL without a sign-in,
             // the quota comes from Claude Code's own cache, which the CLI takes only while fresh.
             .catch((error) => {
+              if (!failingSince.current.has(key)) failingSince.current.set(key, Date.now());
               setQuotaErrors((current) => ({ ...current, [key]: String(error) }));
               setQuotas((current) => {
                 const previous = current[id]?.[harness];
