@@ -26,8 +26,9 @@ What the app does on your PC, in short:
   its quota cache in `~/.cache/agent-burn/claude-usage.json`, in the Windows profile and in each
   WSL distribution it reads. That cache is shared with the Agent Burn CLI, so it stays after
   uninstalling; the history goes only if the uninstaller's option to delete the app data is
-  ticked. Each scan that reads OpenCode copies its database to `%TEMP%\agent-burn-windows`
-  and removes the copy afterwards. **Start with Windows**, when turned on, adds a startup
+  ticked. Each CLI run writes its output to `%TEMP%\agent-burn-windows` and removes it
+  afterwards; a scan that reads OpenCode in a WSL distribution also copies its database there
+  for the run. **Start with Windows**, when turned on, adds a startup
   entry. **Renew the Claude Code sign-in** (off by default) lets the CLI rewrite
   `~/.claude/.credentials.json` when it renews the sign-in.
 - **Starts**: WSL is never woken up in the default **Automatic** mode. **Restart after an
