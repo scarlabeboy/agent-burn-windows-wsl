@@ -8,7 +8,8 @@ export const fr = {
     crashBody: "Rechargez la fenêtre. Si l'erreur revient, signalez-la avec le détail ci-dessous.",
     reload: "Recharger",
     settings: "Réglages",
-    settingsSub: "Général, arrière-plan, données, quotas, WSL, harness et mises à jour",
+    settingsSub: (wsl: boolean) =>
+      `Général, arrière-plan, données, quotas, multicompte, ${wsl ? "WSL, " : ""}harness et mises à jour`,
     closeSettings: "Fermer les réglages",
     overview: "Vue d'ensemble",
     computer: "Ordinateur",

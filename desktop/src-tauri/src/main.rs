@@ -153,7 +153,7 @@ fn main() {
         // The entry name is fixed so the uninstaller can remove it (see windows/hooks.nsh).
         .plugin(
             tauri_plugin_autostart::Builder::new()
-                .app_name("Agent Burn Windows")
+                .app_name(background::STARTUP_ENTRY)
                 .args([background::BACKGROUND_FLAG])
                 .build(),
         )
@@ -167,6 +167,8 @@ fn main() {
         .setup(|app| {
             // Leftovers of a run that was stopped mid-scan; off the startup path.
             std::thread::spawn(cli::clean_stale_temp);
+            // An entry written without quotes by an earlier version; off the startup path too.
+            std::thread::spawn(background::quote_startup_entry);
             background::build_tray(app.handle())?;
             // The window starts hidden; a startup launch keeps it in the notification area,
             // unless the launch follows an update installed from the window.

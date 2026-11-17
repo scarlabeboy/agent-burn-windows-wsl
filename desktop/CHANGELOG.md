@@ -6,6 +6,32 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.7.0
+
+#### English
+
+### Improvements
+- The app icon fills its square like the other Windows icons: the transparent margin of the macOS icon is gone (taskbar, Start menu, notification area, installer).
+- The Settings subtitle follows the cards: multiple accounts added, WSL only when its card is shown.
+- The weekly Claude limit per day is hidden while no Claude quota was ever read (Claude Desktop only, no claude sign-in), instead of waiting for readings that never come.
+- The README says that an antivirus may also flag the app or its updates, and what to do.
+
+### Fixes
+- The startup entry is written with its path in quotes; an entry from an earlier version is fixed at launch. Without them, Task Manager could show "Agent" with no icon.
+- On a PC with no usage yet, refreshing no longer flashes a dashboard at zero: the welcome message stays.
+
+#### Français
+
+### Améliorations
+- L'icône de l'app remplit son carré comme les autres icônes Windows : la marge transparente de l'icône macOS est retirée (barre des tâches, menu Démarrer, zone de notification, installeur).
+- Le sous-titre des Réglages suit les cartes : multicompte ajouté, WSL seulement quand sa carte est affichée.
+- La limite hebdomadaire Claude par jour est masquée tant qu'aucun quota Claude n'a été lu (Claude Desktop seul, sans connexion claude), au lieu d'attendre des relevés qui ne viendront pas.
+- Le README précise qu'un antivirus peut aussi signaler l'app ou ses mises à jour, et quoi faire.
+
+### Corrections
+- L'entrée de démarrage est écrite avec son chemin entre guillemets ; celle d'une version précédente est corrigée au lancement. Sans eux, le Gestionnaire des tâches pouvait afficher « Agent » sans icône.
+- Sur un PC encore sans usage, l'actualisation ne fait plus apparaître un tableau de bord à zéro : le message d'accueil reste.
+
 ## 0.6.7
 
 #### English

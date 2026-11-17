@@ -72,3 +72,8 @@ export function limitUsageOffReason(settings: Settings): string | undefined {
   if (!settings.quotas) return t().hints.limitUsageOffSwitch;
   return undefined;
 }
+
+/** The WSL card shows when a distribution exists, and stays while reading is off or kept running. */
+export function showsWslCard(settings: Settings, hasDistros: boolean): boolean {
+  return !settings.wslRead || settings.wslMode === "keep" || hasDistros;
+}

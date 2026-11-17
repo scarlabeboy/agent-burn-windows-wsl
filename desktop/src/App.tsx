@@ -18,6 +18,7 @@ import {
   quotaOffReason,
   quotasActive,
   readingLimitOffReason,
+  showsWslCard,
   subscriptionOffReason,
 } from "./settingsHints";
 import { OVERVIEW, Sidebar } from "./Sidebar";
@@ -156,12 +157,15 @@ export default function App({ initialSettings, onThemeChange }: {
   // Every source of this tab answered and none has a harness or an archived day: a first launch,
   // or a machine where no supported agent was used yet. A stopped distribution never read yet has
   // nothing to add, so it does not hold the message back (a stopped one with a saved report does).
+  // A source read again keeps its last report: the message stays during the refresh instead of an
+  // empty dashboard flashing up.
   const answeringIds = activeIds.filter((id) => readableIds.includes(id as SourceId) || states[id]);
   const hasNoData =
     answeringIds.length > 0 &&
     answeringIds.every((id) => {
       const state = states[id];
-      return state?.status === "ready" && !hasUsage(state.report, archivedDays(id), disabled);
+      const shown = state?.status === "ready" || state?.status === "loading" ? reportOf(state) : undefined;
+      return !!shown && !hasUsage(shown, archivedDays(id), disabled);
     });
   const stoppedNames = distros
     .filter((entry) => !entry.running && activeIds.includes(`wsl:${entry.name}`))
@@ -412,7 +416,7 @@ export default function App({ initialSettings, onThemeChange }: {
   const header = showSettings ? (
     <div className="page-head">
       <h1 className="page-title">{text.app.settings}</h1>
-      <p className="muted page-sub">{text.app.settingsSub}</p>
+      <p className="muted page-sub">{text.app.settingsSub(showsWslCard(settings, distros.length > 0))}</p>
     </div>
   ) : (
     <div className="page-head">

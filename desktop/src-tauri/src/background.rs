@@ -1,5 +1,8 @@
 use std::{
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex, MutexGuard,
+    },
     time::Duration,
 };
 
@@ -14,6 +17,8 @@ use tauri_plugin_autostart::ManagerExt;
 const TRAY_ID: &str = "main";
 /// Passed by the Windows startup entry so the app opens in the notification area only.
 pub const BACKGROUND_FLAG: &str = "--background";
+/// The startup entry's name; the uninstaller removes it by this name (windows/hooks.nsh).
+pub const STARTUP_ENTRY: &str = "Agent Burn Windows";
 /// How long the page gets to save its data and confirm (`quit_app`) before the process ends anyway.
 const QUIT_GRACE: Duration = Duration::from_secs(5);
 static QUITTING: AtomicBool = AtomicBool::new(false);
@@ -181,13 +186,90 @@ pub async fn get_autostart(app: AppHandle) -> Result<bool, String> {
 
 #[tauri::command]
 pub async fn set_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let _guard = startup_entry_lock();
     let manager = app.autolaunch();
     let result = if enabled {
-        manager.enable()
+        manager.enable().map(|()| quote_entry_locked())
     } else {
         manager.disable()
     };
     result.map_err(|error| error.to_string())
+}
+
+/// The startup command with its path in quotes, when `current` is this exe's path without them
+/// (the autostart plugin writes `path args` as is). Without quotes Windows tries
+/// `…\Local\Agent.exe` first, and Task Manager shows "Agent" when the exe is missing. An entry
+/// already quoted, or pointing to another copy of the app, is left as it is.
+fn quoted_command(current: &str, exe: &str) -> Option<String> {
+    if current.starts_with('"') {
+        return None;
+    }
+    let head = current.get(..exe.len())?;
+    let rest = &current[exe.len()..];
+    (head.eq_ignore_ascii_case(exe) && (rest.is_empty() || rest.starts_with(' ')))
+        .then(|| format!("\"{exe}\"{rest}"))
+}
+
+/// Puts the current user's startup entry in quotes: right after turning it on, and at launch for
+/// an entry written by an earlier version. Any failure leaves the entry as it was.
+pub fn quote_startup_entry() {
+    let _guard = startup_entry_lock();
+    quote_entry_locked();
+}
+
+/// Held while the startup entry is changed: the repair at launch runs on its own thread and,
+/// without it, could write the entry back right after the user turned starting with Windows off.
+static STARTUP_ENTRY_LOCK: Mutex<()> = Mutex::new(());
+
+fn startup_entry_lock() -> MutexGuard<'static, ()> {
+    STARTUP_ENTRY_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// `quote_startup_entry` for a caller already holding `startup_entry_lock`.
+fn quote_entry_locked() {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::{
+            Foundation::ERROR_SUCCESS,
+            System::Registry::{RegGetValueW, RegSetKeyValueW, HKEY_CURRENT_USER, REG_SZ, RRF_RT_REG_SZ},
+        };
+        let Ok(exe) = std::env::current_exe() else { return };
+        let wide = |text: &str| -> Vec<u16> { text.encode_utf16().chain(Some(0)).collect() };
+        let key = wide(r"Software\Microsoft\Windows\CurrentVersion\Run");
+        let name = wide(STARTUP_ENTRY);
+        let mut buffer = vec![0u16; 2048];
+        let mut size = (buffer.len() * 2) as u32;
+        // SAFETY: NUL-terminated names; the buffer and its size in bytes match.
+        let read = unsafe {
+            RegGetValueW(
+                HKEY_CURRENT_USER,
+                key.as_ptr(),
+                name.as_ptr(),
+                RRF_RT_REG_SZ,
+                std::ptr::null_mut(),
+                buffer.as_mut_ptr().cast(),
+                &mut size,
+            )
+        };
+        if read != ERROR_SUCCESS {
+            return;
+        }
+        let length = buffer.iter().position(|&unit| unit == 0).unwrap_or(buffer.len());
+        let current = String::from_utf16_lossy(&buffer[..length]);
+        let Some(command) = quoted_command(&current, &exe.display().to_string()) else { return };
+        let data = wide(&command);
+        // SAFETY: the data is NUL-terminated and its size given in bytes.
+        unsafe {
+            RegSetKeyValueW(
+                HKEY_CURRENT_USER,
+                key.as_ptr(),
+                name.as_ptr(),
+                REG_SZ,
+                data.as_ptr().cast(),
+                (data.len() * 2) as u32,
+            );
+        }
+    }
 }
 
 /// Quota summary shown when hovering the notification-area icon.
@@ -239,5 +321,19 @@ mod tests {
         assert!(in_background(args(&[r"C:\app\agent-burn-windows.exe", "--background"])));
         assert!(!in_background(args(&[r"C:\app\agent-burn-windows.exe"])));
         assert!(!in_background(args(&[r"C:\app\agent-burn-windows.exe", "--backgroundx"])));
+    }
+
+    #[test]
+    fn the_startup_entry_gets_quotes_around_this_exe_only() {
+        let exe = r"C:\Users\me\AppData\Local\Agent Burn Windows\agent-burn-windows.exe";
+        assert_eq!(
+            quoted_command(&format!("{exe} --background"), exe).as_deref(),
+            Some(r#""C:\Users\me\AppData\Local\Agent Burn Windows\agent-burn-windows.exe" --background"#)
+        );
+        assert!(quoted_command(&format!("{} --background", exe.to_uppercase()), exe).is_some());
+        assert_eq!(quoted_command(&format!("\"{exe}\" --background"), exe), None);
+        assert_eq!(quoted_command(r"E:\Agent Burn Windows\agent-burn-windows.exe --background", exe), None);
+        assert_eq!(quoted_command(&format!("{exe}x --background"), exe), None);
+        assert_eq!(quoted_command("", exe), None);
     }
 }

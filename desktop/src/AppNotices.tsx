@@ -10,13 +10,19 @@ import type { SourceState, TabId } from "./types";
 import { useNow } from "./useNow";
 import { agentColor, agentLabel } from "./views";
 
-/** The weekly Claude limit per day from the app's own readings, or the reason there is none. */
+/**
+ * The weekly Claude limit per day from the app's own readings, or the reason there is none.
+ * Hidden while no weekly Claude quota was ever read (Claude Desktop only, no `claude` sign-in):
+ * it would wait for readings that never come, and the quota notice already says why.
+ */
 export function ReadingLimitSection({ offReason }: { offReason?: string }) {
   const archiveVersion = useSyncExternalStore(subscribe, getVersion);
   const nowMs = useNow(60_000);
   const today = isoDate(new Date(nowMs));
-  const days = useMemo(() => limitDays(weeklyCycles("claude"), nowMs), [archiveVersion, today]);
+  const cycles = useMemo(() => weeklyCycles("claude"), [archiveVersion]);
+  const days = useMemo(() => limitDays(cycles, nowMs), [cycles, today]);
   if (offReason) return <div className="notice">{offReason}</div>;
+  if (!cycles.some((cycle) => cycle.samples.length > 0)) return null;
   return <ReadingLimitChart days={days} color={agentColor("claude")} />;
 }
 

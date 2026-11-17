@@ -7,7 +7,8 @@ export const en: Strings = {
     crashBody: "Reload the window. If the error comes back, report it with the detail below.",
     reload: "Reload",
     settings: "Settings",
-    settingsSub: "General, background, data, quotas, WSL, harnesses and updates",
+    settingsSub: (wsl: boolean) =>
+      `General, background, data, quotas, multiple accounts, ${wsl ? "WSL, " : ""}harnesses and updates`,
     closeSettings: "Close settings",
     overview: "Overview",
     computer: "Computer",

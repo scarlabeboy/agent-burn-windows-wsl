@@ -6,7 +6,7 @@ import type { groupHarnesses } from "./harnesses";
 import { LANG_NAMES, t, type Lang } from "./i18n";
 import { MultiAccountSettings } from "./MultiAccountSettings";
 import { SettingRow, SettingsCard, Switch } from "./SettingsUi";
-import { autoUpdateActive, autoUpdateHint, offlineHint, quotaHint, refreshHint } from "./settingsHints";
+import { autoUpdateActive, autoUpdateHint, offlineHint, quotaHint, refreshHint, showsWslCard } from "./settingsHints";
 import { Glyph } from "./TitleIcons";
 import { QUOTA_HARNESSES, type QuotaHarness, type Settings, type TrayWindow, type WslMode } from "./types";
 import { checkHint, foundHint } from "./updateHints";
@@ -199,7 +199,7 @@ export function SettingsPage({
       </SettingsCard>
 
       {/* Hidden when there is no WSL to turn off; kept while off so it can be turned back on. */}
-      {(!settings.wslRead || settings.wslMode === "keep" || hasDistros) && (
+      {showsWslCard(settings, hasDistros) && (
         <SettingsCard title="WSL" icon={<EnvIcon env="wsl" size={16} />}>
           <SettingRow
             title={text.settings.wslRead}

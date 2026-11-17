@@ -35,7 +35,9 @@ What the app does on your PC, in short:
   unexpected stop** is on by default: Windows reopens the app in the notification area after a
   crash or a Windows update restart. Starting with Windows is off until you turn it on.
 - **Installer**: not code-signed, so SmartScreen or an antivirus may warn about it. Updates are
-  only installed when you click Install, and only if signed with the release key.
+  only installed when you click Install, and only if signed with the release key. Some antivirus
+  programs (seen with Surfshark, not with Windows Defender) may also flag the app or its updates;
+  restore the file from quarantine and exclude the install folder.
 
 ## Build the installer
 
