@@ -14,6 +14,9 @@ untouched.
 
 What the app does on your PC, in short:
 
+- **Runs on** Windows 10 and Windows 11, 64-bit (x64); tested on both. The app needs Microsoft
+  Edge WebView2, built into Windows 11 and current Windows 10; the installer downloads it when
+  it is missing. WSL is optional.
 - **Reads** the usage logs of the coding tools it finds (Claude Code, Codex, OpenCode…) in your
   Windows profile and in WSL distributions that are already running, and the plan fields of the
   Claude Code sign-in file. It never shows or logs a sign-in token.
