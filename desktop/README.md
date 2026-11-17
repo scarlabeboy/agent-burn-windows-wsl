@@ -10,6 +10,16 @@ reading, each model's reference rates (`pricing`) in `summary --json`, and
 `AGENT_BURN_NO_RENEW`, which stops it from renewing the Claude sign-in. Cost calculation is
 untouched.
 
+![Overview of Windows and WSL together](docs/overview.jpg)
+
+| Claude Code quota (Windows) | Codex quota (WSL) |
+|---|---|
+| ![Claude Code quota](docs/claude-quota.jpg) | ![Codex quota in WSL](docs/codex-wsl.jpg) |
+
+| Settings | Notification area |
+|---|---|
+| ![Settings](docs/settings.jpg) | ![Quota icon and tooltip in the notification area](docs/tray.jpg) |
+
 ## For testers
 
 What the app does on your PC, in short:
