@@ -257,6 +257,8 @@ export const fr = {
     pricingFast: (multiplier: string) => `Mode rapide : ×${multiplier}`,
     pricingReference: "Tarif de référence :",
     pricingNote: "(pas forcément celui du coût affiché)",
+    autoReview: (model: string) =>
+      `Revue automatique de Codex : elle vérifie les actions de l'agent avant de les autoriser. Sans tarif propre, elle est estimée au tarif de ${model}, le modèle annoncé par OpenAI pour ces revues.`,
     pricingUnknown: "Tarif inconnu pour ce modèle.",
     pricingFree: "Tarif à 0 : modèle gratuit ou non tarifé.",
     archivedDays: (count: number) =>

@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { setLang } from "./i18n";
-import { formatPricing, formatRate, pricingTip } from "./pricingFormat";
+import { autoReviewPricedAs, formatPricing, formatRate, modelDisplayName, pricingTip } from "./pricingFormat";
 import type { ModelPricing } from "./types";
 
 const pricing = { input: 3, output: 15, cacheWrite: 3.75, cacheRead: 0.3 } satisfies ModelPricing;
@@ -96,4 +96,18 @@ test("the badge greys out unknown and all-zero rates, but not a model with one p
   assert.deepEqual(pricingTip(free), { text: "Tarif à 0 : modèle gratuit ou non tarifé.", muted: true });
   assert.equal(pricingTip({ ...free, output: 0.5 }).muted, false);
   assert.equal(pricingTip(pricing).text, formatPricing(pricing));
+});
+
+test("Codex Auto-review keeps its name and says which model's rates price it", () => {
+  setLang("fr");
+  assert.equal(autoReviewPricedAs("codex-auto-review@gpt-5.6-luna"), "gpt-5.6-luna");
+  assert.equal(autoReviewPricedAs("codex-auto-review@"), undefined);
+  assert.equal(autoReviewPricedAs("gpt-6.1-sol"), undefined);
+  assert.equal(modelDisplayName("codex-auto-review@gpt-5.6-luna"), "codex-auto-review");
+  assert.equal(modelDisplayName("gpt-6.1-sol"), "gpt-6.1-sol");
+  const tip = pricingTip(pricing, "codex-auto-review@gpt-5.6-luna");
+  assert.ok(tip.text.startsWith("Revue automatique de Codex"));
+  assert.ok(tip.text.includes("gpt-5.6-luna"));
+  assert.ok(tip.text.endsWith(formatPricing(pricing)));
+  assert.equal(pricingTip(pricing, "gpt-6.1-sol").text, formatPricing(pricing));
 });

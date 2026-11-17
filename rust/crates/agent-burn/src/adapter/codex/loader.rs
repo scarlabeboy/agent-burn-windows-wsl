@@ -574,9 +574,9 @@ mod tests {
         let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
 
         assert_eq!(events.len(), 3);
-        assert_eq!(events[0].model.as_deref(), Some("gpt-5.3-codex"));
-        assert_eq!(events[1].model.as_deref(), Some("gpt-5.4"));
-        assert_eq!(events[2].model.as_deref(), Some("gpt-5.5"));
+        assert_eq!(events[0].model.as_deref(), Some("codex-auto-review@gpt-5.3-codex"));
+        assert_eq!(events[1].model.as_deref(), Some("codex-auto-review@gpt-5.4"));
+        assert_eq!(events[2].model.as_deref(), Some("codex-auto-review@gpt-5.4"));
         assert!(events.iter().all(|event| event.is_fallback_model));
     }
 
@@ -616,12 +616,12 @@ mod tests {
         assert_eq!(events.len(), 2);
         // File mtime is "now" at fixture creation, which is on or after every
         // entry currently in the fallback table, so resolution lands on the
-        // newest known model. The exact value updates when the table grows.
+        // newest known model, kept under the codex-auto-review name.
         assert!(events.iter().all(|event| {
             event
                 .model
                 .as_deref()
-                .is_some_and(|model| model.starts_with("gpt-5"))
+                .is_some_and(|model| model.starts_with("codex-auto-review@gpt-5"))
         }));
         assert!(events.iter().all(|event| event.is_fallback_model));
     }
@@ -649,7 +649,7 @@ mod tests {
         let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
 
         assert_eq!(events.len(), 1);
-        assert_eq!(events[0].model.as_deref(), Some("gpt-5.2-codex"));
+        assert_eq!(events[0].model.as_deref(), Some("codex-auto-review@gpt-5.2-codex"));
         assert!(events[0].is_fallback_model);
     }
 
@@ -702,8 +702,8 @@ mod tests {
         let events = load_codex_events_from_directory(fixture.root(), true).unwrap();
 
         assert_eq!(events.len(), 2);
-        assert_eq!(events[0].model.as_deref(), Some("gpt-5.2-codex"));
-        assert_eq!(events[1].model.as_deref(), Some("gpt-5.5"));
+        assert_eq!(events[0].model.as_deref(), Some("codex-auto-review@gpt-5.2-codex"));
+        assert_eq!(events[1].model.as_deref(), Some("codex-auto-review@gpt-5.4"));
         assert!(events.iter().all(|event| event.is_fallback_model));
     }
 

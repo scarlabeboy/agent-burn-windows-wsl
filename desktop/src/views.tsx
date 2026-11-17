@@ -29,7 +29,7 @@ import {
   type QuotaCard,
 } from "./quota";
 import { formatNumber, getLang, locale, percent, t } from "./i18n";
-import { pricingTip } from "./pricingFormat";
+import { modelDisplayName, pricingTip } from "./pricingFormat";
 import { Glyph, TitleIcon, type GlyphKind } from "./TitleIcons";
 import { ChartLabel, withoutZeros } from "./ChartLabel";
 import { Tooltip as InfoTooltip } from "./Tooltip";
@@ -366,8 +366,8 @@ const MODEL_COLUMNS: { key: ModelSortKey; numeric: boolean }[] = [
 ];
 
 /** Rate badge in front of a model name: orange with its rates, grey when unknown or all zero. */
-function PricingBadge({ pricing }: { pricing: ModelPricing | undefined }) {
-  const tip = pricingTip(pricing);
+function PricingBadge({ pricing, model }: { pricing: ModelPricing | undefined; model: string }) {
+  const tip = pricingTip(pricing, model);
   return (
     <InfoTooltip text={tip.text}>
       <button type="button" className={`model-pricing-icon${tip.muted ? " muted" : ""}`} aria-label={t().views.pricingLabel}>
@@ -428,8 +428,8 @@ export function Models({ report, pricing, detailError }: {
             <tr key={row.model}>
               <td>
                 <span className="model-name">
-                  <PricingBadge pricing={Object.hasOwn(pricing, row.model) ? pricing[row.model] : undefined} />
-                  {row.model}
+                  <PricingBadge model={row.model} pricing={Object.hasOwn(pricing, row.model) ? pricing[row.model] : undefined} />
+                  {modelDisplayName(row.model)}
                 </span>
               </td>
               <td className="num">{formatTokens(row.totalTokens)}</td>

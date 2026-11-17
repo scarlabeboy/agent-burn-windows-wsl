@@ -6,6 +6,18 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.7.1
+
+#### English
+
+### Fixes
+- Codex Auto-review (the model that checks Codex's actions before allowing them) shows under its own name, codex-auto-review, instead of gpt-5.5, and is priced as the model OpenAI announced for it, GPT-5.6 Luna since 30 July 2026 (the estimated Codex spend may drop, by up to the amount shown for gpt-5.5 until now).
+
+#### Français
+
+### Corrections
+- La revue automatique de Codex (le modèle qui vérifie les actions de Codex avant de les autoriser) apparaît sous son propre nom, codex-auto-review, au lieu de gpt-5.5, et est tarifée au modèle annoncé par OpenAI, GPT-5.6 Luna depuis le 30 juillet 2026 (la dépense estimée de Codex peut baisser, jusqu'au montant affiché jusqu'ici pour gpt-5.5).
+
 ## 0.7.0
 
 #### English

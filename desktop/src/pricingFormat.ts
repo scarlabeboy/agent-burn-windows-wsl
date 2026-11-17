@@ -10,12 +10,28 @@ export function formatRate(rate: number): string {
  * The rate badge of one model: its bubble text, and whether it is greyed out because the
  * rate is unknown or every rate is zero (a free model, or one with no rate filled in).
  */
-export function pricingTip(pricing: ModelPricing | undefined): { text: string; muted: boolean } {
+export function pricingTip(pricing: ModelPricing | undefined, model = ""): { text: string; muted: boolean } {
   const text = t().views;
-  if (!pricing) return { text: text.pricingUnknown, muted: true };
+  const pricedAs = autoReviewPricedAs(model);
+  // Codex Auto-review has no rate of its own: say which model's rates price it.
+  const intro = pricedAs ? [text.autoReview(pricedAs), ""] : [];
+  const tip = (body: string, muted: boolean) => ({ text: [...intro, body].join("\n"), muted });
+  if (!pricing) return tip(text.pricingUnknown, true);
   const rates = Object.entries(pricing).filter(([key]) => key !== "fastMultiplier");
-  if (rates.every(([, rate]) => !rate)) return { text: text.pricingFree, muted: true };
-  return { text: formatPricing(pricing), muted: false };
+  if (rates.every(([, rate]) => !rate)) return tip(text.pricingFree, true);
+  return tip(formatPricing(pricing), false);
+}
+
+const AUTO_REVIEW_PREFIX = "codex-auto-review@";
+
+/** The CLI names Codex Auto-review usage `codex-auto-review@<model it is priced as>`. */
+export function autoReviewPricedAs(model: string): string | undefined {
+  return model.startsWith(AUTO_REVIEW_PREFIX) ? model.slice(AUTO_REVIEW_PREFIX.length) || undefined : undefined;
+}
+
+/** The model name shown in the app: Auto-review keeps Codex's own name. */
+export function modelDisplayName(model: string): string {
+  return autoReviewPricedAs(model) ? "codex-auto-review" : model;
 }
 
 export function formatPricing(pricing: ModelPricing): string {

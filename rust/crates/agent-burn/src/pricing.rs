@@ -361,6 +361,9 @@ impl PricingMap {
     }
 
     pub(crate) fn find(&self, model: &str) -> Option<Pricing> {
+        if let Some(priced_as) = codex_auto_review_priced_model(model) {
+            return self.find(priced_as);
+        }
         self.find_entry_or_alias(model)
             .or_else(|| {
                 self.enable_models_dev_fallback
@@ -1132,6 +1135,20 @@ fn normalized_pricing_key(value: &str) -> Cow<'_, str> {
 
 /// Maps Codex log labels that upstream pricing sources do not publish to
 /// canonical pricing keys.
+const CODEX_AUTO_REVIEW_PREFIX: &str = "codex-auto-review@";
+
+/// Codex Auto-review usage keeps its own name, followed by the model it is
+/// priced as: `codex-auto-review@gpt-5.6-luna`.
+pub(crate) fn codex_auto_review_model_name(priced_as: &str) -> String {
+    format!("{CODEX_AUTO_REVIEW_PREFIX}{priced_as}")
+}
+
+fn codex_auto_review_priced_model(model: &str) -> Option<&str> {
+    model
+        .strip_prefix(CODEX_AUTO_REVIEW_PREFIX)
+        .filter(|priced_as| !priced_as.is_empty())
+}
+
 fn pricing_alias(model: &str) -> Option<&'static str> {
     match model {
         "gpt-5.3-spark" => Some("gpt-5.3-codex-spark"),
@@ -1802,6 +1819,16 @@ mod tests {
 
         assert!(pricing.find("codex-auto-review").is_none());
         assert!(pricing.context_limit("codex-auto-review").is_none());
+    }
+
+    #[test]
+    fn prices_codex_auto_review_as_the_model_after_its_name() {
+        let pricing = PricingMap::load_embedded();
+
+        let rates = |model: &str| pricing.find(model).map(|rate| (rate.input, rate.output));
+        assert!(rates("gpt-5.4").is_some());
+        assert_eq!(rates("codex-auto-review@gpt-5.4"), rates("gpt-5.4"));
+        assert!(pricing.find("codex-auto-review@").is_none());
     }
 
     #[test]

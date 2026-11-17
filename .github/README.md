@@ -7,9 +7,11 @@ kept in sync with upstream.
 The app reads Claude Code, Codex, OpenCode and the other supported harnesses on native Windows,
 and inside WSL if you use it, and shows usage, cost and subscription quotas for each
 environment or for the whole computer. It runs Melvynx's CLI from `rust/` as a sidecar and
-renders its JSON; the cost calculation is his, unchanged. The CLI additions are small: the
-Codex 5-hour window in the quota reading, each model's reference rates in the JSON summary,
-and a switch that stops it from renewing the Claude Code sign-in.
+renders its JSON; the cost calculation is his, unchanged except for Codex Auto-review. The
+CLI additions are small: the Codex 5-hour window in the quota reading, each model's reference
+rates in the JSON summary, a switch that stops it from renewing the Claude Code sign-in, and
+Codex Auto-review shown under its own name and priced as the model OpenAI announced for it,
+instead of the latest GPT model.
 
 ![Overview of Windows and WSL together](../desktop/docs/overview.jpg)
 

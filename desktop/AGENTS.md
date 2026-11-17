@@ -25,10 +25,13 @@ for changes under `desktop/`, the Windows desktop app of this fork. Everything o
 
 ## Rules
 
-- Never change the CLI's cost calculation. The CLI additions are the Codex 5-hour window
-  (`sessionWindow`), each model's rates (`pricing`) in `summary --json`, and
-  `AGENT_BURN_NO_RENEW` (no Claude sign-in renewal, unless the user turns renewal on), plus
-  security updates in `rust/Cargo.lock`. Outside the CLI, three upstream files changed too:
+- Never change the CLI's cost calculation, except for Codex Auto-review. The CLI additions are
+  the Codex 5-hour window (`sessionWindow`), each model's rates (`pricing`) in
+  `summary --json`, `AGENT_BURN_NO_RENEW` (no Claude sign-in renewal, unless the user turns
+  renewal on), and Codex Auto-review kept under its own name, `codex-auto-review@<model>`,
+  priced as the model OpenAI documents for it (`CODEX_AUTO_REVIEW_DOCUMENTED_MODELS` in
+  `adapter/codex/parser.rs`: GPT-5.6 Luna from 2026-07-30, GPT-5.4 before; add a row when
+  OpenAI announces a change), plus security updates in `rust/Cargo.lock`. Outside the CLI, three upstream files changed too:
   the root `LICENSE` (a real MIT file with our copyright line instead of a link) and
   `.github/ISSUE_TEMPLATE/bug.yml` and `contribution.yml` (without upstream's automatic
   closing). Keep upstream files untouched otherwise, so upstream merges stay clean, and merge

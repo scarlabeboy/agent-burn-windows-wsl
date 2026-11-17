@@ -252,6 +252,8 @@ export const en: Strings = {
     pricingFast: (multiplier: string) => `Fast mode: ×${multiplier}`,
     pricingReference: "Reference rate:",
     pricingNote: "(may differ from the displayed cost)",
+    autoReview: (model: string) =>
+      `Codex Auto-review: it checks the agent's actions before allowing them. It has no rate of its own, so it is estimated at the rate of ${model}, the model OpenAI announced for these reviews.`,
     pricingUnknown: "Unknown rate for this model.",
     pricingFree: "Rate of 0: free model or no rate listed.",
     archivedDays: (count: number) =>

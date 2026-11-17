@@ -5,10 +5,11 @@ for WSL (optional), and for both combined (Computer). It runs the Agent Burn CLI
 `../rust` as a sidecar and renders its JSON; usage and costs always come from it. The only
 logs the app reads itself are Codex's session logs, for the quota history (`backfill.rs`).
 The CLI is Melvynx's
-code with three small additions: the Codex 5-hour window (`sessionWindow`) in the quota
-reading, each model's reference rates (`pricing`) in `summary --json`, and
-`AGENT_BURN_NO_RENEW`, which stops it from renewing the Claude sign-in. Cost calculation is
-untouched.
+code with four small additions: the Codex 5-hour window (`sessionWindow`) in the quota
+reading, each model's reference rates (`pricing`) in `summary --json`,
+`AGENT_BURN_NO_RENEW`, which stops it from renewing the Claude sign-in, and Codex Auto-review
+shown under its own name (`codex-auto-review`) instead of the latest GPT model. Cost
+calculation is untouched, except for Auto-review, priced as the model OpenAI announced for it.
 
 ![Overview of Windows and WSL together](docs/overview.jpg)
 
@@ -144,6 +145,9 @@ app is not 1.0 yet.
 Keep this list up to date when a change adds or removes one.
 
 - Costs are API-equivalent values from the CLI's price table, not a bill.
+- Codex Auto-review (`codex-auto-review`, the model that checks Codex's actions before allowing
+  them) has no rate of its own: it is priced as the model OpenAI announced for it, GPT-5.6 Luna
+  since 30 July 2026 (GPT-5.4 before). The logs do not say which model really runs it.
 - The same harness used with a subscription and with an API key cannot be told apart: the
   subscription value then also counts the sessions paid through the API.
 - Several accounts of one harness cannot be told apart: the CLI reports no account. They can be

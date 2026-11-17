@@ -506,12 +506,19 @@ fn resolve_codex_usage_model(
         codex_log_model_fallback(&model, timestamp)
             .map(|fallback| {
                 is_fallback_model = true;
-                fallback.to_string()
+                crate::pricing::codex_auto_review_model_name(fallback)
             })
             .unwrap_or(model)
     });
     (model, is_fallback_model)
 }
+
+/// Models OpenAI documents for Auto-review, newest first, checked before the
+/// generated release-date table. From 2026-07-30 Auto-review runs on GPT-5.6
+/// Luna; before that on GPT-5.4 ("upgrading Auto-review … from GPT-5.4 to
+/// GPT-5.6 Luna", OpenAI, 2026-07-30). Add a row when OpenAI announces a change.
+const CODEX_AUTO_REVIEW_DOCUMENTED_MODELS: &[(&str, &str)] =
+    &[("2026-07-30", "gpt-5.6-luna"), ("2026-03-05", "gpt-5.4")];
 
 fn codex_log_model_fallback(model: &str, timestamp: &str) -> Option<&'static str> {
     if model != CODEX_AUTO_REVIEW_MODEL {
@@ -520,12 +527,15 @@ fn codex_log_model_fallback(model: &str, timestamp: &str) -> Option<&'static str
     let Some(date) = codex_timestamp_date(timestamp) else {
         return Some("gpt-5");
     };
-    Some(
+    let documented = CODEX_AUTO_REVIEW_DOCUMENTED_MODELS
+        .iter()
+        .find_map(|&(since, model)| (date >= since).then_some(model));
+    Some(documented.unwrap_or_else(|| {
         codex_auto_review_fallback_models()
             .iter()
             .find_map(|fallback| (date >= fallback.released_on).then_some(fallback.model))
-            .unwrap_or("gpt-5"),
-    )
+            .unwrap_or("gpt-5")
+    }))
 }
 
 fn codex_auto_review_fallback_models() -> &'static [CodexAutoReviewFallback<'static>] {
@@ -980,6 +990,33 @@ fn subtract_codex_raw_usage(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn codex_auto_review_uses_documented_models_by_date() {
+        let resolve = |timestamp: &str| {
+            let mut current_model = None;
+            let mut current_model_is_fallback = false;
+            resolve_codex_usage_model(
+                Some(CODEX_AUTO_REVIEW_MODEL.to_string()),
+                timestamp,
+                &mut current_model,
+                &mut current_model_is_fallback,
+            )
+        };
+
+        assert_eq!(
+            resolve("2026-07-29T23:59:59.000Z"),
+            (Some("codex-auto-review@gpt-5.4".to_string()), true)
+        );
+        assert_eq!(
+            resolve("2026-07-30T00:00:00.000Z"),
+            (Some("codex-auto-review@gpt-5.6-luna".to_string()), true)
+        );
+        assert_eq!(
+            resolve("2026-11-05T00:49:42.000Z"),
+            (Some("codex-auto-review@gpt-5.6-luna".to_string()), true)
+        );
+    }
 
     #[test]
     fn loads_codex_auto_review_fallbacks_from_models_dev_snapshot() {
