@@ -11,6 +11,10 @@ renders its JSON; the cost calculation is his, unchanged. The CLI additions are 
 Codex 5-hour window in the quota reading, each model's reference rates in the JSON summary,
 and a switch that stops it from renewing the Claude Code sign-in.
 
+![Overview of Windows and WSL together](../desktop/docs/overview.jpg)
+
+More screenshots are in the [app's README](../desktop/README.md).
+
 - Windows app: [`desktop/`](../desktop/README.md) (Tauri v2, React, TypeScript)
 - What changed in each version: [CHANGELOG](../desktop/CHANGELOG.md)
 - Original project, CLI and macOS app: [Agent Burn README](../apps/agent-burn/README.md),
@@ -26,6 +30,11 @@ updates itself from it.
 - Microsoft Edge WebView2, which Windows 11 includes and Windows 10 gets with Microsoft Edge.
   If it is missing, the installer downloads it, which needs an Internet connection.
 - At least one supported harness used on this computer, so there is something to show.
+- **For the Claude quota**, Claude Code's `claude` command, signed in once on that environment
+  (Windows, or each WSL distribution): it stores `~/.claude/.credentials.json`, which the app
+  reads. The Claude desktop app alone does not store it, so install Claude Code and run `claude`
+  once to sign in. If you then only use the Claude apps, also turn on **Renew the Claude Code
+  sign-in** (see Privacy), or the quota is lost a few hours later.
 - **WSL is optional.** On Windows alone, the app reads your Windows harnesses. If you have WSL
   distributions, it can read them too; that can be turned off in the settings.
 
