@@ -12,6 +12,7 @@ import {
   quotaCards,
   quotaFailure,
   pastGauge,
+  remainingNow,
   trayPercent,
   trayTone,
   type QuotaCard,
@@ -157,6 +158,13 @@ test("a session whose cycle has ended counts as reset", () => {
   const card = trayCard(30, 80);
   assert.equal(trayPercent([card], "session", NOW + 3 * 60 * 60_000), null);
   assert.equal(trayPercent([card], "tightest", NOW + 3 * 60 * 60_000), 70);
+});
+
+test("the tray tooltip shows a window reset since its reading as full", () => {
+  const card = trayCard(30, 80);
+  assert.equal(remainingNow(card.session, NOW), 20);
+  assert.equal(remainingNow(card.session, NOW + 3 * 60 * 60_000), 100);
+  assert.equal(remainingNow(card.weekly, NOW + 3 * 60 * 60_000), 70);
 });
 
 test("with two accounts, the one with less left counts", () => {

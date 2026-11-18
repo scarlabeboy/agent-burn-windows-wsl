@@ -146,6 +146,11 @@ fn summary_json(summary: &Summary, rows: &[AllRow], pricing: &PricingMap, no_cos
         // build separate maps with the same settings and sources, but fetch failures
         // or harness-provided costs can make the displayed cost differ.
         output["pricing"] = model_pricing_json(&output, pricing);
+        if pricing.refresh_failed {
+            // The costs come from the prices embedded at build time: recent models may be
+            // missing from them and cost $0.
+            output["pricingFallback"] = json!(true);
+        }
     }
     output
 }
@@ -1324,6 +1329,19 @@ mod tests {
             agent_breakdowns: Some(agents),
             model_breakdowns: models,
         }
+    }
+
+    #[test]
+    fn summary_json_flags_costs_priced_with_the_embedded_prices() {
+        let mut pricing = PricingMap::default();
+        let rows: Vec<AllRow> = Vec::new();
+        let output = summary_json(&Summary::from_rows(&rows), &rows, &pricing, false);
+        assert!(output.get("pricingFallback").is_none());
+        pricing.refresh_failed = true;
+        let output = summary_json(&Summary::from_rows(&rows), &rows, &pricing, false);
+        assert_eq!(output["pricingFallback"], json!(true));
+        let output = summary_json(&Summary::from_rows(&rows), &rows, &pricing, true);
+        assert!(output.get("pricingFallback").is_none());
     }
 
     #[test]

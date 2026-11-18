@@ -62,6 +62,9 @@ pub(crate) struct PricingMap {
     context_limits: FxHashMap<String, u64>,
     enable_models_dev_fallback: bool,
     enable_embedded_models_dev_fallback: bool,
+    /// The current LiteLLM prices were asked for but could not be fetched or read: the costs
+    /// use the prices embedded at build time. Never set in offline mode, which does not ask.
+    pub(crate) refresh_failed: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -225,11 +228,13 @@ impl PricingMap {
             match fetch_result {
                 Ok(json) => {
                     let loaded_count = map.load_json(&json);
+                    map.refresh_failed = loaded_count == 0;
                     if loaded_count == 0 && should_log_pricing_refresh_details() {
                         eprintln!("WARN  Failed to parse LiteLLM pricing; using embedded pricing.");
                     }
                 }
                 Err(error) => {
+                    map.refresh_failed = true;
                     if should_log_pricing_refresh_details() {
                         eprintln!(
                             "WARN  Failed to fetch LiteLLM pricing ({error}); using embedded pricing."

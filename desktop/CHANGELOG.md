@@ -6,6 +6,22 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## Unreleased
+
+#### English
+
+### Fixes
+- When the current prices cannot be downloaded, the status bar now says Built-in prices, instead of silently showing costs where recent models may be at $0.
+- The tray icon tooltip now shows a quota as full as soon as it resets, as the icon does, instead of keeping the last percentage until the next reading.
+- The offline mode help, with the mode off, now says what it changes once on, instead of describing it as if it were on.
+
+#### Français
+
+### Corrections
+- Quand les tarifs du jour ne peuvent pas être téléchargés, la barre d'état affiche maintenant Tarifs intégrés, au lieu de montrer sans rien dire des coûts où les modèles récents peuvent être à 0 $.
+- L'infobulle de l'icône de notification montre un quota plein dès sa remise à zéro, comme l'icône, au lieu de garder le dernier pourcentage jusqu'à la lecture suivante.
+- L'aide du mode hors ligne, quand il est désactivé, dit maintenant ce qu'il change une fois activé, au lieu de le décrire comme s'il était actif.
+
 ## 0.7.2
 
 #### English

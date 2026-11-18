@@ -131,8 +131,8 @@ export function quotaCards(
  */
 export function trayPercent(cards: QuotaCard[], window: TrayWindow, nowMs: number): number | null {
   const values = cards.map((card) => {
-    const session = leftOf(card.session, nowMs);
-    const weekly = leftOf(card.weekly, nowMs);
+    const session = remainingNow(card.session, nowMs);
+    const weekly = remainingNow(card.weekly, nowMs);
     if (window === "session") return session;
     if (window === "weekly") return weekly;
     return Math.min(session, weekly);
@@ -142,8 +142,11 @@ export function trayPercent(cards: QuotaCard[], window: TrayWindow, nowMs: numbe
   return shown >= 100 ? null : shown;
 }
 
-/** What is left of a window for the icon: all of it for a session not under way or a cycle over. */
-const leftOf = (model: GaugeModel | undefined, nowMs: number): number =>
+/**
+ * What is left of a window now: all of it for a session not under way or a cycle over since its
+ * reading. The icon and its tooltip use it, so a reset shows at once, not at the next reading.
+ */
+export const remainingNow = (model: GaugeModel | undefined, nowMs: number): number =>
   !model || cycleEnded(model, nowMs) ? 100 : model.remaining;
 
 /** The icon's colour for what is left. */

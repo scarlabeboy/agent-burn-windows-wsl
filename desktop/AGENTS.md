@@ -34,7 +34,8 @@ for changes under `desktop/`, the Windows desktop app of this fork. Everything o
   OpenAI announces a change), a short wait between the attempts to save a renewed Claude
   sign-in (`SAVE_RETRY_DELAYS` in `claude/oauth_refresh.rs`), the sign-in file of a WSL
   source rewritten in place to keep its 600 rights (`write_in_place` in
-  `claude/credentials.rs`), plus security updates in
+  `claude/credentials.rs`), `pricingFallback` in `summary --json` when the current prices could
+  not be downloaded (`refresh_failed` in `pricing.rs`), plus security updates in
   `rust/Cargo.lock`. Outside the CLI, three upstream files changed too:
   the root `LICENSE` (a real MIT file with our copyright line instead of a link) and
   `.github/ISSUE_TEMPLATE/bug.yml` and `contribution.yml` (without upstream's automatic

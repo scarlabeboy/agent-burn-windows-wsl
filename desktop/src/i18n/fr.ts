@@ -171,7 +171,7 @@ export const fr = {
     offlineOn:
       "Activé : quotas et mises à jour suspendus, coûts calculés avec les tarifs intégrés (les modèles récents peuvent afficher 0 $). Les journaux des harness restent lus ; Cursor, lu sur son serveur, ne l'est plus.",
     offlineOff:
-      "Aucun appel réseau : quotas et mises à jour suspendus, coûts calculés avec les tarifs intégrés (les modèles récents peuvent afficher 0 $).",
+      "Désactivé : quotas, tarifs du jour et mises à jour sont lus en ligne. Activé, plus aucun appel réseau, et les coûts sont calculés avec les tarifs intégrés (les modèles récents peuvent afficher 0 $).",
     quotaOffline: "Désactivé en mode hors ligne : les quotas viennent des serveurs de Claude et Codex.",
     quotaOn: "Les jauges de Claude Code et Codex sont relues en ligne chaque minute.",
     quotaOff: "Les quotas ne sont plus relus ni affichés ; leur historique est gardé pour la reprise.",
@@ -226,6 +226,9 @@ export const fr = {
     notRead: "Pas encore lu",
     offline: "Hors ligne",
     offlineTitle: "Aucun appel réseau : quotas et mises à jour suspendus (Réglages › Données)",
+    builtInPrices: "Tarifs intégrés",
+    builtInPricesTitle:
+      "Les tarifs du jour n'ont pas pu être téléchargés : les coûts utilisent les tarifs intégrés à cette version (les modèles récents peuvent afficher 0 $). Nouvel essai à la prochaine lecture.",
     archiveUnsaved: "Historique non enregistré",
     archiveTitle: "L'historique gardé par l'app n'a pas pu être enregistré : il reste en mémoire jusqu'à la fermeture",
     updateAvailable: (version: string) => `Version ${version} disponible · Voir`,

@@ -30,8 +30,12 @@ export function useUsageReports({
   refresh: (queue?: boolean) => void;
   refreshRef: MutableRefObject<(queue?: boolean) => void>;
   nextScan: number;
+  /** The last scan of a source read now had to use the built-in prices. */
+  pricingFallback: boolean;
 } {
   const [states, setStates] = useState<Record<string, SourceState>>({});
+  // Per source, from its last scan only: a later scan that downloads the prices clears it.
+  const [fallbacks, setFallbacks] = useState<Record<string, boolean>>({});
   const [archiveReady, setArchiveReady] = useState(false);
 
   // Saved quota history and the last reports load first, so the app opens with data to show.
@@ -69,9 +73,10 @@ export function useUsageReports({
         [id]: { status: "loading", previous: reportOf(current[id]), previousAt: loadedAtOf(current[id]) },
       }));
       return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, quotasActive(settings), CLAUDE_PLAN, {}, agentsToScan)
-        .then(({ pricing: nextPricing, ...report }) => {
+        .then(({ pricing: nextPricing, pricingFallback, ...report }) => {
           // Keep reference rates only in memory; the last Windows or WSL read wins.
           if (nextPricing) setPricing((current) => ({ ...current, ...nextPricing }));
+          setFallbacks((current) => ({ ...current, [id]: pricingFallback === true }));
           const loadedAt = Date.now();
           cacheReport(id, report, loadedAt, !settings.offline);
           setStates((current) => ({ ...current, [id]: { status: "ready", report, loadedAt } }));
@@ -122,5 +127,6 @@ export function useUsageReports({
     return () => clearInterval(timer);
   }, [archiveReady, settings.refreshMinutes]);
 
-  return { states, archiveReady, refresh, refreshRef, nextScan };
+  const pricingFallback = !settings.offline && readableIds.some((id) => fallbacks[id]);
+  return { states, archiveReady, refresh, refreshRef, nextScan, pricingFallback };
 }

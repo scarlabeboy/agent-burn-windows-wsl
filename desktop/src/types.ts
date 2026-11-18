@@ -87,6 +87,8 @@ export interface UsageReport {
   models: ModelRow[];
   totals: { totalCost: number; totalTokens: number };
   pricing?: Record<string, ModelPricing>;
+  /** The current prices could not be downloaded: costs use the ones built into the CLI. */
+  pricingFallback?: boolean;
   subscription?: { agents: SubscriptionAgent[] };
   claudeAccount?: ClaudeAccount;
   /** Frontend-only: totals are exact but per-model and token-type detail is not yet known. */

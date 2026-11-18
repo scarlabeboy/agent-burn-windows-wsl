@@ -146,7 +146,9 @@ app is not 1.0 yet.
 
 Keep this list up to date when a change adds or removes one.
 
-- Costs are API-equivalent values from the CLI's price table, not a bill.
+- Costs are API-equivalent values from the CLI's price table, not a bill. When the current
+  prices cannot be downloaded, the status bar says **Built-in prices**: the costs then use the
+  prices built into the version, where recent models may cost $0.
 - Codex Auto-review (`codex-auto-review`, the model that checks Codex's actions before allowing
   them) has no rate of its own: it is priced as the model OpenAI announced for it, GPT-5.6 Luna
   since 30 July 2026 (GPT-5.4 before). The logs do not say which model really runs it.

@@ -169,7 +169,7 @@ export const en: Strings = {
     offlineOn:
       "On: quotas and updates paused, costs computed with the built-in prices (recent models may show $0). Harness logs are still read; Cursor, read from its server, is not.",
     offlineOff:
-      "No network call: quotas and updates paused, costs computed with the built-in prices (recent models may show $0).",
+      "Off: quotas, current prices and updates are read online. On, the app makes no network call and computes costs with the built-in prices (recent models may show $0).",
     quotaOffline: "Off in offline mode: quotas come from the Claude and Codex servers.",
     quotaOn: "Claude Code and Codex gauges are read online every minute.",
     quotaOff: "Quotas are no longer read or shown; their history is kept for when they come back.",
@@ -222,6 +222,9 @@ export const en: Strings = {
     notRead: "Not read yet",
     offline: "Offline",
     offlineTitle: "No network call: quotas and updates paused (Settings › Data)",
+    builtInPrices: "Built-in prices",
+    builtInPricesTitle:
+      "The current prices could not be downloaded: costs use the prices built into this version (recent models may show $0). Tried again at the next read.",
     archiveUnsaved: "History not saved",
     archiveTitle: "The history kept by the app could not be saved: it stays in memory until the app closes",
     updateAvailable: (version: string) => `Version ${version} available · See`,

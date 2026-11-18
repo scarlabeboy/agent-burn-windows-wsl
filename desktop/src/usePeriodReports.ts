@@ -141,6 +141,12 @@ export function usePeriodReports({
       }),
     );
   }, [localReport, localParts, details, states, rangeSince, rangeUntil, detailScope, disabledKey]);
+  // A period read prices its models on its own: it can fall back on the built-in prices even when
+  // the scan before it downloaded the current ones. Only details shown on the page count.
+  const detailFallback = useMemo(
+    () => !!range && localParts.some((part) => currentDetail(part.id, detailKey(part.id))?.pricingFallback === true),
+    [localParts, details, states, rangeSince, rangeUntil, detailScope],
+  );
   const detailError = activeKey
     .split(",")
     .map((id) => detailErrors[detailKey(id)])
@@ -190,5 +196,5 @@ export function usePeriodReports({
     };
   }, [rangeSince, rangeUntil, detailScope, activeKey, readableKey, detected, archiveReady, lastScan, scanningKey, offline, agentsToScan, detailRetry]);
 
-  return { effectivePeriod, range, localParts, localReport, navReport, resetRtd, resetSpend, report, detailError };
+  return { effectivePeriod, range, localParts, localReport, navReport, resetRtd, resetSpend, report, detailError, detailFallback };
 }

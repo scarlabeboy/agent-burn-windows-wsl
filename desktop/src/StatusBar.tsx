@@ -18,7 +18,8 @@ export function useAppVersion(): string {
 
 /**
  * Bottom bar, always visible: when usage was last read, when it is read next, a new release
- * when there is one (not in offline mode, which cannot install it), and the app version.
+ * when there is one (not in offline mode, which cannot install it), costs computed with the
+ * built-in prices when the current ones could not be downloaded, and the app version.
  */
 export function StatusBar({
   loading,
@@ -28,6 +29,7 @@ export function StatusBar({
   error,
   errorDetail,
   offline,
+  pricingFallback,
   update,
   onOpenUpdate,
 }: {
@@ -41,6 +43,8 @@ export function StatusBar({
   /** The original message behind `error`, shown in its tooltip. */
   errorDetail?: string;
   offline: boolean;
+  /** Costs computed with the built-in prices: the current ones could not be downloaded. */
+  pricingFallback: boolean;
   update: UpdateState;
   onOpenUpdate: () => void;
 }) {
@@ -75,6 +79,11 @@ export function StatusBar({
       {archiveIssue && (
         <Tooltip text={`${text.archiveTitle} · ${archiveIssue}`}>
           <span className="offline-tag archive-tag">{text.archiveUnsaved}</span>
+        </Tooltip>
+      )}
+      {pricingFallback && (
+        <Tooltip text={text.builtInPricesTitle}>
+          <span className="offline-tag">{text.builtInPrices}</span>
         </Tooltip>
       )}
       {offline && (

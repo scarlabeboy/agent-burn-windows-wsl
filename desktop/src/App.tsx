@@ -109,7 +109,7 @@ export default function App({ initialSettings, onThemeChange }: {
   };
 
   // Archive first, then full scans of every readable source.
-  const { states, archiveReady, refresh, refreshRef, nextScan } = useUsageReports({
+  const { states, archiveReady, refresh, refreshRef, nextScan, pricingFallback } = useUsageReports({
     settings,
     readableIds,
     agentsToScan,
@@ -277,7 +277,18 @@ export default function App({ initialSettings, onThemeChange }: {
     document.documentElement.lang = lang;
   }, [lang]);
 
-  const { effectivePeriod, range, localParts, localReport, navReport, resetRtd, resetSpend, report, detailError } =
+  const {
+    effectivePeriod,
+    range,
+    localParts,
+    localReport,
+    navReport,
+    resetRtd,
+    resetSpend,
+    report,
+    detailError,
+    detailFallback,
+  } =
     usePeriodReports({
       period,
       page,
@@ -677,6 +688,7 @@ export default function App({ initialSettings, onThemeChange }: {
           error={scanError}
           errorDetail={failedState?.status === "error" ? failedState.message : undefined}
           offline={settings.offline}
+          pricingFallback={pricingFallback || (detailFallback && !settings.offline)}
           update={updater.state}
           onOpenUpdate={() => setShowUpdate(true)}
         />

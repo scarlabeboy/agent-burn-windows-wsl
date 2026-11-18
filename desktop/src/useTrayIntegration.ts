@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { quitApp, setTrayIcon, setTrayLabels, setTrayTooltip } from "./api";
 import { flush } from "./archive";
 import { t, type Lang } from "./i18n";
-import { formatAge, freshness, isMonthly, trayPercent, trayTone, type QuotaCard } from "./quota";
+import { formatAge, freshness, isMonthly, remainingNow, trayPercent, trayTone, type QuotaCard } from "./quota";
 import { TRAY_ICON_SIZE, drawTrayIcon, type TrayIconTone } from "./trayIcon";
 import type { Settings } from "./types";
 import { agentLabel } from "./views";
@@ -49,13 +49,14 @@ export function useTrayIntegration({
 
   const text = t();
   // Quota summary on the notification-area icon: the account, whatever tab is open. A reading
-  // that is not live says how old it is, as the quota cards do.
+  // that is not live says how old it is, as the quota cards do. A window reset since its reading
+  // shows all of it left, as the icon does.
   const tooltip = accountCards
     .map((card) => {
       const line = text.app.tooltipLine(
         agentLabel(card.harness),
-        card.session?.remaining.toFixed(0),
-        card.weekly.remaining.toFixed(0),
+        card.session && remainingNow(card.session, nowMs).toFixed(0),
+        remainingNow(card.weekly, nowMs).toFixed(0),
         isMonthly(card.weekly.window.windowMinutes),
       );
       const withSource = multiHarnesses.includes(card.harness) ? `${line} · ${card.sources.join(" · ")}` : line;
