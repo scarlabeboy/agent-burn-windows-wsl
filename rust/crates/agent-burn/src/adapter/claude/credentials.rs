@@ -157,6 +157,9 @@ fn credentials_file() -> Option<PathBuf> {
 }
 
 fn write_file(path: &PathBuf, text: &str) -> bool {
+    if is_wsl_share(path) && path.is_file() {
+        return write_in_place(path, text);
+    }
     let temp = path.with_extension(format!("json.{}", std::process::id()));
     if fs::write(&temp, text).is_err() {
         return false;
@@ -171,6 +174,28 @@ fn write_file(path: &PathBuf, text: &str) -> bool {
         return false;
     }
     true
+}
+
+/// A file of a WSL distribution seen from Windows (`\\wsl.localhost\…` or `\\wsl$\…`).
+fn is_wsl_share(path: &std::path::Path) -> bool {
+    let text = path.to_string_lossy().to_ascii_lowercase().replace('/', r"\");
+    text.starts_with(r"\\wsl.localhost\") || text.starts_with(r"\\wsl$\")
+}
+
+/// A file created from Windows on a WSL share gets the default rights (644), readable by
+/// every account of the distribution. Rewriting the existing file keeps the owner-only rights
+/// Claude Code gave it (600).
+fn write_in_place(path: &PathBuf, text: &str) -> bool {
+    use std::io::Write;
+    fs::OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(path)
+        .and_then(|mut file| {
+            file.write_all(text.as_bytes())?;
+            file.sync_all()
+        })
+        .is_ok()
 }
 
 #[cfg(target_os = "macos")]
@@ -241,6 +266,27 @@ fn write_keychain(account: &str, text: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recognizes_a_wsl_share_seen_from_windows() {
+        let share = |path: &str| is_wsl_share(std::path::Path::new(path));
+        assert!(share(r"\\wsl.localhost\Ubuntu\home\me\.claude\.credentials.json"));
+        assert!(share(r"\\WSL$\Ubuntu\root\.claude\.credentials.json"));
+        assert!(share("//wsl.localhost/Ubuntu/home/me/.claude/.credentials.json"));
+        assert!(!share(r"C:\Users\me\.claude\.credentials.json"));
+        assert!(!share("/home/me/.claude/.credentials.json"));
+    }
+
+    #[test]
+    fn rewriting_in_place_replaces_the_whole_content() {
+        let dir = std::env::temp_dir().join(format!("agent-burn-inplace-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let file = dir.join(".credentials.json");
+        fs::write(&file, "a much longer previous content").unwrap();
+        assert!(write_in_place(&file, "{}"));
+        assert_eq!(fs::read_to_string(&file).unwrap(), "{}");
+        let _ = fs::remove_dir_all(&dir);
+    }
 
     const STORED: &str = r#"{
       "claudeAiOauth": {

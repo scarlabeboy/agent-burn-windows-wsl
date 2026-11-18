@@ -27,6 +27,10 @@ const LOCK_STALE: Duration = Duration::from_secs(60);
 const LOCK_WAIT: Duration = Duration::from_secs(10);
 const LOCK_POLL: Duration = Duration::from_millis(250);
 const SAVE_ATTEMPTS: usize = 3;
+/// Waits before the second and third writes: a file briefly held open (an antivirus scan,
+/// `claude` reading it) is usually free again a moment later.
+const SAVE_RETRY_DELAYS: [Duration; SAVE_ATTEMPTS - 1] =
+    [Duration::from_millis(200), Duration::from_millis(500)];
 
 /// A usable sign-in replacing `stale`: renewed here, or adopted from the
 /// `claude` session that renewed it first. `force` renews a token Anthropic
@@ -82,7 +86,12 @@ where
     }
     // A lost write leaves the rotated refresh token nowhere, so it is retried;
     // the renewed access token still serves this run either way.
-    let _ = (0..SAVE_ATTEMPTS).any(|_| save(&current, &refreshed));
+    let _ = (0..SAVE_ATTEMPTS).any(|attempt| {
+        if let Some(delay) = attempt.checked_sub(1).map(|index| SAVE_RETRY_DELAYS[index]) {
+            thread::sleep(delay);
+        }
+        save(&current, &refreshed)
+    });
     Some(OAuthToken {
         access_token: refreshed.access_token,
         expires_at: Some(refreshed.expires_at),
@@ -383,6 +392,24 @@ mod tests {
         assert!(parse_refresh(r#"{"error":"invalid_grant"}"#, "posted", at(0)).is_none());
     }
 
+    /// A directory handle whose modified time can be set. Windows opens a directory only with
+    /// backup semantics, and setting its time needs the right to write its attributes.
+    fn open_dir_for_times(path: &Path) -> fs::File {
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            const FILE_WRITE_ATTRIBUTES: u32 = 0x0100;
+            const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
+            fs::OpenOptions::new()
+                .access_mode(FILE_WRITE_ATTRIBUTES)
+                .custom_flags(FILE_FLAG_BACKUP_SEMANTICS)
+                .open(path)
+                .unwrap()
+        }
+        #[cfg(not(windows))]
+        fs::File::open(path).unwrap()
+    }
+
     #[test]
     fn waits_for_a_held_lock_and_takes_over_a_stale_one() {
         let dir = std::env::temp_dir().join(format!("agent-burn-lock-{}", std::process::id()));
@@ -394,7 +421,7 @@ mod tests {
         assert!(!lock_dir(&lock, Instant::now()));
 
         let old = SystemTime::now() - Duration::from_secs(120);
-        fs::File::open(&lock).unwrap().set_modified(old).unwrap();
+        open_dir_for_times(&lock).set_modified(old).unwrap();
         assert!(lock_dir(&lock, Instant::now()));
         assert!(!is_stale(&lock));
         let _ = fs::remove_dir_all(&dir);

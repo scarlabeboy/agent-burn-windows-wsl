@@ -6,6 +6,20 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## 0.7.2
+
+#### English
+
+### Fixes
+- With Renew the Claude Code sign-in on, a renewal in WSL no longer leaves ~/.claude/.credentials.json readable by every account of the distribution: the file is rewritten in place and keeps its owner-only rights. A file already affected can be fixed with chmod 600 ~/.claude/.credentials.json in WSL.
+- A renewed Claude Code sign-in that cannot be saved right away is retried after a short wait, instead of three times in a row, so a file briefly in use no longer loses it.
+
+#### Français
+
+### Corrections
+- Avec « Renouveler la connexion Claude Code » activé, un renouvellement dans WSL ne laisse plus ~/.claude/.credentials.json lisible par tous les comptes de la distribution : le fichier est réécrit sur place et garde ses droits réservés à son propriétaire. Un fichier déjà touché se répare avec chmod 600 ~/.claude/.credentials.json dans WSL.
+- Une connexion Claude Code renouvelée qui ne peut pas être enregistrée tout de suite est réessayée après une courte attente, au lieu de trois fois d'affilée : un fichier brièvement occupé ne la fait plus perdre.
+
 ## 0.7.1
 
 #### English

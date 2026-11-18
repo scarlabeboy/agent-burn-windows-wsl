@@ -31,7 +31,11 @@ for changes under `desktop/`, the Windows desktop app of this fork. Everything o
   renewal on), and Codex Auto-review kept under its own name, `codex-auto-review@<model>`,
   priced as the model OpenAI documents for it (`CODEX_AUTO_REVIEW_DOCUMENTED_MODELS` in
   `adapter/codex/parser.rs`: GPT-5.6 Luna from 2026-07-30, GPT-5.4 before; add a row when
-  OpenAI announces a change), plus security updates in `rust/Cargo.lock`. Outside the CLI, three upstream files changed too:
+  OpenAI announces a change), a short wait between the attempts to save a renewed Claude
+  sign-in (`SAVE_RETRY_DELAYS` in `claude/oauth_refresh.rs`), the sign-in file of a WSL
+  source rewritten in place to keep its 600 rights (`write_in_place` in
+  `claude/credentials.rs`), plus security updates in
+  `rust/Cargo.lock`. Outside the CLI, three upstream files changed too:
   the root `LICENSE` (a real MIT file with our copyright line instead of a link) and
   `.github/ISSUE_TEMPLATE/bug.yml` and `contribution.yml` (without upstream's automatic
   closing). Keep upstream files untouched otherwise, so upstream merges stay clean, and merge

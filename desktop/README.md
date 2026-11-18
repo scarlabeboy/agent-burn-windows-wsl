@@ -126,7 +126,9 @@ app is not 1.0 yet.
   has renewed it. The app itself only reads the plan from that file.
 - The **Renew the Claude Code sign-in** setting (off by default, Windows and WSL) leaves that
   variable out, for people who only use the Claude apps, which never renew that file. A
-  renewal can then sign out a `claude` command running at the same time.
+  renewal can then sign out a `claude` command running at the same time. In WSL, the CLI
+  rewrites that file in place, so it keeps the owner-only rights Claude Code gave it: a new
+  file created from Windows would be readable by every account of the distribution.
 - Quota history is kept in the archive while the app runs; Codex history is also rebuilt
   from its session logs.
 - Harnesses can be switched off in the settings: they are no longer scanned (`--agents`) and
