@@ -138,6 +138,8 @@ app is not 1.0 yet.
   (French or English; Windows' language until one is chosen) and **Restart after an
   unexpected stop** (Windows reopens the app in the notification area, with `--background`,
   after a crash, an update or an installer that closed it).
+- Each settings section folds from its title; the folded ones are remembered in the
+  WebView's storage (`abf.foldedSettings`), like the open tab and period.
 - Brand icons come from the Agent Burn macOS app (MIT).
 - Some ideas come from [David's Windows fork](https://github.com/DavidSZD/agent-burn) of
   Agent Burn.

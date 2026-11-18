@@ -170,6 +170,28 @@ export function writeSettings(settings: Settings) {
   }
 }
 
+const FOLDED_KEY = "abf.foldedSettings";
+
+/** The settings sections the user folded; all of them are open until folded. */
+export function readFolded(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(FOLDED_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Folds or opens one section, kept for the next launch. */
+export function writeFolded(id: string, folded: boolean) {
+  try {
+    const others = readFolded().filter((entry) => entry !== id);
+    localStorage.setItem(FOLDED_KEY, JSON.stringify(folded ? [...others, id] : others));
+  } catch {
+    // The section simply opens again at the next launch.
+  }
+}
+
 const TAB_KEY = "abf.tab";
 
 export function readTab(): TabId | null {

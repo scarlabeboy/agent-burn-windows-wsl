@@ -53,7 +53,7 @@ export function SettingsPage({
   const text = t();
   return (
     <div className="settings">
-      <SettingsCard title={text.settings.general} icon={<Glyph kind="general" size={16} />}>
+      <SettingsCard id="general" title={text.settings.general} icon={<Glyph kind="general" size={16} />}>
         <SettingRow title={text.settings.language} description={text.settings.languageHint}>
           <select
             value={lang}
@@ -84,7 +84,7 @@ export function SettingsPage({
         </SettingRow>
       </SettingsCard>
 
-      <SettingsCard title={text.settings.background} icon={<Glyph kind="monitor" size={16} />}>
+      <SettingsCard id="background" title={text.settings.background} icon={<Glyph kind="monitor" size={16} />}>
         <SettingRow title={text.settings.autostart} description={text.settings.autostartHint}>
           <Switch
             checked={autostart ?? false}
@@ -146,7 +146,7 @@ export function SettingsPage({
 
       {/* The refresh comes first: under the offline switch it would look governed by it, as
           the WSL mode is by its switch, while it keeps going offline. */}
-      <SettingsCard title={text.settings.data} icon={<Glyph kind="data" size={16} />}>
+      <SettingsCard id="data" title={text.settings.data} icon={<Glyph kind="data" size={16} />}>
         <SettingRow title={text.settings.refresh} description={refreshHint(settings.refreshMinutes)}>
           <select
             value={settings.refreshMinutes}
@@ -171,7 +171,7 @@ export function SettingsPage({
         </SettingRow>
       </SettingsCard>
 
-      <SettingsCard title={text.settings.quotasCard} icon={<Glyph kind="subscription" size={16} />}>
+      <SettingsCard id="quotas" title={text.settings.quotasCard} icon={<Glyph kind="subscription" size={16} />}>
         <SettingRow title={text.settings.quotas} description={quotaHint(settings)}>
           <Switch
             checked={quotasOn}
@@ -194,13 +194,13 @@ export function SettingsPage({
         </SettingRow>
       </SettingsCard>
 
-      <SettingsCard title={text.settings.multiCard} icon={<Glyph kind="subscription" size={16} />}>
+      <SettingsCard id="multi-account" title={text.settings.multiCard} icon={<Glyph kind="subscription" size={16} />}>
         <MultiAccountSettings settings={settings} updateSettings={updateSettings} detectedPlans={detectedPlans} />
       </SettingsCard>
 
       {/* Hidden when there is no WSL to turn off; kept while off so it can be turned back on. */}
       {showsWslCard(settings, hasDistros) && (
-        <SettingsCard title="WSL" icon={<EnvIcon env="wsl" size={16} />}>
+        <SettingsCard id="wsl" title="WSL" icon={<EnvIcon env="wsl" size={16} />}>
           <SettingRow
             title={text.settings.wslRead}
             description={settings.wslRead ? text.settings.wslReadOn : text.settings.wslReadOff}
@@ -228,12 +228,12 @@ export function SettingsPage({
         </SettingsCard>
       )}
 
-      <SettingsCard title={text.app.harness} icon={<Glyph kind="flame" size={16} />}>
+      <SettingsCard id="harnesses" title={text.app.harness} icon={<Glyph kind="flame" size={16} />}>
         <HarnessSettings groups={harnessGroups} onToggle={toggleHarness} />
         <p className="muted small set-note">{text.settings.harnessNote}</p>
       </SettingsCard>
 
-      <SettingsCard title={text.settings.updates} icon={<Glyph kind="updates" size={16} />}>
+      <SettingsCard id="updates" title={text.settings.updates} icon={<Glyph kind="updates" size={16} />}>
         <SettingRow title={text.settings.autoUpdate} description={autoUpdateHint(settings.offline)}>
           <Switch
             checked={autoUpdateActive(settings)}
@@ -267,7 +267,7 @@ export function SettingsPage({
         )}
       </SettingsCard>
 
-      <SettingsCard title={text.settings.about} icon={<Glyph kind="about" size={16} />}>
+      <SettingsCard id="about" title={text.settings.about} icon={<Glyph kind="about" size={16} />}>
         <SettingRow
           title={`Agent Burn Windows${appVersion ? ` ${appVersion}` : ""}`}
           description={text.settings.aboutHint}

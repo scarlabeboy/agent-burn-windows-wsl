@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
+import { readFolded, writeFolded } from "./api";
 import { Tooltip } from "./Tooltip";
 
 /** An on/off switch. The state shows in the colour and the knob, never in red or green. */
@@ -33,14 +34,41 @@ export function Switch({
   );
 }
 
-export function SettingsCard({ title, icon, children }: { title: string; icon?: ReactNode; children: ReactNode }) {
+/**
+ * A settings section. Its whole title line folds or opens it; every section starts open, and
+ * the ones the user folds stay folded at the next launch (`id` names it in that memory).
+ */
+export function SettingsCard({
+  id,
+  title,
+  icon,
+  children,
+}: {
+  id: string;
+  title: string;
+  icon?: ReactNode;
+  children: ReactNode;
+}) {
+  const [folded, setFolded] = useState(() => readFolded().includes(id));
+  const bodyId = useId();
+  const toggle = () => {
+    writeFolded(id, !folded);
+    setFolded(!folded);
+  };
   return (
-    <section className="set-card">
+    <section className={`set-card${folded ? " folded" : ""}`}>
       <h3 className="set-card-title">
-        {icon && <span className="set-icon">{icon}</span>}
-        {title}
+        <button type="button" className="set-card-toggle" aria-expanded={!folded} aria-controls={bodyId} onClick={toggle}>
+          {icon && <span className="set-icon">{icon}</span>}
+          <span className="set-card-name">{title}</span>
+          <svg className="set-chevron" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
       </h3>
-      {children}
+      <div id={bodyId} hidden={folded}>
+        {children}
+      </div>
     </section>
   );
 }

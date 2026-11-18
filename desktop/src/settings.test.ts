@@ -1,7 +1,7 @@
 /// <reference types="node" />
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { readSettings } from "./api";
+import { readFolded, readSettings, writeFolded } from "./api";
 
 const cases = [
   { name: "no saved settings", raw: null, expected: "system" },
@@ -102,4 +102,34 @@ test("readSettings keeps a valid multi-account setting and drops a damaged one",
   raw = JSON.stringify({ multiAccount: "broken", theme: "dark" });
   assert.equal(readSettings().multiAccount, undefined);
   assert.equal(readSettings().theme, "dark");
+});
+
+test("folded settings sections are remembered, and a damaged memory opens them all", (context) => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  context.after(() => {
+    if (original) Object.defineProperty(globalThis, "localStorage", original);
+    else Reflect.deleteProperty(globalThis, "localStorage");
+  });
+  const store = new Map<string, string>();
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => void store.set(key, value),
+    },
+  });
+
+  assert.deepEqual(readFolded(), []);
+  writeFolded("data", true);
+  writeFolded("about", true);
+  writeFolded("data", true);
+  assert.deepEqual(readFolded(), ["about", "data"]);
+  writeFolded("data", false);
+  assert.deepEqual(readFolded(), ["about"]);
+  store.set("abf.foldedSettings", '{"data":true}');
+  assert.deepEqual(readFolded(), []);
+  store.set("abf.foldedSettings", '["wsl",3,null]');
+  assert.deepEqual(readFolded(), ["wsl"]);
+  store.set("abf.foldedSettings", "not json");
+  assert.deepEqual(readFolded(), []);
 });

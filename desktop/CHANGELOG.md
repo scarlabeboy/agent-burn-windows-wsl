@@ -10,12 +10,18 @@ Corrections, Retiré); the app shows the block of its language. Older sections a
 
 #### English
 
+### Improvements
+- Each settings section can be folded by clicking its title, so the page is shorter. All of them start open, and the ones you fold stay folded at the next launch.
+
 ### Fixes
 - When the current prices cannot be downloaded, the status bar now says Built-in prices, instead of silently showing costs where recent models may be at $0.
 - The tray icon tooltip now shows a quota as full as soon as it resets, as the icon does, instead of keeping the last percentage until the next reading.
 - The offline mode help, with the mode off, now says what it changes once on, instead of describing it as if it were on.
 
 #### Français
+
+### Améliorations
+- Chaque section des réglages se replie d'un clic sur son titre, pour raccourcir la page. Toutes sont dépliées au départ, et celles que vous repliez le restent au prochain lancement.
 
 ### Corrections
 - Quand les tarifs du jour ne peuvent pas être téléchargés, la barre d'état affiche maintenant Tarifs intégrés, au lieu de montrer sans rien dire des coûts où les modèles récents peuvent être à 0 $.

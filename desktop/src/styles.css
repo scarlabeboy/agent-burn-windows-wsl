@@ -249,7 +249,16 @@ main { flex: 1; overflow-y: auto; padding: 20px; container-type: inline-size; }
 
 /* Settings: a card per topic, one row per setting (name and hint left, control right). */
 .set-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 6px 18px 4px; }
-.set-card-title { margin: 0; padding: 12px 0 8px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 9px; }
+.set-card-title { margin: 0; font-size: 15px; font-weight: 600; }
+/* The whole title line folds the section; the chevron on the right points down when open. */
+.set-card-toggle { all: unset; box-sizing: border-box; width: 100%; padding: 12px 0 8px; display: flex; align-items: center; gap: 9px; cursor: pointer; }
+.set-card-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.set-card-name { flex: 1; }
+.set-chevron { flex: none; color: var(--muted); transition: transform 0.15s ease; }
+.set-card-toggle:hover .set-chevron { color: var(--text); }
+.set-card.folded .set-card-toggle { padding-bottom: 12px; }
+.set-card.folded .set-chevron { transform: rotate(-90deg); }
+@media (prefers-reduced-motion: reduce) { .set-chevron { transition: none; } }
 /* Settings stay sober: a grey pictogram, no badge. The penguin goes grey too. */
 .set-icon { display: inline-flex; color: var(--muted); --env-icon-belly: var(--panel); --env-icon-accent: currentColor; }
 .set-row { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line); }
