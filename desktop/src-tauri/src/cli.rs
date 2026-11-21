@@ -5,7 +5,9 @@ use std::{
     time::{Duration, Instant},
 };
 
+use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use serde_json::Value;
 
@@ -14,6 +16,8 @@ use crate::sources;
 /// The whole run of one source: its preparation (WSL user, home, OpenCode copy) and the CLI.
 const TIMEOUT: Duration = Duration::from_secs(180);
 const TIMED_OUT: &str = "agent-burn timed out";
+/// A run refused while an earlier preparation of the same distribution still hangs.
+const SHARE_STUCK: &str = "WSL files do not answer";
 const MAX_OUTPUT_BYTES: u64 = 16_000_000;
 const CLI_NAME: &str = "agent-burn.exe";
 
@@ -291,7 +295,7 @@ pub fn run_summary(
     let deadline = Instant::now() + TIMEOUT;
     let (source, plan_setting) = (distro.map(str::to_owned), claude_plan.to_owned());
     let opencode = reads_opencode(&scope.agents);
-    let (command, _snapshot) = within(deadline, move || {
+    let (command, _snapshot) = within(distro, deadline, move || {
         let (home, snapshot) = apply_source(&mut command, source.as_deref(), opencode)?;
         if value {
             if let Some(plan) = resolve_claude_plan(&plan_setting, home.as_deref()) {
@@ -303,21 +307,62 @@ pub fn run_summary(
     run_json(command, distro, "summary", deadline)
 }
 
+/// Preparations of a WSL source that outlived their run and still hang, by distribution.
+static STALLED: Mutex<BTreeMap<String, usize>> = Mutex::new(BTreeMap::new());
+
+fn stalled() -> MutexGuard<'static, BTreeMap<String, usize>> {
+    STALLED.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
 /// Prepares a run in its own thread, within the run's time limit. For a WSL source the
 /// preparation goes through `\\wsl.localhost`, which can hang: the run then fails on time instead
 /// of holding the scans that follow. The thread is left to finish on its own; whatever it
-/// prepared (an OpenCode copy) is cleaned up when it is dropped.
+/// prepared (an OpenCode copy) is cleaned up when it is dropped. While one of a distribution's
+/// threads still hangs, its next runs fail at once instead of leaving one more thread behind.
 fn within<T: Send + 'static>(
+    distro: Option<&str>,
     deadline: Instant,
     work: impl FnOnce() -> Result<T, String> + Send + 'static,
 ) -> Result<T, String> {
+    let key = distro.map(str::to_owned);
+    if let Some(key) = &key {
+        if stalled().get(key).is_some_and(|count| *count > 0) {
+            return Err(SHARE_STUCK.to_string());
+        }
+    }
+    // Both flags only change under the `STALLED` lock, so a thread that ends as its run gives up
+    // is counted once or not at all.
+    let finished = Arc::new(AtomicBool::new(false));
+    let abandoned = Arc::new(AtomicBool::new(false));
     let (sender, receiver) = std::sync::mpsc::channel();
+    let (thread_finished, thread_abandoned, thread_key) = (finished.clone(), abandoned.clone(), key.clone());
     std::thread::spawn(move || {
-        let _ = sender.send(work());
+        let result = work();
+        {
+            let mut stalled = stalled();
+            thread_finished.store(true, Ordering::SeqCst);
+            if let (true, Some(key)) = (thread_abandoned.load(Ordering::SeqCst), thread_key) {
+                if let Some(count) = stalled.get_mut(&key) {
+                    *count = count.saturating_sub(1);
+                    if *count == 0 {
+                        stalled.remove(&key);
+                    }
+                }
+            }
+        }
+        let _ = sender.send(result);
     });
-    receiver
-        .recv_timeout(deadline.saturating_duration_since(Instant::now()))
-        .map_err(|_| TIMED_OUT.to_string())?
+    match receiver.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+        Ok(result) => result,
+        Err(_) => {
+            let mut stalled = stalled();
+            if let (false, Some(key)) = (finished.load(Ordering::SeqCst), key) {
+                abandoned.store(true, Ordering::SeqCst);
+                *stalled.entry(key).or_insert(0) += 1;
+            }
+            Err(TIMED_OUT.to_string())
+        }
+    }
 }
 
 /// Prepares `command` for `distro` within the run's time limit (see `within`).
@@ -327,7 +372,7 @@ fn prepared(
     deadline: Instant,
 ) -> Result<(Command, Snapshot), String> {
     let source = distro.map(str::to_owned);
-    within(deadline, move || {
+    within(distro, deadline, move || {
         let (_, snapshot) = apply_source(&mut command, source.as_deref(), false)?;
         Ok((command, snapshot))
     })
@@ -560,16 +605,49 @@ mod tests {
     #[test]
     fn a_preparation_that_hangs_fails_on_time() {
         let started = Instant::now();
-        let stuck = within(started + Duration::from_millis(200), || {
+        let stuck = within(None, started + Duration::from_millis(200), || {
             std::thread::sleep(Duration::from_secs(5));
             Ok(())
         });
         assert_eq!(stuck, Err(TIMED_OUT.to_string()));
         assert!(started.elapsed() < Duration::from_secs(2));
-        let quick = within(Instant::now() + Duration::from_secs(5), || Ok(7));
+        let quick = within(None, Instant::now() + Duration::from_secs(5), || Ok(7));
         assert_eq!(quick, Ok(7));
-        let failed: Result<(), String> = within(Instant::now() + Duration::from_secs(5), || Err("no user".into()));
+        let failed: Result<(), String> = within(None, Instant::now() + Duration::from_secs(5), || Err("no user".into()));
         assert_eq!(failed, Err("no user".to_string()));
+    }
+
+    /// A frozen share leaves one hung thread per distribution, not one more per run, and the
+    /// distribution is read again as soon as that thread ends.
+    #[test]
+    fn a_distribution_whose_preparation_still_hangs_is_not_prepared_again() {
+        let distro = Some("within-test-frozen");
+        let (release, wait) = std::sync::mpsc::channel::<()>();
+        let stuck = within(distro, Instant::now() + Duration::from_millis(100), move || {
+            let _ = wait.recv();
+            Ok(())
+        });
+        assert_eq!(stuck, Err(TIMED_OUT.to_string()));
+
+        let ran = Arc::new(AtomicBool::new(false));
+        let flag = ran.clone();
+        let started = Instant::now();
+        let refused = within(distro, Instant::now() + Duration::from_secs(5), move || {
+            flag.store(true, Ordering::SeqCst);
+            Ok(())
+        });
+        assert_eq!(refused, Err(SHARE_STUCK.to_string()));
+        assert!(started.elapsed() < Duration::from_millis(500));
+        assert!(!ran.load(Ordering::SeqCst));
+        // Another distribution is not held by it.
+        assert_eq!(within(Some("within-test-other"), Instant::now() + Duration::from_secs(5), || Ok(1)), Ok(1));
+
+        release.send(()).unwrap();
+        let until = Instant::now() + Duration::from_secs(5);
+        while stalled().contains_key("within-test-frozen") && Instant::now() < until {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(within(distro, Instant::now() + Duration::from_secs(5), || Ok(2)), Ok(2));
     }
 
     /// No harness of a WSL source may be looked up on the Windows side, or Computer adds it twice.

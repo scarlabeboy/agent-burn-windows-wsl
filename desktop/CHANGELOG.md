@@ -6,6 +6,18 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## Unreleased
+
+#### English
+
+### Fixes
+- When the files of a WSL distribution stop answering, the app no longer leaves one more stuck read behind at each scan: the next reads of that distribution say at once that WSL does not answer, and it is read again as soon as its files answer.
+
+#### Français
+
+### Corrections
+- Quand les fichiers d'une distribution WSL ne répondent plus, l'app ne laisse plus une lecture bloquée de plus à chaque scan : les lectures suivantes de cette distribution indiquent tout de suite que WSL ne répond pas, et elle est relue dès que ses fichiers répondent.
+
 ## 0.7.3
 
 #### English

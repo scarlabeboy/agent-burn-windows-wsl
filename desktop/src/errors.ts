@@ -13,7 +13,7 @@ export function errorText(message: string): string {
   if (message.includes(CLI_FAILED)) return text.cliFailed;
   if (message.startsWith("could not start agent-burn")) return text.cliStart;
   if (message.includes("output is too large") || message.includes("unsupported report")) return text.badReport;
-  if (message.includes("WSL could not be listed")) return text.wslSilent;
+  if (message.includes("WSL could not be listed") || message.includes("WSL files do not answer")) return text.wslSilent;
   if (/^WSL distribution '.*' is stopped$/.test(message)) return text.distroStopped;
   if (/^WSL distribution '.*' is unavailable$/.test(message)) return text.distroMissing;
   return text.unexpected;
