@@ -71,7 +71,7 @@ export function Sidebar({
                     onClick={() => openTab(entry.id)}
                   >
                     <span className="nav-icon">
-                      <EnvIcon env={entry.id} />
+                      <EnvIcon env={entry.id} distro={entry.id === "wsl" ? activeDistro?.name : undefined} />
                     </span>
                     <span className="nav-label">{entry.label}</span>
                   </button>

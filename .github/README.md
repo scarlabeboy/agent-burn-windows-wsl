@@ -105,4 +105,7 @@ Bugs and ideas are welcome in the
 [CONTRIBUTING](CONTRIBUTING.md). A security problem should be reported privately: see
 [SECURITY](SECURITY.md).
 
-Licensed under MIT, like the original project ([LICENSE](../LICENSE)).
+Licensed under MIT, like the original project ([LICENSE](../LICENSE)). The WSL distribution
+logos come from [Simple Icons](https://simpleicons.org) (CC0) and remain the marks of their
+owners; the Debian logo is the Debian Open Use Logo (CC BY-SA 3.0, Software in the Public
+Interest, Inc.).

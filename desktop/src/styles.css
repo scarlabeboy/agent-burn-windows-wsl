@@ -128,9 +128,10 @@ button { cursor: pointer; }
 .nav.on { background: #2f6dde; color: var(--nav-active-text); }
 .nav-icon { width: 22px; text-align: center; display: inline-flex; justify-content: center; }
 /* The environment uses the accent, the page the blue: both stay visible at once. */
-.nav.env { color: var(--muted); --env-icon-belly: var(--sidebar); }
-.nav.env:hover { color: var(--text); --env-icon-belly: var(--panel); }
-.nav.env.on { background: var(--accent); color: #fff; --env-icon-belly: var(--accent); }
+.nav.env { color: var(--muted); }
+.nav.env:hover { color: var(--text); }
+/* A distribution logo in its own colour would vanish on the accent: it turns white with the text. */
+.nav.env.on { background: var(--accent); color: #fff; --env-icon-brand: currentColor; }
 /* A subscription: its spend like any harness, then its weekly quota under the name. */
 .nav.sub { flex-direction: column; align-items: stretch; gap: 4px; }
 .nav-line { display: flex; align-items: center; gap: 10px; }
@@ -259,8 +260,8 @@ main { flex: 1; overflow-y: auto; padding: 20px; container-type: inline-size; }
 .set-card.folded .set-card-toggle { padding-bottom: 12px; }
 .set-card.folded .set-chevron { transform: rotate(-90deg); }
 @media (prefers-reduced-motion: reduce) { .set-chevron { transition: none; } }
-/* Settings stay sober: a grey pictogram, no badge. The penguin goes grey too. */
-.set-icon { display: inline-flex; color: var(--muted); --env-icon-belly: var(--panel); --env-icon-accent: currentColor; }
+/* Settings stay sober: a grey pictogram, no badge. A distribution logo goes grey too. */
+.set-icon { display: inline-flex; color: var(--muted); --env-icon-brand: currentColor; }
 .set-row { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line); }
 .set-text { flex: 1; min-width: 0; }
 .set-title { font-weight: 500; }
