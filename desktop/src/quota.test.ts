@@ -12,6 +12,7 @@ import {
   quotaCards,
   quotaFailure,
   pastGauge,
+  projectedUse,
   remainingNow,
   trayPercent,
   trayTone,
@@ -184,4 +185,12 @@ test("a closed cycle is charted from its own start to its own end, as its last r
   assert.equal(Math.round(model.startMs), end - 300 * 60_000);
   assert.equal(Math.round(model.endMs), end);
   assert.equal(model.remaining, 65);
+});
+
+test("the projected use follows the reading on screen, as the CLI works it out", () => {
+  // Codex at 29 % used a tenth into its week: the CLI said ~289 %; 3 points later it is 320 %.
+  assert.equal(Math.round(projectedUse({ windowMinutes: 10080, usedPercent: 29, elapsedPercent: 10.03 })), 289);
+  assert.equal(Math.round(projectedUse({ windowMinutes: 10080, usedPercent: 32, elapsedPercent: 10 })), 320);
+  assert.equal(projectedUse({ windowMinutes: 10080, usedPercent: 61, elapsedPercent: 84 }).toFixed(1), "72.6");
+  assert.equal(projectedUse({ windowMinutes: 10080, usedPercent: 50, elapsedPercent: 0.1 }), 999);
 });

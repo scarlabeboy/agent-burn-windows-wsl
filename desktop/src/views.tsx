@@ -24,6 +24,7 @@ import {
   freshness,
   isMonthly,
   projectable,
+  projectedUse,
   pastGauge,
   type GaugeModel,
   type QuotaCard,
@@ -919,7 +920,7 @@ export function SubscriptionCard({
               ) : (
                 <Stat
                   title={text.projected}
-                  value={percent(whole(estimate.projectedUsePercent))}
+                  value={percent(whole(card ? projectedUse(card.weekly.window) : estimate.projectedUsePercent))}
                   hint={text.projectedHint}
                 />
               )}

@@ -47,6 +47,13 @@ export const projectable = (window: QuotaWindow): boolean =>
   window.elapsedPercent >= 1 &&
   (window.elapsedPercent >= MIN_PROJECTION_PERCENT || window.usedPercent >= MIN_PROJECTION_PERCENT);
 
+/**
+ * The share of the quota used by the reset at the current pace, as the CLI works it out for the
+ * subscription block, but from the reading on screen: the last scan can be ten minutes older.
+ */
+export const projectedUse = (window: QuotaWindow): number =>
+  Math.min(999, (window.usedPercent * 100) / Math.max(window.elapsedPercent, 1));
+
 export function gauge(window: QuotaWindow, observedAt: number): GaugeModel {
   const used = window.usedPercent;
   const elapsed = window.elapsedPercent;
