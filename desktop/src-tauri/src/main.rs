@@ -33,7 +33,6 @@ async fn load_usage(
     distro: Option<String>,
     offline: bool,
     quotas: bool,
-    claude_plan: String,
     since: Option<String>,
     until: Option<String>,
     agents: Option<Vec<String>>,
@@ -44,7 +43,7 @@ async fn load_usage(
         agents: agents.unwrap_or_default(),
     };
     tauri::async_runtime::spawn_blocking(move || {
-        cli::run_summary(distro.as_deref(), offline, quotas, &claude_plan, &scope)
+        cli::run_summary(distro.as_deref(), offline, quotas, &scope)
     })
     .await
     .map_err(|error| error.to_string())?

@@ -31,7 +31,6 @@ export const loadUsage = (
   distro: string | null,
   offline: boolean,
   quotas: boolean,
-  claudePlan: string,
   scope: UsageScope = {},
   agents?: string[],
 ) =>
@@ -39,7 +38,6 @@ export const loadUsage = (
     distro,
     offline,
     quotas,
-    claudePlan,
     since: scope.since ?? null,
     until: scope.until ?? null,
     agents: agents ?? null,

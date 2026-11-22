@@ -9,7 +9,6 @@ import type { QuotaCard } from "./quota";
 import { OVERVIEW } from "./Sidebar";
 import { loadedAtOf, reportOf } from "./sourceState";
 import type { Detected, ModelPricing, SourceState, UsageReport } from "./types";
-import { CLAUDE_PLAN } from "./useUsageReports";
 
 /**
  * The reports of the chosen period for the open tab and page. Totals and daily series are
@@ -175,7 +174,6 @@ export function usePeriodReports({
             id === "windows" ? null : id.slice(4),
             offline,
             false,
-            CLAUDE_PLAN,
             { since: compactDate(rangeSince), until: rangeUntil ? compactDate(rangeUntil) : undefined },
             detailScope === "*" ? agentsToScan : [detailScope],
           );

@@ -193,23 +193,14 @@ fn wsl_environment(home: &str, has_claude: bool) -> Vec<(&'static str, String)> 
     environment
 }
 
-const CLAUDE_PLANS: [&str; 3] = ["pro", "max-5x", "max-20x"];
-
-/// Claude plan passed to the CLI. The CLI cannot detect it, so "auto" reads only the plan
-/// fields of the source's own Claude sign-in file; a manual choice is used as given.
-fn resolve_claude_plan(setting: &str, home: Option<&str>) -> Option<String> {
-    match setting {
-        "none" => None,
-        "auto" => {
-            let home = home
-                .map(str::to_string)
-                .or_else(|| env::var("USERPROFILE").ok())?;
-            claude_plan_from_credentials(
-                &Path::new(&home).join(".claude").join(".credentials.json"),
-            )
-        }
-        other => CLAUDE_PLANS.contains(&other).then(|| other.to_string()),
-    }
+/// Claude plan passed to the CLI, read from the plan fields of the source's own Claude sign-in
+/// file: the CLI looks only for `.claude.json` in the Windows user folder, so it would miss the
+/// plan of a WSL distribution.
+fn claude_plan(home: Option<&str>) -> Option<String> {
+    let home = home
+        .map(str::to_string)
+        .or_else(|| env::var("USERPROFILE").ok())?;
+    claude_plan_from_credentials(&Path::new(&home).join(".claude").join(".credentials.json"))
 }
 
 /// Reads `subscriptionType` and `rateLimitTier` only; no token is kept or logged.
@@ -268,7 +259,6 @@ pub fn run_summary(
     distro: Option<&str>,
     offline: bool,
     quotas: bool,
-    claude_plan: &str,
     scope: &Scope,
 ) -> Result<Value, String> {
     let mut command = cli_command(locate_cli()?, &["summary", "--json", "--no-color"]);
@@ -294,12 +284,12 @@ pub fn run_summary(
         command.arg("--offline");
     }
     let deadline = Instant::now() + TIMEOUT;
-    let (source, plan_setting) = (distro.map(str::to_owned), claude_plan.to_owned());
+    let source = distro.map(str::to_owned);
     let opencode = reads_opencode(&scope.agents);
     let (command, _snapshot) = within(stall_key(distro, opencode), deadline, move || {
         let (home, snapshot) = apply_source(&mut command, source.as_deref(), opencode)?;
         if value {
-            if let Some(plan) = resolve_claude_plan(&plan_setting, home.as_deref()) {
+            if let Some(plan) = claude_plan(home.as_deref()) {
                 command.args(["--claude-plan", &plan]);
             }
         }
@@ -913,16 +903,6 @@ mod tests {
         assert!(is_agent_name("claude"));
         assert!(!is_agent_name("claude,codex"));
         assert!(!is_agent_name(""));
-    }
-
-    #[test]
-    fn manual_choice_is_validated() {
-        assert_eq!(
-            resolve_claude_plan("max-5x", None).as_deref(),
-            Some("max-5x")
-        );
-        assert_eq!(resolve_claude_plan("none", None), None);
-        assert_eq!(resolve_claude_plan("$$", None), None);
     }
 
     #[test]

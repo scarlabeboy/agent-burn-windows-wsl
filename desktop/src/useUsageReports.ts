@@ -5,9 +5,6 @@ import { quotasActive } from "./settingsHints";
 import { loadedAtOf, reportOf } from "./sourceState";
 import type { Detected, ModelPricing, Settings, SourceId, SourceState } from "./types";
 
-/** Each source's Claude plan is read from its own sign-in file; there is no manual choice. */
-export const CLAUDE_PLAN = "auto";
-
 /**
  * The report of each source: the archive and the last reports load first, then full scans, one
  * at a time, at launch, when the sources change and on the automatic interval.
@@ -72,7 +69,7 @@ export function useUsageReports({
         ...current,
         [id]: { status: "loading", previous: reportOf(current[id]), previousAt: loadedAtOf(current[id]) },
       }));
-      return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, quotasActive(settings), CLAUDE_PLAN, {}, agentsToScan)
+      return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, quotasActive(settings), {}, agentsToScan)
         .then(({ pricing: nextPricing, pricingFallback, ...report }) => {
           // Keep reference rates only in memory; the last Windows or WSL read wins.
           if (nextPricing) setPricing((current) => ({ ...current, ...nextPricing }));
