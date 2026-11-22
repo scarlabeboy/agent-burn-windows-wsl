@@ -107,5 +107,9 @@ Bugs and ideas are welcome in the
 
 Licensed under MIT, like the original project ([LICENSE](../LICENSE)). The WSL distribution
 logos come from [Simple Icons](https://simpleicons.org) (CC0) and remain the marks of their
-owners; the Debian logo is the Debian Open Use Logo (CC BY-SA 3.0, Software in the Public
-Interest, Inc.).
+owners. The Debian logo is the [Debian Open Use Logo](https://www.debian.org/logos/) by Raul
+Silva, Copyright (c) 1999 Software in the Public Interest, Inc., released under the LGPL v3 or
+later or [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/); the app draws it in a
+single colour, and that version is shared under the same terms. The Arch Linux logo keeps its ™
+sign, as the [Arch Linux trademark policy](https://terms.archlinux.org/docs/trademark-policy/)
+asks.

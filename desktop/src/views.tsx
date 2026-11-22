@@ -915,16 +915,14 @@ export function SubscriptionCard({
                 hint={text.valueHint}
               />
               <Stat title={text.monthlyValue} value={formatUsd(estimate.monthlyValue)} hint={text.monthlyValueHint} />
-              {card && !projectable(card.weekly.window) ? (
-                <Stat title={text.projected} value={text.tooEarly} hint={text.tooEarlyHint} />
-              ) : (
-                <Stat
-                  title={text.projected}
-                  value={percent(whole(card ? projectedUse(card.weekly.window) : estimate.projectedUsePercent))}
-                  hint={text.projectedHint}
-                />
-              )}
             </>
+          )}
+          {/* The projection follows the quota on screen: it shows as soon as the quota allows it,
+              even when the last scan saw nothing used and worked out no estimate. */}
+          {card && projectable(card.weekly.window) ? (
+            <Stat title={text.projected} value={percent(whole(projectedUse(card.weekly.window)))} hint={text.projectedHint} />
+          ) : (
+            estimate && <Stat title={text.projected} value={text.tooEarly} hint={text.tooEarlyHint} />
           )}
           <Stat
             title={text.advisedPace}

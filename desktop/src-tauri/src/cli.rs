@@ -7,6 +7,7 @@ use std::{
 
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::mpsc::RecvTimeoutError;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
 use serde_json::Value;
@@ -295,7 +296,7 @@ pub fn run_summary(
     let deadline = Instant::now() + TIMEOUT;
     let (source, plan_setting) = (distro.map(str::to_owned), claude_plan.to_owned());
     let opencode = reads_opencode(&scope.agents);
-    let (command, _snapshot) = within(distro, deadline, move || {
+    let (command, _snapshot) = within(stall_key(distro, opencode), deadline, move || {
         let (home, snapshot) = apply_source(&mut command, source.as_deref(), opencode)?;
         if value {
             if let Some(plan) = resolve_claude_plan(&plan_setting, home.as_deref()) {
@@ -307,8 +308,37 @@ pub fn run_summary(
     run_json(command, distro, "summary", deadline)
 }
 
-/// Preparations of a WSL source that outlived their run and still hang, by distribution.
+/// Preparations of a WSL source that outlived their run and still hang, by `stall_key`.
 static STALLED: Mutex<BTreeMap<String, usize>> = Mutex::new(BTreeMap::new());
+
+/// What a hung preparation holds back: the distribution, and apart from it the runs that copy the
+/// OpenCode database, so a copy stuck on one large file does not stop the quotas. Windows has none.
+fn stall_key(distro: Option<&str>, opencode: bool) -> Option<String> {
+    distro.map(|name| if opencode { format!("{name}|opencode") } else { name.to_owned() })
+}
+
+/// Marks a preparation finished when its thread ends, even by a panic (debug builds unwind), and
+/// takes it off `STALLED` if its run had given up on it.
+struct Finish {
+    finished: Arc<AtomicBool>,
+    abandoned: Arc<AtomicBool>,
+    key: Option<String>,
+}
+
+impl Drop for Finish {
+    fn drop(&mut self) {
+        let mut stalled = stalled();
+        self.finished.store(true, Ordering::SeqCst);
+        if let (true, Some(key)) = (self.abandoned.load(Ordering::SeqCst), &self.key) {
+            if let Some(count) = stalled.get_mut(key) {
+                *count = count.saturating_sub(1);
+                if *count == 0 {
+                    stalled.remove(key);
+                }
+            }
+        }
+    }
+}
 
 fn stalled() -> MutexGuard<'static, BTreeMap<String, usize>> {
     STALLED.lock().unwrap_or_else(PoisonError::into_inner)
@@ -320,11 +350,10 @@ fn stalled() -> MutexGuard<'static, BTreeMap<String, usize>> {
 /// prepared (an OpenCode copy) is cleaned up when it is dropped. While one of a distribution's
 /// threads still hangs, its next runs fail at once instead of leaving one more thread behind.
 fn within<T: Send + 'static>(
-    distro: Option<&str>,
+    key: Option<String>,
     deadline: Instant,
     work: impl FnOnce() -> Result<T, String> + Send + 'static,
 ) -> Result<T, String> {
-    let key = distro.map(str::to_owned);
     if let Some(key) = &key {
         if stalled().get(key).is_some_and(|count| *count > 0) {
             return Err(SHARE_STUCK.to_string());
@@ -335,26 +364,17 @@ fn within<T: Send + 'static>(
     let finished = Arc::new(AtomicBool::new(false));
     let abandoned = Arc::new(AtomicBool::new(false));
     let (sender, receiver) = std::sync::mpsc::channel();
-    let (thread_finished, thread_abandoned, thread_key) = (finished.clone(), abandoned.clone(), key.clone());
+    let finish = Finish { finished: finished.clone(), abandoned: abandoned.clone(), key: key.clone() };
     std::thread::spawn(move || {
         let result = work();
-        {
-            let mut stalled = stalled();
-            thread_finished.store(true, Ordering::SeqCst);
-            if let (true, Some(key)) = (thread_abandoned.load(Ordering::SeqCst), thread_key) {
-                if let Some(count) = stalled.get_mut(&key) {
-                    *count = count.saturating_sub(1);
-                    if *count == 0 {
-                        stalled.remove(&key);
-                    }
-                }
-            }
-        }
+        drop(finish);
         let _ = sender.send(result);
     });
     match receiver.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
         Ok(result) => result,
-        Err(_) => {
+        // The thread ended without an answer (a panic in a debug build): nothing hangs.
+        Err(RecvTimeoutError::Disconnected) => Err(TIMED_OUT.to_string()),
+        Err(RecvTimeoutError::Timeout) => {
             let mut stalled = stalled();
             if let (false, Some(key)) = (finished.load(Ordering::SeqCst), key) {
                 abandoned.store(true, Ordering::SeqCst);
@@ -372,7 +392,7 @@ fn prepared(
     deadline: Instant,
 ) -> Result<(Command, Snapshot), String> {
     let source = distro.map(str::to_owned);
-    within(distro, deadline, move || {
+    within(stall_key(distro, false), deadline, move || {
         let (_, snapshot) = apply_source(&mut command, source.as_deref(), false)?;
         Ok((command, snapshot))
     })
@@ -621,9 +641,9 @@ mod tests {
     /// distribution is read again as soon as that thread ends.
     #[test]
     fn a_distribution_whose_preparation_still_hangs_is_not_prepared_again() {
-        let distro = Some("within-test-frozen");
+        let distro = stall_key(Some("within-test-frozen"), false);
         let (release, wait) = std::sync::mpsc::channel::<()>();
-        let stuck = within(distro, Instant::now() + Duration::from_millis(100), move || {
+        let stuck = within(distro.clone(), Instant::now() + Duration::from_millis(100), move || {
             let _ = wait.recv();
             Ok(())
         });
@@ -632,7 +652,7 @@ mod tests {
         let ran = Arc::new(AtomicBool::new(false));
         let flag = ran.clone();
         let started = Instant::now();
-        let refused = within(distro, Instant::now() + Duration::from_secs(5), move || {
+        let refused = within(distro.clone(), Instant::now() + Duration::from_secs(5), move || {
             flag.store(true, Ordering::SeqCst);
             Ok(())
         });
@@ -640,7 +660,9 @@ mod tests {
         assert!(started.elapsed() < Duration::from_millis(500));
         assert!(!ran.load(Ordering::SeqCst));
         // Another distribution is not held by it.
-        assert_eq!(within(Some("within-test-other"), Instant::now() + Duration::from_secs(5), || Ok(1)), Ok(1));
+        assert_eq!(within(stall_key(Some("within-test-other"), false), Instant::now() + Duration::from_secs(5), || Ok(1)), Ok(1));
+        // Nor a run of the same distribution that copies the OpenCode database.
+        assert_eq!(within(stall_key(Some("within-test-frozen"), true), Instant::now() + Duration::from_secs(5), || Ok(3)), Ok(3));
 
         release.send(()).unwrap();
         let until = Instant::now() + Duration::from_secs(5);
@@ -648,6 +670,16 @@ mod tests {
             std::thread::sleep(Duration::from_millis(10));
         }
         assert_eq!(within(distro, Instant::now() + Duration::from_secs(5), || Ok(2)), Ok(2));
+    }
+
+    /// A preparation that panics (debug builds unwind) has ended: its distribution is not held.
+    #[test]
+    fn a_preparation_that_panics_holds_nothing_back() {
+        let key = stall_key(Some("within-test-panic"), false);
+        let crashed: Result<(), String> = within(key.clone(), Instant::now() + Duration::from_secs(5), || panic!("test"));
+        assert_eq!(crashed, Err(TIMED_OUT.to_string()));
+        assert!(!stalled().contains_key("within-test-panic"));
+        assert_eq!(within(key, Instant::now() + Duration::from_secs(5), || Ok(4)), Ok(4));
     }
 
     /// No harness of a WSL source may be looked up on the Windows side, or Computer adds it twice.
