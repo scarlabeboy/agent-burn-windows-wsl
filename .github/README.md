@@ -112,4 +112,5 @@ Silva, Copyright (c) 1999 Software in the Public Interest, Inc., released under 
 later or [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/); the app draws it in a
 single colour, and that version is shared under the same terms. The Arch Linux logo keeps its ™
 sign, as the [Arch Linux trademark policy](https://terms.archlinux.org/docs/trademark-policy/)
-asks.
+asks. Kali Linux™ is a trademark of OffSec Services Limited. Tux was drawn by Larry Ewing with
+The GIMP.

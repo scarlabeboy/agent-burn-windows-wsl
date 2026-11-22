@@ -133,6 +133,10 @@ export const en: Strings = {
     originHint: "Agent Burn: Melvynx's CLI, macOS app and website.",
     inspiration: "Inspiration",
     inspirationHint: "David's Windows fork of Agent Burn, which inspired some ideas.",
+    logos: "Distribution logos",
+    credits: "Credits and licences ↗",
+    logosHint:
+      "From Simple Icons (CC0); each logo remains the mark of its owner. Debian: the Debian Open Use Logo by Raul Silva, Copyright (c) 1999 Software in the Public Interest, Inc., under the LGPL v3 or later or CC BY-SA 3.0, here in a single colour and shared under the same terms. Tux: Larry Ewing, drawn with The GIMP.",
   },
   update: {
     foundOffline: (version: string) => `Version ${version} was found: go back online to install it.`,
@@ -301,8 +305,8 @@ export const en: Strings = {
     perMonth: "/month",
     free: "Free",
     unknownPrice: "unknown price",
-    noEstimate: "Value and projection are worked out once the quota starts being used.",
-    estimateUnavailable: "Value and projection are unavailable for now: they come back with the next scan.",
+    noEstimate: "Value is worked out once the quota starts being used.",
+    estimateUnavailable: "Value is unavailable for now: it comes back with the next scan.",
     tooEarly: "too early",
     tooEarlyHint: "Projected once 10% of the window has passed or of the quota is used",
     scopedAge: (age: string) => `read ${age} ago`,

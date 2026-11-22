@@ -15,6 +15,8 @@ import { agentLabel } from "./views";
 
 const MELVYNX_URL = "https://github.com/Melvynx/agent-burn";
 const DAVID_URL = "https://github.com/DavidSZD/agent-burn";
+// The README holds the credits with their licence links; the app may only open GitHub pages.
+const CREDITS_URL = `${REPO_URL}#readme`;
 
 /** The settings page, in place of the open page. Every change goes through `updateSettings`. */
 export function SettingsPage({
@@ -284,6 +286,11 @@ export function SettingsPage({
         <SettingRow title={text.settings.inspiration} description={text.settings.inspirationHint}>
           <button className="btn" onClick={() => void openUrl(DAVID_URL)}>
             DavidSZD ↗
+          </button>
+        </SettingRow>
+        <SettingRow title={text.settings.logos} description={text.settings.logosHint}>
+          <button className="btn" onClick={() => void openUrl(CREDITS_URL)}>
+            {text.settings.credits}
           </button>
         </SettingRow>
       </SettingsCard>

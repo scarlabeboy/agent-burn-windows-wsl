@@ -11,7 +11,7 @@ Corrections, Retiré); the app shows the block of its language. Older sections a
 #### English
 
 ### Improvements
-- The WSL entry of the side bar shows the logo of the distribution (Ubuntu, Debian, Arch, openSUSE, Kali), or a redrawn Tux for the others, instead of a hand-drawn penguin hard to make out.
+- The WSL entry of the side bar shows the logo of the distribution (Ubuntu, Debian, Arch Linux, openSUSE, Kali Linux), or Tux for the others, instead of a hand-drawn penguin hard to make out. Settings › About credits these logos.
 
 ### Fixes
 - When the files of a WSL distribution stop answering, the app no longer leaves one more stuck read behind at each scan: the next reads of that distribution say at once that WSL does not answer, and it is read again as soon as its files answer.
@@ -20,7 +20,7 @@ Corrections, Retiré); the app shows the block of its language. Older sections a
 #### Français
 
 ### Améliorations
-- L'entrée WSL de la barre latérale affiche le logo de la distribution (Ubuntu, Debian, Arch, openSUSE, Kali), ou un Tux redessiné pour les autres, au lieu d'un manchot dessiné à la main et peu lisible.
+- L'entrée WSL de la barre latérale affiche le logo de la distribution (Ubuntu, Debian, Arch Linux, openSUSE, Kali Linux), ou Tux pour les autres, au lieu d'un manchot dessiné à la main et peu lisible. Réglages › À propos crédite ces logos.
 
 ### Corrections
 - Quand les fichiers d'une distribution WSL ne répondent plus, l'app ne laisse plus une lecture bloquée de plus à chaque scan : les lectures suivantes de cette distribution indiquent tout de suite que WSL ne répond pas, et elle est relue dès que ses fichiers répondent.

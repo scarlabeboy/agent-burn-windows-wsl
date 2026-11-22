@@ -302,7 +302,9 @@ pub fn run_summary(
 static STALLED: Mutex<BTreeMap<String, usize>> = Mutex::new(BTreeMap::new());
 
 /// What a hung preparation holds back: the distribution, and apart from it the runs that copy the
-/// OpenCode database, so a copy stuck on one large file does not stop the quotas. Windows has none.
+/// OpenCode database, so a copy stuck on one large file does not stop the quotas. A run that copies
+/// it also goes through the distribution's shared preparation, so it is held by both (see
+/// `within`). Windows has none.
 fn stall_key(distro: Option<&str>, opencode: bool) -> Option<String> {
     distro.map(|name| if opencode { format!("{name}|opencode") } else { name.to_owned() })
 }
@@ -345,7 +347,9 @@ fn within<T: Send + 'static>(
     work: impl FnOnce() -> Result<T, String> + Send + 'static,
 ) -> Result<T, String> {
     if let Some(key) = &key {
-        if stalled().get(key).is_some_and(|count| *count > 0) {
+        let distro = key.split('|').next().unwrap_or(key);
+        let stalled = stalled();
+        if [key.as_str(), distro].iter().any(|held| stalled.get(*held).is_some_and(|count| *count > 0)) {
             return Err(SHARE_STUCK.to_string());
         }
     }
@@ -651,8 +655,12 @@ mod tests {
         assert!(!ran.load(Ordering::SeqCst));
         // Another distribution is not held by it.
         assert_eq!(within(stall_key(Some("within-test-other"), false), Instant::now() + Duration::from_secs(5), || Ok(1)), Ok(1));
-        // Nor a run of the same distribution that copies the OpenCode database.
-        assert_eq!(within(stall_key(Some("within-test-frozen"), true), Instant::now() + Duration::from_secs(5), || Ok(3)), Ok(3));
+        // A run of the same distribution that copies the OpenCode database goes through the same
+        // preparation first: it is held too.
+        assert_eq!(
+            within(stall_key(Some("within-test-frozen"), true), Instant::now() + Duration::from_secs(5), || Ok(3)),
+            Err(SHARE_STUCK.to_string())
+        );
 
         release.send(()).unwrap();
         let until = Instant::now() + Duration::from_secs(5);
@@ -660,6 +668,21 @@ mod tests {
             std::thread::sleep(Duration::from_millis(10));
         }
         assert_eq!(within(distro, Instant::now() + Duration::from_secs(5), || Ok(2)), Ok(2));
+    }
+
+    /// A hung OpenCode copy holds the other copies of its distribution, not its other runs.
+    #[test]
+    fn a_hung_opencode_copy_does_not_hold_the_quotas() {
+        let copy = stall_key(Some("within-test-copy"), true);
+        let (release, wait) = std::sync::mpsc::channel::<()>();
+        let stuck = within(copy.clone(), Instant::now() + Duration::from_millis(100), move || {
+            let _ = wait.recv();
+            Ok(())
+        });
+        assert_eq!(stuck, Err(TIMED_OUT.to_string()));
+        assert_eq!(within(copy, Instant::now() + Duration::from_secs(5), || Ok(5)), Err(SHARE_STUCK.to_string()));
+        assert_eq!(within(stall_key(Some("within-test-copy"), false), Instant::now() + Duration::from_secs(5), || Ok(6)), Ok(6));
+        release.send(()).unwrap();
     }
 
     /// A preparation that panics (debug builds unwind) has ended: its distribution is not held.

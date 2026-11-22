@@ -135,6 +135,10 @@ export const fr = {
     originHint: "Agent Burn : le CLI, l'application macOS et le site de Melvynx.",
     inspiration: "Inspiration",
     inspirationHint: "Le fork Windows d'Agent Burn de David, qui a inspiré certaines idées.",
+    logos: "Logos des distributions",
+    credits: "Crédits et licences ↗",
+    logosHint:
+      "Issus de Simple Icons (CC0) ; chaque logo reste la marque de son propriétaire. Debian : Debian Open Use Logo de Raul Silva, Copyright (c) 1999 Software in the Public Interest, Inc., sous LGPL v3 ou ultérieure ou CC BY-SA 3.0, ici en une seule couleur et partagé aux mêmes conditions. Tux : Larry Ewing, dessiné avec The GIMP.",
   },
   update: {
     foundOffline: (version: string) => `La version ${version} a été trouvée : repassez en ligne pour l'installer.`,
@@ -306,8 +310,8 @@ export const fr = {
     perMonth: "/mois",
     free: "Gratuit",
     unknownPrice: "prix inconnu",
-    noEstimate: "Valeur et projection calculées dès que le quota commence à être utilisé.",
-    estimateUnavailable: "Valeur et projection indisponibles pour l'instant : elles reviennent au prochain scan.",
+    noEstimate: "Valeur calculée dès que le quota commence à être utilisé.",
+    estimateUnavailable: "Valeur indisponible pour l'instant : elle revient au prochain scan.",
     tooEarly: "trop tôt",
     tooEarlyHint: "Projetée dès 10 % de la fenêtre écoulés ou du quota utilisés",
     scopedAge: (age: string) => `relevé il y a ${age}`,
