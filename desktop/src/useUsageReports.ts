@@ -2,12 +2,13 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type MutableRe
 import { loadUsage } from "./api";
 import { cacheReport, cachedReports, flush, loadArchive } from "./archive";
 import { quotasActive } from "./settingsHints";
+import { scanOptions, sourcesToScan } from "./scanPlan";
 import { loadedAtOf, reportOf } from "./sourceState";
 import type { Detected, ModelPricing, Settings, SourceId, SourceState } from "./types";
 
 /**
- * The report of each source: the archive and the last reports load first, then full scans, one
- * at a time, at launch, when the sources change and on the automatic interval.
+ * The report of each source: the archive and the last reports load first, then full scans of each
+ * source, at launch, when the sources or options change and on the automatic interval.
  */
 export function useUsageReports({
   settings,
@@ -53,58 +54,77 @@ export function useUsageReports({
     return () => window.removeEventListener("beforeunload", flush);
   }, []);
 
-  const scanning = useRef(false);
-  const rescan = useRef(false);
-  const refreshRef = useRef<(queue?: boolean) => void>(() => undefined);
-  const refresh = useCallback((queue = false) => {
-    // One scan at a time: a slow WSL read must never overlap the next automatic one.
-    // A change of sources (WSL started) waits for the running scan instead of being lost.
-    if (scanning.current) {
-      if (queue) rescan.current = true;
-      return;
-    }
-    scanning.current = true;
-    const scans = readableIds.map((id) => {
-      setStates((current) => ({
-        ...current,
-        [id]: { status: "loading", previous: reportOf(current[id]), previousAt: loadedAtOf(current[id]) },
-      }));
-      return loadUsage(id === "windows" ? null : id.slice(4), settings.offline, quotasActive(settings), {}, agentsToScan)
-        .then(({ pricing: nextPricing, pricingFallback, ...report }) => {
-          // Keep reference rates only in memory; the last Windows or WSL read wins.
-          if (nextPricing) setPricing((current) => ({ ...current, ...nextPricing }));
-          setFallbacks((current) => ({ ...current, [id]: pricingFallback === true }));
-          const loadedAt = Date.now();
-          cacheReport(id, report, loadedAt, !settings.offline);
-          setStates((current) => ({ ...current, [id]: { status: "ready", report, loadedAt } }));
-        })
-        .catch((error) =>
-          setStates((current) => ({
-            ...current,
-            [id]: {
-              status: "error",
-              message: String(error),
-              previous: reportOf(current[id]),
-              previousAt: loadedAtOf(current[id]),
-            },
-          })),
-        );
-    });
-    void Promise.all(scans).finally(() => {
-      scanning.current = false;
-      if (rescan.current) {
-        rescan.current = false;
-        refreshRef.current();
+  // Each source is scanned on its own: never twice at once, so a slow WSL read never overlaps the
+  // next one, but a distribution found after launch starts at once instead of waiting for Windows.
+  const scanning = useRef(new Set<string>());
+  const queued = useRef(new Set<string>());
+  // The options of each source's last scan, to tell a new source or a changed option apart.
+  const scannedWith = useRef(new Map<string, string>());
+  const options = scanOptions(settings.offline, quotasActive(settings), agentsToScan);
+
+  const scanRef = useRef<(id: SourceId) => void>(() => undefined);
+  scanRef.current = (id: SourceId) => {
+    scanning.current.add(id);
+    scannedWith.current.set(id, options);
+    setStates((current) => ({
+      ...current,
+      [id]: { status: "loading", previous: reportOf(current[id]), previousAt: loadedAtOf(current[id]) },
+    }));
+    loadUsage(id === "windows" ? null : id.slice(4), settings.offline, quotasActive(settings), {}, agentsToScan)
+      .then(({ pricing: nextPricing, pricingFallback, ...report }) => {
+        // Keep reference rates only in memory; the last Windows or WSL read wins.
+        if (nextPricing) setPricing((current) => ({ ...current, ...nextPricing }));
+        setFallbacks((current) => ({ ...current, [id]: pricingFallback === true }));
+        const loadedAt = Date.now();
+        cacheReport(id, report, loadedAt, !settings.offline);
+        setStates((current) => ({ ...current, [id]: { status: "ready", report, loadedAt } }));
+      })
+      .catch((error) =>
+        setStates((current) => ({
+          ...current,
+          [id]: {
+            status: "error",
+            message: String(error),
+            previous: reportOf(current[id]),
+            previousAt: loadedAtOf(current[id]),
+          },
+        })),
+      )
+      .finally(() => {
+        scanning.current.delete(id);
+        // A scan asked for while this one ran starts now, with the options of the moment.
+        if (queued.current.delete(id) && readableRef.current.includes(id)) scanRef.current(id);
+      });
+  };
+  const readableRef = useRef(readableIds);
+  readableRef.current = readableIds;
+
+  /** `onlyChanged`: only the sources not yet scanned with the current options. */
+  const scan = useCallback(
+    (queue: boolean, onlyChanged: boolean) => {
+      // A source that went away (WSL stopped) is scanned again when it comes back.
+      for (const id of scannedWith.current.keys()) if (!readableIds.includes(id as SourceId)) scannedWith.current.delete(id);
+      const ids = onlyChanged ? sourcesToScan(readableIds, scannedWith.current, options) : readableIds;
+      for (const id of ids) {
+        // A change of sources or options waits for that source's running scan instead of being lost.
+        if (scanning.current.has(id)) {
+          if (queue) queued.current.add(id);
+        } else {
+          scanRef.current(id);
+        }
       }
-    });
-  }, [readableIds, settings.offline, settings.quotas, agentsToScan]);
+    },
+    [readableIds, options],
+  );
+  const refresh = useCallback((queue = false) => scan(queue, false), [scan]);
+  const refreshRef = useRef<(queue?: boolean) => void>(() => undefined);
   refreshRef.current = refresh;
 
-  // Windows is scanned as soon as the archive is loaded. A WSL distribution joins the scan
-  // once its detection answers: the sources change, which scans again (queued if one runs).
+  // Windows is scanned as soon as the archive is loaded. A WSL distribution joins once its
+  // detection answers, and a changed option rescans every source; the others are left alone.
   useEffect(() => {
-    if (archiveReady) refresh(true);
-  }, [detected, archiveReady, refresh]);
+    if (archiveReady) scan(true, true);
+  }, [detected, archiveReady, scan]);
 
   // Automatic scans. Changing their interval only resets the timer: it does not scan.
   // The time of the next one is kept for the status bar (0: none planned).

@@ -6,6 +6,18 @@ app shows before installing an update (`scripts/prepare-release.ps1`). Only `###
 Improvements, Fixes, Removed) and an `#### Français` block (Nouveautés, Améliorations,
 Corrections, Retiré); the app shows the block of its language. Older sections are French only.
 
+## Unreleased
+
+#### English
+
+### Improvements
+- At launch, Windows is no longer scanned a second time when a WSL distribution is found: each environment is scanned on its own, so WSL starts sooner and the launch does less work.
+
+#### Français
+
+### Améliorations
+- Au lancement, Windows n'est plus scanné une deuxième fois quand une distribution WSL est trouvée : chaque environnement est scanné à part, WSL démarre plus tôt et le lancement travaille moins.
+
 ## 0.7.4
 
 #### English
