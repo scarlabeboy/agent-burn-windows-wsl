@@ -5,7 +5,21 @@ use std::{
 
 use crate::{Result, cli_error, fast::FxHashSet, home};
 
+/// The Codex folders whose usage is read: the usual homes, then the usage-only extras.
 pub(super) fn codex_usage_sources() -> Result<Vec<CodexUsageSource>> {
+    let mut homes = codex_home_paths()?;
+    for extra in home::usage_only_dirs(home::EXTRA_CODEX_DIRS) {
+        if !homes.contains(&extra)
+            && (extra.join("sessions").is_dir() || extra.join("archived_sessions").is_dir())
+        {
+            homes.push(extra);
+        }
+    }
+    Ok(codex_usage_sources_from_homes(homes))
+}
+
+/// The usual homes only: the signed-in account's own logs, for its plan and quota meters.
+pub(super) fn codex_account_sources() -> Result<Vec<CodexUsageSource>> {
     Ok(codex_usage_sources_from_homes(codex_home_paths()?))
 }
 
@@ -120,6 +134,45 @@ mod tests {
     use super::*;
 
     use agent_burn_test_support::Fixture;
+
+    #[test]
+    fn usage_only_folders_feed_usage_but_never_the_account() {
+        let fixture = Fixture::new();
+        let _ = fixture.create_dir_all("usual/sessions");
+        let _ = fixture.create_dir_all("backup/sessions");
+        let _ = fixture.create_dir_all("empty");
+
+        let _env = agent_burn_test_support::EnvVarGuard::set("CODEX_HOME", fixture.path("usual"));
+        let extras = format!(
+            "{},{}",
+            fixture.path("backup").display(),
+            fixture.path("empty").display()
+        );
+        // The guard above holds the environment lock, so this variable is set under it too.
+        unsafe { env::set_var(home::EXTRA_CODEX_DIRS, extras) };
+        let usage = codex_usage_sources().map(|sources| {
+            sources
+                .into_iter()
+                .map(|source| source.dir)
+                .collect::<Vec<_>>()
+        });
+        let account = codex_account_sources().map(|sources| {
+            sources
+                .into_iter()
+                .map(|source| source.dir)
+                .collect::<Vec<_>>()
+        });
+        unsafe { env::remove_var(home::EXTRA_CODEX_DIRS) };
+
+        assert_eq!(
+            usage.unwrap(),
+            vec![
+                fixture.path("usual/sessions"),
+                fixture.path("backup/sessions")
+            ]
+        );
+        assert_eq!(account.unwrap(), vec![fixture.path("usual/sessions")]);
+    }
 
     #[test]
     fn includes_archived_sessions_next_to_sessions() {

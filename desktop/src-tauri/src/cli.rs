@@ -230,6 +230,64 @@ pub struct Scope {
     pub since: Option<String>,
     pub until: Option<String>,
     pub agents: Vec<String>,
+    /// Folders chosen in the settings, read on Windows only.
+    pub folders: ExtraFolders,
+}
+
+/// Data folders read on Windows besides the usual ones (Settings › Data folders).
+#[derive(Clone, Default, serde::Deserialize)]
+#[serde(default)]
+pub struct ExtraFolders {
+    pub claude: Vec<String>,
+    pub codex: Vec<String>,
+}
+
+/// Where the CLI takes a harness's usage-only folders, and the subfolders that tell a folder of
+/// that harness apart. The usual folder stays as the session names it: these variables only add
+/// usage, never sign-in, plan, quota or settings, so another account's never stands in.
+fn folder_kind(harness: &str) -> Option<(&'static str, &'static [&'static str])> {
+    match harness {
+        "claude" => Some(("AGENT_BURN_EXTRA_CLAUDE_DIRS", &["projects"])),
+        "codex" => Some(("AGENT_BURN_EXTRA_CODEX_DIRS", &["sessions", "archived_sessions"])),
+        _ => None,
+    }
+}
+
+/// Whether `path` holds the data of `harness`. A path with a comma is refused: the CLI splits its
+/// list of folders on commas.
+pub fn holds_data(harness: &str, path: &str) -> bool {
+    let Some((_, marks)) = folder_kind(harness) else {
+        return false;
+    };
+    let folder = Path::new(path);
+    !path.contains(',')
+        && folder.is_absolute()
+        && marks.iter().any(|mark| folder.join(mark).is_dir())
+}
+
+/// The folders of `extra` that hold data of `harness`, as the CLI lists them, or `None` if none do.
+fn usage_only_list(harness: &str, extra: &[String]) -> Option<String> {
+    let kept: Vec<&str> = extra
+        .iter()
+        .map(String::as_str)
+        .filter(|path| holds_data(harness, path))
+        .collect();
+    (!kept.is_empty()).then(|| kept.join(","))
+}
+
+/// Point a Windows run at the extra folders too, for the harnesses it reads (`agents` empty =
+/// all): a folder on a share that hangs never holds back a scan that does not need it. Never for
+/// WSL, whose folders are its own.
+fn add_extra_folders(command: &mut Command, extra: &ExtraFolders, agents: &[String]) {
+    for (harness, chosen) in [("claude", &extra.claude), ("codex", &extra.codex)] {
+        let Some((variable, _)) = folder_kind(harness) else { continue };
+        if !agents.is_empty() && !agents.iter().any(|agent| agent == harness) {
+            continue;
+        }
+        if let Some(list) = usage_only_list(harness, chosen) {
+            command.env(variable, list);
+        }
+    }
 }
 
 fn is_compact_date(text: &str) -> bool {
@@ -285,9 +343,14 @@ pub fn run_summary(
     }
     let deadline = Instant::now() + TIMEOUT;
     let source = distro.map(str::to_owned);
+    let extra = scope.folders.clone();
+    let agents = scope.agents.clone();
     let opencode = reads_opencode(&scope.agents);
     let (command, _snapshot) = within(stall_key(distro, opencode), deadline, move || {
         let (home, snapshot) = apply_source(&mut command, source.as_deref(), opencode)?;
+        if source.is_none() {
+            add_extra_folders(&mut command, &extra, &agents);
+        }
         if value {
             if let Some(plan) = claude_plan(home.as_deref()) {
                 command.args(["--claude-plan", &plan]);
@@ -928,12 +991,43 @@ mod tests {
         assert!(!is_agent_name(""));
     }
 
+    /// A folder of the harness in the temp folder, removed by the caller.
+    fn data_folder(name: &str, mark: &str) -> String {
+        let folder = env::temp_dir().join(format!("abf-folder-test-{}-{name}", std::process::id()));
+        fs::create_dir_all(folder.join(mark)).unwrap();
+        folder.to_string_lossy().into_owned()
+    }
+
+    #[test]
+    fn only_folders_with_data_are_listed_for_the_cli() {
+        let claude = data_folder("claude", "projects");
+        let codex = data_folder("codex", "sessions");
+        assert_eq!(usage_only_list("claude", &[claude.clone(), codex.clone()]), Some(claude.clone()));
+        assert_eq!(usage_only_list("codex", &[claude.clone(), codex.clone()]), Some(codex.clone()));
+        assert_eq!(usage_only_list("claude", &[]), None);
+        assert_eq!(usage_only_list("claude", std::slice::from_ref(&codex)), None, "a Codex folder is no Claude folder");
+        let _ = fs::remove_dir_all(&claude);
+        let _ = fs::remove_dir_all(&codex);
+    }
+
+    #[test]
+    fn a_folder_without_data_or_with_a_comma_is_refused() {
+        let empty = env::temp_dir().join(format!("abf-folder-test-{}-empty", std::process::id()));
+        fs::create_dir_all(&empty).unwrap();
+        assert!(!holds_data("claude", &empty.to_string_lossy()));
+        assert!(!holds_data("claude", r"relative\folder"));
+        assert!(!holds_data("claude", r"C:\a,b"));
+        assert!(!holds_data("cursor", &empty.to_string_lossy()), "only Claude and Codex");
+        let _ = fs::remove_dir_all(&empty);
+    }
+
     #[test]
     fn asks_for_the_subscription_only_on_a_full_scan_with_quotas() {
         let scope = |since: Option<&str>| Scope {
             since: since.map(str::to_string),
             until: None,
             agents: vec!["codex".to_string()],
+            folders: ExtraFolders::default(),
         };
         assert!(wants_value(&scope(None), true));
         assert!(!wants_value(&scope(None), false), "quotas off: no online reading");

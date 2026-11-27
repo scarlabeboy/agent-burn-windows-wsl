@@ -56,7 +56,8 @@ and your prompts, conversations and file paths never leave the machine.
 **What the app reads**, on Windows and inside your WSL distributions: the local usage logs of
 the supported harnesses (Claude Code, Codex, OpenCode, Cursor…), and, for the subscription
 quotas, the sign-in each harness already stored (for example `~/.claude/.credentials.json` or
-`~/.codex/auth.json`). By default it never writes to those files, and never renews a sign-in.
+`~/.codex/auth.json`). It also reads the Claude Code and Codex folders you add in Settings ›
+Data folders, for usage only. By default it never writes to those files, and never renews a sign-in.
 One setting, off by default, changes that for Claude Code: **Renew the Claude Code sign-in**
 lets it renew an expired sign-in in `~/.claude/.credentials.json`, as Claude Code itself does.
 Turn it on only if you use the Claude apps without the `claude` command: the apps never renew

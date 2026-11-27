@@ -409,6 +409,9 @@ th .sort:hover, th .sort.on { color: var(--text); }
 .multi-name::placeholder { color: var(--muted); }
 .multi-remove { width: 34px; padding: 6px 0; text-align: center; }
 span.multi-remove { display: inline-block; }
+.folder-row { gap: 8px; }
+.folder-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.folder-refused { color: var(--danger); }
 .multi-add { justify-content: flex-end; }
 .multi-count { font-weight: 400; margin-left: -4px; }
 

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { readDataFolders, type DataFolders } from "./dataFolders";
 import { isLang } from "./i18n";
 import type { LimitUsageDay } from "./limitUsage";
 import { readMultiAccount } from "./multiAccount";
@@ -26,13 +27,17 @@ export interface UsageScope {
   until?: string;
 }
 
-/** `quotas`: a full scan also reads the subscription block online (`--value`). */
+/**
+ * `quotas`: a full scan also reads the subscription block online (`--value`). `folders`: extra data
+ * folders, read on Windows only (a WSL source reads its own).
+ */
 export const loadUsage = (
   distro: string | null,
   offline: boolean,
   quotas: boolean,
   scope: UsageScope = {},
   agents?: string[],
+  folders?: DataFolders,
 ) =>
   invoke<UsageReport>("load_usage", {
     distro,
@@ -41,7 +46,11 @@ export const loadUsage = (
     since: scope.since ?? null,
     until: scope.until ?? null,
     agents: agents ?? null,
+    folders: distro === null && folders ? { claude: folders.claude ?? [], codex: folders.codex ?? [] } : null,
   });
+
+/** Whether `path` holds data of `harness` (an extra folder chosen in the settings). */
+export const checkDataFolder = (harness: string, path: string) => invoke<boolean>("check_data_folder", { harness, path });
 
 /** Weekly Codex limit used per day by surface and model (empty when it cannot be read). */
 export const loadLimitUsage = (distro: string | null) =>
@@ -137,6 +146,7 @@ export function readSettings(): Settings {
     const trayWindow = ["session", "weekly"].includes(stored.trayWindow) ? stored.trayWindow : "tightest";
     // Checked line by line: a damaged value would break the settings page or the plan total.
     const multiAccount = readMultiAccount(stored.multiAccount);
+    const dataFolders = readDataFolders(stored.dataFolders);
     // A switch saved as anything but true or false (a damaged file) takes its default: a text
     // "offline" would otherwise reach the CLI and fail every scan.
     const switches = Object.fromEntries(
@@ -154,6 +164,7 @@ export function readSettings(): Settings {
       trayIcon,
       trayWindow,
       multiAccount,
+      dataFolders,
     };
   } catch {
     return defaults;

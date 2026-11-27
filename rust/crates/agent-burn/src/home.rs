@@ -9,6 +9,24 @@ pub(crate) fn home_dir() -> Option<PathBuf> {
     )
 }
 
+/// Folders listed in `variable` (comma-separated) whose usage logs are read besides the usual
+/// ones. Only usage comes from them: sign-in, plan, quotas and settings never do, so another
+/// account's data never stands in for the signed-in one. The desktop app sets these.
+pub(crate) fn usage_only_dirs(variable: &str) -> Vec<PathBuf> {
+    env::var(variable)
+        .map(|list| {
+            list.split(',')
+                .map(str::trim)
+                .filter(|path| !path.is_empty())
+                .map(PathBuf::from)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+pub(crate) const EXTRA_CLAUDE_DIRS: &str = "AGENT_BURN_EXTRA_CLAUDE_DIRS";
+pub(crate) const EXTRA_CODEX_DIRS: &str = "AGENT_BURN_EXTRA_CODEX_DIRS";
+
 fn home_dir_from_env(
     home: Option<std::ffi::OsString>,
     user_profile: Option<std::ffi::OsString>,

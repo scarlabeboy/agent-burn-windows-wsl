@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type MutableRe
 import { loadUsage } from "./api";
 import { cacheReport, cachedReports, flush, loadArchive } from "./archive";
 import { quotasActive } from "./settingsHints";
-import { scanOptions, sourcesToScan } from "./scanPlan";
+import { scanOptions, sourceOptions, sourcesToScan } from "./scanPlan";
 import { loadedAtOf, reportOf } from "./sourceState";
 import type { Detected, ModelPricing, Settings, SourceId, SourceState } from "./types";
 
@@ -61,24 +61,26 @@ export function useUsageReports({
   // The options of each source's last scan, to tell a new source or a changed option apart.
   const scannedWith = useRef(new Map<string, string>());
   const options = scanOptions(settings.offline, quotasActive(settings), agentsToScan);
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
+  const folders = settings.dataFolders;
+  const optionsOf = (id: SourceId) => sourceOptions(options, id, folders);
+  const optionsRef = useRef(optionsOf);
+  optionsRef.current = optionsOf;
 
   const scanRef = useRef<(id: SourceId) => void>(() => undefined);
   scanRef.current = (id: SourceId) => {
     scanning.current.add(id);
-    const startedWith = options;
+    const startedWith = optionsOf(id);
     scannedWith.current.set(id, startedWith);
     setStates((current) => ({
       ...current,
       [id]: { status: "loading", previous: reportOf(current[id]), previousAt: loadedAtOf(current[id]) },
     }));
-    loadUsage(id === "windows" ? null : id.slice(4), settings.offline, quotasActive(settings), {}, agentsToScan)
+    loadUsage(id === "windows" ? null : id.slice(4), settings.offline, quotasActive(settings), {}, agentsToScan, folders)
       .then(({ pricing: nextPricing, pricingFallback, ...report }) => {
         // Keep reference rates only in memory; the last Windows or WSL read wins, unless it was
         // started before an option changed: an offline scan ending late must not replace the
         // downloaded rates of a newer one.
-        if (nextPricing && optionsRef.current === startedWith) setPricing((current) => ({ ...current, ...nextPricing }));
+        if (nextPricing && optionsRef.current(id) === startedWith) setPricing((current) => ({ ...current, ...nextPricing }));
         setFallbacks((current) => ({ ...current, [id]: pricingFallback === true }));
         const loadedAt = Date.now();
         cacheReport(id, report, loadedAt, !settings.offline);
@@ -111,7 +113,7 @@ export function useUsageReports({
       if (!archiveReady) return;
       // A source that went away (WSL stopped) is scanned again when it comes back.
       for (const id of scannedWith.current.keys()) if (!readableIds.includes(id as SourceId)) scannedWith.current.delete(id);
-      const ids = onlyChanged ? sourcesToScan(readableIds, scannedWith.current, options) : readableIds;
+      const ids = onlyChanged ? sourcesToScan(readableIds, scannedWith.current, optionsOf) : readableIds;
       for (const id of ids) {
         // A change of sources or options waits for that source's running scan instead of being lost.
         if (scanning.current.has(id)) {
@@ -121,7 +123,7 @@ export function useUsageReports({
         }
       }
     },
-    [archiveReady, readableIds, options],
+    [archiveReady, readableIds, options, folders],
   );
   const refresh = useCallback((queue = false) => scan(queue, false), [scan]);
   const refreshRef = useRef<(queue?: boolean) => void>(() => undefined);

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import type { DataFolders } from "./dataFolders";
 import { mergeReports, withoutHarnesses } from "./aggregate";
 import { loadUsage } from "./api";
 import { archivedDays } from "./archive";
@@ -32,6 +33,7 @@ export function usePeriodReports({
   lastScan,
   offline,
   agentsToScan,
+  folders,
   setPricing,
 }: {
   period: Period;
@@ -50,6 +52,8 @@ export function usePeriodReports({
   lastScan: number;
   offline: boolean;
   agentsToScan: string[] | undefined;
+  /** Extra data folders read on Windows (Settings › Data folders). */
+  folders: DataFolders | undefined;
   setPricing: Dispatch<SetStateAction<Record<string, ModelPricing>>>;
 }) {
   // Per-model detail of a period, with when it was asked for: it is only used while no scan of
@@ -176,6 +180,7 @@ export function usePeriodReports({
             false,
             { since: compactDate(rangeSince), until: rangeUntil ? compactDate(rangeUntil) : undefined },
             detailScope === "*" ? agentsToScan : [detailScope],
+            folders,
           );
           if (nextPricing) setPricing((current) => ({ ...current, ...nextPricing }));
           setDetails((current) => ({ ...current, [key]: { report: detail, requestedAt } }));
@@ -192,7 +197,7 @@ export function usePeriodReports({
     return () => {
       cancelled = true;
     };
-  }, [rangeSince, rangeUntil, detailScope, activeKey, readableKey, detected, archiveReady, lastScan, scanningKey, offline, agentsToScan, detailRetry]);
+  }, [rangeSince, rangeUntil, detailScope, activeKey, readableKey, detected, archiveReady, lastScan, scanningKey, offline, agentsToScan, folders, detailRetry]);
 
   return { effectivePeriod, range, localParts, localReport, navReport, resetRtd, resetSpend, report, detailError, detailFallback };
 }

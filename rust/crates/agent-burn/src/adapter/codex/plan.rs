@@ -2,7 +2,7 @@ use std::fs;
 
 use serde_json::Value;
 
-use super::paths::{codex_usage_sources, collect_codex_usage_files};
+use super::paths::{codex_account_sources, collect_codex_usage_files};
 use crate::TimestampMs;
 
 /// A single rate-limit window reported by Codex (e.g. the 5h or weekly window).
@@ -75,7 +75,7 @@ pub(super) fn latest_logged_snapshot() -> Option<(Option<TimestampMs>, CodexPlan
     const MAX_FILES_SCANNED: usize = 24;
     const TAIL_BYTES: usize = 64 * 1024;
 
-    let sources = codex_usage_sources().ok()?;
+    let sources = codex_account_sources().ok()?;
     let mut files = Vec::new();
     for source in &sources {
         files.extend(collect_codex_usage_files(&source.dir));

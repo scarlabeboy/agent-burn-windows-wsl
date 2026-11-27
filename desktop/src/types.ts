@@ -134,6 +134,9 @@ export type TabId = "windows" | "wsl" | "computer";
 
 export type WslMode = "auto" | "keep";
 
+/** Saves new settings, or a change applied to the settings of the moment. */
+export type UpdateSettings = (change: Settings | ((current: Settings) => Settings)) => void;
+
 export interface Settings {
   /** Off: Windows only, WSL is never queried and the side bar has no environment choice. */
   wslRead: boolean;
@@ -165,6 +168,8 @@ export interface Settings {
   trayWindow: TrayWindow;
   /** Accounts declared by hand per harness, for people who use more than one. Kept while off. */
   multiAccount?: Partial<Record<QuotaHarness, MultiAccountConfig>>;
+  /** Extra folders read on Windows besides the usual one, per harness (usage only, never quotas). */
+  dataFolders?: Partial<Record<"claude" | "codex", string[]>>;
 }
 
 /** One account declared by hand: an optional name and a plan of `PLAN_CATALOG`, or none chosen yet. */

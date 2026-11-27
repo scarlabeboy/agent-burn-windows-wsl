@@ -36,17 +36,28 @@ async fn load_usage(
     since: Option<String>,
     until: Option<String>,
     agents: Option<Vec<String>>,
+    folders: Option<cli::ExtraFolders>,
 ) -> Result<Value, String> {
     let scope = cli::Scope {
         since,
         until,
         agents: agents.unwrap_or_default(),
+        folders: folders.unwrap_or_default(),
     };
     tauri::async_runtime::spawn_blocking(move || {
         cli::run_summary(distro.as_deref(), offline, quotas, &scope)
     })
     .await
     .map_err(|error| error.to_string())?
+}
+
+/// Whether `path` holds the data of `harness` ("claude" or "codex"), for an extra folder chosen in
+/// the settings. Run apart: a folder on a network share that does not answer must not freeze the app.
+#[tauri::command]
+async fn check_data_folder(harness: String, path: String) -> bool {
+    tauri::async_runtime::spawn_blocking(move || cli::holds_data(&harness, &path))
+        .await
+        .unwrap_or(false)
 }
 
 /// Live subscription limits (5-hour session and weekly) for one harness and source.
@@ -161,6 +172,8 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         // Opens the release notes and the repository in the browser (github.com only).
         .plugin(tauri_plugin_opener::init())
+        // Picks the extra data folders in Settings (folders only, nothing is read or written by it).
+        .plugin(tauri_plugin_dialog::init())
         .manage(background::CloseToTray::default())
         .on_window_event(|window, event| background::on_window_event(window, event))
         .setup(|app| {
@@ -180,6 +193,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             detect_sources,
             load_usage,
+            check_data_folder,
             load_quota,
             load_limit_usage,
             archive_read,

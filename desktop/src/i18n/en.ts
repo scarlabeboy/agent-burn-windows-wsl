@@ -8,7 +8,7 @@ export const en: Strings = {
     reload: "Reload",
     settings: "Settings",
     settingsSub: (wsl: boolean) =>
-      `General, background, data, quotas, multiple accounts, ${wsl ? "WSL, " : ""}harnesses and updates`,
+      `General, background, data, quotas, multiple accounts, ${wsl ? "WSL, " : ""}harnesses, data folders and updates`,
     closeSettings: "Close settings",
     overview: "Overview",
     computer: "Computer",
@@ -71,6 +71,14 @@ export const en: Strings = {
     multiChoose: "Choose a plan",
     multiAdd: (agent: string) => `Add another ${agent} account`,
     multiRemove: (agent: string, index: number) => `Remove ${agent} account ${index}`,
+    foldersCard: "Data folders",
+    foldersTitle: (agent: string) => `More ${agent} folders`,
+    foldersHint: (mark: string) => `Read on Windows besides the usual one; each must hold a ${mark} folder`,
+    foldersAdd: "Add a folder…",
+    foldersRemove: (path: string) => `Remove ${path}`,
+    foldersInvalid: (agent: string, mark: string) => `That folder holds no ${agent} data (no ${mark} folder inside): it was not added.`,
+    foldersNote:
+      "Only usage and costs are read from these folders. Quotas and the plan stay those of the usual sign-in, so another account's quota is never mixed in. WSL distributions keep their own folders. Removing a folder does not remove the days already kept in the history.",
     language: "Language",
     languageHint: "Language of the interface, amounts, dates and update notes.",
     theme: "Theme",

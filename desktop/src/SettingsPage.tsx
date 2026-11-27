@@ -1,4 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { DataFolderSettings } from "./DataFolderSettings";
 import { REFRESH_CHOICES } from "./api";
 import { EnvIcon } from "./EnvIcons";
 import { HarnessSettings } from "./HarnessSettings";
@@ -8,7 +9,7 @@ import { MultiAccountSettings } from "./MultiAccountSettings";
 import { SettingRow, SettingsCard, Switch } from "./SettingsUi";
 import { autoUpdateActive, autoUpdateHint, offlineHint, quotaHint, refreshHint, showsWslCard } from "./settingsHints";
 import { Glyph } from "./TitleIcons";
-import { QUOTA_HARNESSES, type QuotaHarness, type Settings, type TrayWindow, type WslMode } from "./types";
+import { QUOTA_HARNESSES, type QuotaHarness, type Settings, type TrayWindow, type UpdateSettings, type WslMode } from "./types";
 import { checkHint, foundHint } from "./updateHints";
 import { REPO_URL, type useUpdater } from "./updater";
 import { agentLabel } from "./views";
@@ -37,7 +38,7 @@ export function SettingsPage({
 }: {
   settings: Settings;
   lang: Lang;
-  updateSettings: (next: Settings) => void;
+  updateSettings: UpdateSettings;
   quotasOn: boolean;
   autostart: boolean | null;
   autostartBusy: boolean;
@@ -233,6 +234,10 @@ export function SettingsPage({
       <SettingsCard id="harnesses" title={text.app.harness} icon={<Glyph kind="flame" size={16} />}>
         <HarnessSettings groups={harnessGroups} onToggle={toggleHarness} />
         <p className="muted small set-note">{text.settings.harnessNote}</p>
+      </SettingsCard>
+
+      <SettingsCard id="folders" title={text.settings.foldersCard} icon={<Glyph kind="data" size={16} />}>
+        <DataFolderSettings settings={settings} updateSettings={updateSettings} />
       </SettingsCard>
 
       <SettingsCard id="updates" title={text.settings.updates} icon={<Glyph kind="updates" size={16} />}>

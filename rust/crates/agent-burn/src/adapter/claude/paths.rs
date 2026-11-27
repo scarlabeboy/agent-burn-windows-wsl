@@ -10,7 +10,19 @@ use crate::{Result, cli_error, fast::FxHashSet, home};
 #[cfg(test)]
 use crate::{TimestampMs, parse_ts_timestamp};
 
+/// The Claude data folders whose usage is read: the usual ones, then the usage-only extras.
 pub(crate) fn claude_paths() -> Result<Vec<PathBuf>> {
+    let mut paths = usual_claude_paths()?;
+    for raw in home::usage_only_dirs(home::EXTRA_CLAUDE_DIRS) {
+        let path = normalize_claude_config_path(&raw.to_string_lossy());
+        if path.join("projects").is_dir() && !paths.contains(&path) {
+            paths.push(path);
+        }
+    }
+    Ok(paths)
+}
+
+fn usual_claude_paths() -> Result<Vec<PathBuf>> {
     let mut paths = Vec::new();
     let mut seen = FxHashSet::default();
     if let Ok(env_paths) = env::var("CLAUDE_CONFIG_DIR") {

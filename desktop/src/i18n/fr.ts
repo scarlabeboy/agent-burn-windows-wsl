@@ -9,7 +9,7 @@ export const fr = {
     reload: "Recharger",
     settings: "Réglages",
     settingsSub: (wsl: boolean) =>
-      `Général, arrière-plan, données, quotas, multicompte, ${wsl ? "WSL, " : ""}harness et mises à jour`,
+      `Général, arrière-plan, données, quotas, multicompte, ${wsl ? "WSL, " : ""}harness, dossiers de données et mises à jour`,
     closeSettings: "Fermer les réglages",
     overview: "Vue d'ensemble",
     computer: "Ordinateur",
@@ -73,6 +73,14 @@ export const fr = {
     multiChoose: "Choisir un forfait",
     multiAdd: (agent: string) => `Ajouter un autre compte ${agent}`,
     multiRemove: (agent: string, index: number) => `Retirer le compte ${agent} ${index}`,
+    foldersCard: "Dossiers de données",
+    foldersTitle: (agent: string) => `Autres dossiers ${agent}`,
+    foldersHint: (mark: string) => `Lus sous Windows en plus du dossier habituel ; chacun doit contenir un dossier ${mark}`,
+    foldersAdd: "Ajouter un dossier…",
+    foldersRemove: (path: string) => `Retirer ${path}`,
+    foldersInvalid: (agent: string, mark: string) => `Ce dossier ne contient pas de données ${agent} (pas de dossier ${mark}) : il n'a pas été ajouté.`,
+    foldersNote:
+      "Seuls l'usage et les coûts sont lus dans ces dossiers. Les quotas et le forfait restent ceux de la connexion habituelle, pour ne jamais mélanger le quota d'un autre compte. Les distributions WSL gardent leurs propres dossiers. Retirer un dossier ne retire pas les jours déjà gardés dans l'historique.",
     language: "Langue",
     languageHint: "Langue de l'interface, des montants, des dates et des notes de mise à jour.",
     theme: "Thème",

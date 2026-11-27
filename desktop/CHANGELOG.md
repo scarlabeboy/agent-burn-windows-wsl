@@ -10,10 +10,16 @@ Corrections, Retiré); the app shows the block of its language. Older sections a
 
 #### English
 
+### New
+- Settings › Data folders: add Claude Code or Codex folders kept outside the usual place (another account, a backup, an old computer). Their usage and costs are added to Windows; quotas and the plan stay those of the usual sign-in.
+
 ### Improvements
 - At launch, Windows is no longer scanned a second time when a WSL distribution is found: each environment is scanned on its own, so WSL starts sooner and the launch does less work.
 
 #### Français
+
+### Nouveautés
+- Réglages › Dossiers de données : ajoutez des dossiers Claude Code ou Codex rangés ailleurs que d'habitude (autre compte, sauvegarde, ancien ordinateur). Leur usage et leurs coûts s'ajoutent à Windows ; les quotas et le forfait restent ceux de la connexion habituelle.
 
 ### Améliorations
 - Au lancement, Windows n'est plus scanné une deuxième fois quand une distribution WSL est trouvée : chaque environnement est scanné à part, WSL démarre plus tôt et le lancement travaille moins.

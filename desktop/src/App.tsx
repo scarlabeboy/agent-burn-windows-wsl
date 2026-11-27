@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { readPeriod, readSeen, readTab, writePeriod, writeSeen, writeSettings, writeTab } from "./api";
 import { EmptyPeriod, LimitUsageSection, Pending, QuotaMissing, ReadingLimitSection, noUsage } from "./AppNotices";
 import { totalBreakdown } from "./aggregate";
@@ -26,7 +26,7 @@ import { loadedAtOf, reportOf } from "./sourceState";
 import { StatusBar, useAppVersion } from "./StatusBar";
 import { pickClaudeAccount, pickSubscription, withAccountSpend } from "./subscription";
 import { Tooltip } from "./Tooltip";
-import { QUOTA_HARNESSES, type ModelPricing, type QuotaHarness, type QuotaReading, type Settings, type SourceId, type TabId, type UsageReport } from "./types";
+import { QUOTA_HARNESSES, type ModelPricing, type QuotaHarness, type QuotaReading, type Settings, type SourceId, type TabId, type UpdateSettings, type UsageReport } from "./types";
 import { UpdateDialog } from "./UpdateDialog";
 import { useUpdater } from "./updater";
 import { useCodexBackfill, useCodexLimitUsage } from "./useCodexHistory";
@@ -144,8 +144,15 @@ export default function App({ initialSettings, onThemeChange }: {
     if (!offered) setShowUpdate(false);
   }, [offered]);
   const appVersion = useAppVersion();
-  const updateSettings = (next: Settings) => {
-    if (next.theme !== settings.theme) onThemeChange(next.theme);
+  // The settings of the moment, for a change computed after an await (a folder check): the
+  // settings page that started it may have closed since.
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const updateSettings: UpdateSettings = (change) => {
+    const current = settingsRef.current;
+    const next = typeof change === "function" ? change(current) : change;
+    if (next.theme !== current.theme) onThemeChange(next.theme);
+    settingsRef.current = next;
     setSettings(next);
     writeSettings(next);
   };
@@ -306,6 +313,7 @@ export default function App({ initialSettings, onThemeChange }: {
       lastScan,
       offline: settings.offline,
       agentsToScan,
+      folders: settings.dataFolders,
       setPricing,
     });
 
