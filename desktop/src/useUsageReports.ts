@@ -61,19 +61,24 @@ export function useUsageReports({
   // The options of each source's last scan, to tell a new source or a changed option apart.
   const scannedWith = useRef(new Map<string, string>());
   const options = scanOptions(settings.offline, quotasActive(settings), agentsToScan);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
 
   const scanRef = useRef<(id: SourceId) => void>(() => undefined);
   scanRef.current = (id: SourceId) => {
     scanning.current.add(id);
-    scannedWith.current.set(id, options);
+    const startedWith = options;
+    scannedWith.current.set(id, startedWith);
     setStates((current) => ({
       ...current,
       [id]: { status: "loading", previous: reportOf(current[id]), previousAt: loadedAtOf(current[id]) },
     }));
     loadUsage(id === "windows" ? null : id.slice(4), settings.offline, quotasActive(settings), {}, agentsToScan)
       .then(({ pricing: nextPricing, pricingFallback, ...report }) => {
-        // Keep reference rates only in memory; the last Windows or WSL read wins.
-        if (nextPricing) setPricing((current) => ({ ...current, ...nextPricing }));
+        // Keep reference rates only in memory; the last Windows or WSL read wins, unless it was
+        // started before an option changed: an offline scan ending late must not replace the
+        // downloaded rates of a newer one.
+        if (nextPricing && optionsRef.current === startedWith) setPricing((current) => ({ ...current, ...nextPricing }));
         setFallbacks((current) => ({ ...current, [id]: pricingFallback === true }));
         const loadedAt = Date.now();
         cacheReport(id, report, loadedAt, !settings.offline);
@@ -102,6 +107,8 @@ export function useUsageReports({
   /** `onlyChanged`: only the sources not yet scanned with the current options. */
   const scan = useCallback(
     (queue: boolean, onlyChanged: boolean) => {
+      // Not before the archive is loaded: it would replace the report cache this scan writes to.
+      if (!archiveReady) return;
       // A source that went away (WSL stopped) is scanned again when it comes back.
       for (const id of scannedWith.current.keys()) if (!readableIds.includes(id as SourceId)) scannedWith.current.delete(id);
       const ids = onlyChanged ? sourcesToScan(readableIds, scannedWith.current, options) : readableIds;
@@ -114,7 +121,7 @@ export function useUsageReports({
         }
       }
     },
-    [readableIds, options],
+    [archiveReady, readableIds, options],
   );
   const refresh = useCallback((queue = false) => scan(queue, false), [scan]);
   const refreshRef = useRef<(queue?: boolean) => void>(() => undefined);
