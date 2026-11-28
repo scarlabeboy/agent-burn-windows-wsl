@@ -36,3 +36,6 @@ export function withoutZeros<T extends object>(rows: T[], keys: string[]): T[] {
     return copy as T;
   });
 }
+
+/** The widest a bar may grow, so a chart with one or two buckets does not draw them full width. */
+export const MAX_BAR_SIZE = 48;

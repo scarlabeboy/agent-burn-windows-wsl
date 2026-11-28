@@ -32,7 +32,7 @@ import {
 import { formatNumber, getLang, locale, percent, t } from "./i18n";
 import { modelDisplayName, pricingTip } from "./pricingFormat";
 import { Glyph, TitleIcon, type GlyphKind } from "./TitleIcons";
-import { ChartLabel, withoutZeros } from "./ChartLabel";
+import { ChartLabel, MAX_BAR_SIZE, withoutZeros } from "./ChartLabel";
 import { Tooltip as InfoTooltip } from "./Tooltip";
 import { useNow } from "./useNow";
 import type { MultiSummary } from "./multiAccount";
@@ -253,7 +253,7 @@ export function SpendChart({
       </header>
       <div className="chart">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={withoutZeros(rows, report.agents.map((agent) => agent.agent))} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <BarChart data={withoutZeros(rows, report.agents.map((agent) => agent.agent))} maxBarSize={MAX_BAR_SIZE} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="var(--grid)" vertical={false} />
             <XAxis
               dataKey="bucket"
