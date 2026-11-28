@@ -18,7 +18,6 @@ import {
   quotaOffReason,
   quotasActive,
   readingLimitOffReason,
-  showsWslCard,
   subscriptionOffReason,
 } from "./settingsHints";
 import { OVERVIEW, Sidebar } from "./Sidebar";
@@ -435,7 +434,7 @@ export default function App({ initialSettings, onThemeChange }: {
   const header = showSettings ? (
     <div className="page-head">
       <h1 className="page-title">{text.app.settings}</h1>
-      <p className="muted page-sub">{text.app.settingsSub(showsWslCard(settings, distros.length > 0))}</p>
+      <p className="muted page-sub">{text.app.settingsSub}</p>
     </div>
   ) : (
     <div className="page-head">
